@@ -24,6 +24,8 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/calculadora', 'Solo simulación'],
       ['/fiorella/historial', 'Historial real aún no importado'],
       ['/fiorella/configuracion', 'Configuración oficial'],
+      ['/fiorella/presupuestos', 'Presupuestos GF'],
+      ['/fiorella/gastos', 'Seguimiento GV'],
       ['/control', 'Historial real pendiente de importación'],
       ['/not-a-page', 'Página no encontrada'],
     ];
