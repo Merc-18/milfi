@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "node tests/run.js",
     "test:browser": "npm run build && node tests/browser.test.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:control-structure": "node scripts/check-control-structure.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.4",

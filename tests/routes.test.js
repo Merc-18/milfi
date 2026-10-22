@@ -28,6 +28,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/gastos', 'Seguimiento GV'],
       ['/fiorella/simulador', 'Escenarios hipotéticos'],
       ['/control', 'Historial real pendiente de importación'],
+      ['/control/preimportacion', 'Procesamiento local y temporal'],
       ['/not-a-page', 'Página no encontrada'],
     ];
     for (const [path, text] of expectations) {

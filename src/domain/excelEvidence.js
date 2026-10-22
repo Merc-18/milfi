@@ -23,6 +23,12 @@ export function excelRange(value) {
   return { first, last, ref: first.ref === last.ref ? first.ref : `${first.ref}:${last.ref}` };
 }
 
+export const columnName = number => {
+  let name = '';
+  for (let rest = number; rest > 0; rest = Math.floor((rest - 1) / 26)) name = String.fromCharCode(65 + ((rest - 1) % 26)) + name;
+  return name;
+};
+
 const contains = (outer, inner) => outer.first.row <= inner.first.row && outer.last.row >= inner.last.row
   && outer.first.column <= inner.first.column && outer.last.column >= inner.last.column;
 const fieldName = field => field === 'date' ? 'effectiveDate' : field;
@@ -211,6 +217,14 @@ function fieldValue(field, cells) {
     return years.length === 1 && years[0] >= 1 && found.length === 1 ? { year: years[0], month: found[0] } : null;
   }
   return null;
+}
+
+// Read-only helpers for the workbook reader/preimport: same resolution and
+// interpretation rules as the contract checks below, with no extra inference.
+export const resolveExcelReference = (record, reference, context) => resolveReference(workbookFor(record.provenance, context), reference);
+export function interpretExcelField(record, field, context) {
+  const cells = isExcelSource(record?.provenance) && !validateExcelTrace(record.provenance).length ? captures(record, field, context) : null;
+  return cells ? fieldValue(field, cells) : null;
 }
 
 export function sourceOperationKey(record, context) {

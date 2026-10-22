@@ -9,3 +9,4 @@ import './evidenceRelations.test.js';
 import './fiorellaSession.test.js';
 import './planning.test.js';
 import './controlSession.test.js';
+import './controlPreimport.test.js';
