@@ -76,7 +76,7 @@ async function openBrowser(executable, profile) {
     await page('Network.setBlockedURLs', { urls: ['*fonts.googleapis.com*', '*fonts.gstatic.com*'] });
     const evaluate = async expression => {
       const result = await page('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
-      if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description ?? result.exceptionDetails.text);
       return result.result.value;
     };
     const waitFor = async expression => {
@@ -173,7 +173,7 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('reload clears only session scenarios and still reports real history as not imported', async () => {
       await browser.page('Page.reload');
-      await browser.waitFor('document.body.textContent.includes("Todavía no guardaste simulaciones")');
+      await browser.waitFor('document.body?.textContent.includes("Todavía no guardaste simulaciones")');
       assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 0);
       assert.ok(await browser.evaluate('document.body.textContent.includes("Historial real aún no importado")'));
       await clickLink('/control', 'Control Finanzas M&F');

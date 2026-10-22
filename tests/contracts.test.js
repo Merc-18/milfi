@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { inspectMovement, inspectMovementBatch, findDuplicateIds, partitionMovements, validateEnvelope, validateMovement } from '../src/domain/models.js';
-import { sumConfirmedMovements } from '../src/domain/movementTotals.js';
+import { inspectMovement, inspectMovementBatch, findDuplicateIds, partitionMovements, validateEnvelope, validateMovement } from './helpers/excelFixture.js';
+import { attachEvidence, freshFingerprint, review, sumConfirmedMovements } from './helpers/excelFixture.js';
 import { createMilfiStore } from '../src/store/useStore.js';
 
 // Independently invented fixtures. No values or labels from private sources.
@@ -11,13 +11,16 @@ function sample(overrides = {}) {
     moduleId: 'control-mf', origin: 'real', validationStatus: 'confirmed', actorId: 'milton',
     period: { year: 2032, month: 5 }, kind: 'deposit', purpose: 'savings', contributorId: 'fiorella',
     amount: '12.50', currency: 'PEN', effectiveDate: '2032-05-12', description: null,
-    provenance: { type: 'control-excel', sourceId: 'invented-workbook', sourceFingerprint: 'b'.repeat(64),
+    provenance: { type: 'control-excel', sourceId: 'invented-workbook', sourceFingerprint: freshFingerprint(),
       importBatchId: 'invented-import', sheet: 'Invented', row: 2,
       cells: { amount: 'C2', date: 'A2' }, original: { amount: '12.50', date: '2032-05-12' } },
     ...overrides,
   };
-  if (!overrides.provenance && typeof record.amount === 'string') record.provenance.original.amount = record.amount;
-  return record;
+  if (!overrides.provenance) {
+    record.provenance.original.amount = record.amount;
+    record.provenance.original.date = record.effectiveDate;
+  }
+  return attachEvidence(record);
 }
 const scope = { currency: 'PEN', householdId: 'test-household', purpose: 'savings', kind: 'deposit' };
 
@@ -124,13 +127,13 @@ test('amount interpretation requires review evidence tied to original text and e
   const record = sample({ provenance: { ...source, original: { ...source.original, amount: '$12.50' } },
     amountInterpretation: { decision: 'accepted', originalAmount: '$12.50', amount: '12.50', currency: 'PEN',
       reviewedBy: 'milton', evidenceReference: 'invented-external-review' } });
+  assert.equal(inspectMovement(record).eligibleForConfirmed, false);
+  record.evidenceReviews = [review(record, 'amount')];
   assert.equal(inspectMovement(record).eligibleForConfirmed, true);
-  for (const review of [
-    { ...record.amountInterpretation, evidenceReference: '' },
-    { ...record.amountInterpretation, originalAmount: '$12.50+' },
-    { ...record.amountInterpretation, currency: 'USD' },
-    { ...record.amountInterpretation, amount: '99' },
-  ]) assert.equal(inspectMovement({ ...record, amountInterpretation: review }).eligibleForConfirmed, false);
+  for (const changes of [
+    { evidenceReference: '' }, { binding: 'another-original-value' },
+    { field: 'currency' }, { reviewedBy: 'unknown' }, { reviewedAt: '' },
+  ]) assert.equal(inspectMovement({ ...record, evidenceReviews: [review(record, 'amount', changes)] }).eligibleForConfirmed, false);
 });
 
 test('all duplicate ID occurrences are detected and excluded rather than keeping a winner', () => {

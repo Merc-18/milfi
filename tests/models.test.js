@@ -1,20 +1,26 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isValidDate, isValidPeriod, partitionMovements, validateEnvelope, validateMovement } from '../src/domain/models.js';
+import { isValidDate, isValidPeriod, partitionMovements, validateEnvelope, validateMovement } from './helpers/excelFixture.js';
+import { attachEvidence, freshFingerprint } from './helpers/excelFixture.js';
 import { prepareSimulation } from '../src/application/simulations.js';
 
 // Synthetic fixtures only. Never copy records from private workbooks here.
 function movement(overrides = {}) {
-  return {
+  const record = {
     id: 'synthetic-movement', schemaVersion: 1, householdId: 'synthetic-household', revision: 1,
     moduleId: 'control-mf', origin: 'real', validationStatus: 'confirmed',
     actorId: null, period: { year: 2030, month: 6 }, kind: 'deposit', purpose: 'savings',
     contributorId: 'fiorella', amount: '25', currency: 'PEN', effectiveDate: null, description: null,
-    provenance: { type: 'control-excel', sourceId: 'synthetic-source', sourceFingerprint: 'a'.repeat(64),
+    provenance: { type: 'control-excel', sourceId: 'synthetic-source', sourceFingerprint: freshFingerprint(),
       importBatchId: 'synthetic-batch', sheet: 'Synthetic', row: 1,
       cells: { amount: 'C1', date: 'A1' }, original: { amount: '25', date: null } },
     ...overrides,
   };
+  if (!overrides.provenance) {
+    record.provenance.original.amount = record.amount;
+    record.provenance.original.date = record.effectiveDate;
+  }
+  return attachEvidence(record);
 }
 
 test('periods and dates reject impossible values without guessing date formats', () => {

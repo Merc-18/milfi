@@ -3,12 +3,12 @@ import { isKnownCurrency, partitionMovements } from './models.js';
 
 // Contract-level sum for an explicit scope. No net balance, currency conversion,
 // overdraft rule, import, persistence or confirmation operation is provided.
-export function sumConfirmedMovements(records, { currency, householdId, purpose, kind } = {}) {
+export function sumConfirmedMovements(records, { currency, householdId, purpose, kind } = {}, evidenceContext) {
   if (!isKnownCurrency(currency) || typeof householdId !== 'string' || !householdId.trim()
     || !['expenses', 'savings'].includes(purpose) || !['deposit', 'withdrawal'].includes(kind)) {
     return { status: 'blocked', reason: 'EXPLICIT_SCOPE_REQUIRED', total: null };
   }
-  const groups = partitionMovements(records);
+  const groups = partitionMovements(records, evidenceContext);
   const selected = groups.confirmed.filter(record => record.householdId === householdId
     && record.purpose === purpose && record.kind === kind);
   if (selected.some(record => record.currency !== currency)) {

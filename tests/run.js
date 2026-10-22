@@ -4,3 +4,4 @@ import './models.test.js';
 import './store.test.js';
 import './routes.test.js';
 import './contracts.test.js';
+import './excelEvidence.test.js';

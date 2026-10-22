@@ -1,4 +1,5 @@
 import { hasFractionalCent, normalizeAmount } from './amounts.js';
+import { inspectExcelEvidence, isEvidenceReview, sourceOperationKey, validateExcelTrace } from './excelEvidence.js';
 
 export const MODULES = Object.freeze({ FIORELLA: 'fiorella', CONTROL: 'control-mf' });
 export const ORIGINS = Object.freeze({ SIMULATED: 'simulated', REAL: 'real' });
@@ -26,7 +27,9 @@ const SOURCE_CLASSIFICATION = Object.freeze({
  * @typedef {{year: number, month: number}} Period
  * @typedef {{type: string, sourceId: string, sheet?: string, row?: number,
  * sourceFingerprint?: string, importBatchId?: string,
- * cells?: Object<string, string>, original?: Object<string, string|null>}} Provenance
+ * cells?: Object<string, string>, original?: Object<string, string|null>,
+ * operation?: {range: string, amountRef: string},
+ * evidence?: Object<string, Array<{sheet: string, ref: string, role?: string}>>}} Provenance
  * @typedef {{id: string, householdId: string|null, schemaVersion: 1, revision: number,
  * moduleId: string, origin: 'simulated'|'real',
  * validationStatus: 'pending'|'confirmed'|'rejected', period: Period|null,
@@ -34,8 +37,8 @@ const SOURCE_CLASSIFICATION = Object.freeze({
  * @typedef {RecordEnvelope & {kind: 'deposit'|'withdrawal', purpose: 'expenses'|'savings'|null,
  * contributorId: string|null, amount: string|null, currency: string|null,
  * effectiveDate: string|null, description: string|null,
- * amountInterpretation?: {decision: 'accepted', originalAmount: string, amount: string,
- * currency: string, reviewedBy: string, evidenceReference: string},
+ * evidenceReviews?: Array<{id: string, field: string, decision: 'accepted', binding: string,
+ * reason: string, reviewedBy: string, reviewedAt: string, evidenceReference: string}>,
  * periodAssignment?: {decision: 'accepted'|'inconsistent', effectivePeriod: Period,
  * postingPeriod: Period, reason: string, reviewedBy: string, evidenceReference: string}}} Movement
  * @typedef {{id: string, moduleId: string, categoryId: string, period: Period,
@@ -67,21 +70,6 @@ const isPlainObject = value => value !== null && typeof value === 'object'
 const currencies = new Set(Intl.supportedValuesOf('currency'));
 export const isKnownCurrency = value => typeof value === 'string' && currencies.has(value);
 
-function hasSourceTrace(source) {
-  if (!nonempty(source.sheet) || !Number.isSafeInteger(source.row) || source.row < 1 || source.row > 1048576
-    || typeof source.sourceFingerprint !== 'string' || !/^[a-fA-F0-9]{64}$/.test(source.sourceFingerprint) || !nonempty(source.importBatchId)
-    || !isPlainObject(source.original) || !isPlainObject(source.cells)) return false;
-  const originals = Object.entries(source.original);
-  return originals.length > 0 && originals.some(([, value]) => nonempty(value))
-    && originals.every(([field, value]) => {
-      if (value !== null && typeof value !== 'string') return false;
-      const match = /^([A-Z]{1,3})([1-9]\d*)$/.exec(source.cells[field] ?? '');
-      if (!match || Number(match[2]) !== source.row) return false;
-      const column = [...match[1]].reduce((number, letter) => number * 26 + letter.charCodeAt(0) - 64, 0);
-      return column <= 16384;
-    });
-}
-
 function inspectEnvelope(record) {
   if (!isPlainObject(record)) return { errors: ['INVALID_RECORD'], pendingReasons: [] };
   const errors = [];
@@ -106,7 +94,7 @@ function inspectEnvelope(record) {
     if (SOURCE_CLASSIFICATION[source.type] !== record.origin) errors.push('SOURCE_ORIGIN_MISMATCH');
     const expectedModule = source.type === 'control-excel' ? MODULES.CONTROL : MODULES.FIORELLA;
     if (source.type !== 'legacy-mock' && record.moduleId !== expectedModule) errors.push('SOURCE_MODULE_MISMATCH');
-    if ((source.type.endsWith('excel') || source.type === 'fiorella-template') && !hasSourceTrace(source)) errors.push('INCOMPLETE_SOURCE_TRACE');
+    errors.push(...validateExcelTrace(source));
   }
   return { errors, pendingReasons };
 }
@@ -133,26 +121,8 @@ function periodAssignmentIssues(record) {
   return ['PERIOD_ASSIGNMENT_REVIEW_REQUIRED'];
 }
 
-function sourceAmountIssues(record) {
-  if (typeof record.provenance?.type !== 'string' || !record.provenance.type.endsWith('excel')) return [];
-  const original = record.provenance.original?.amount;
-  if (!nonempty(original)) return [];
-  const rawAmount = normalizeAmount(original);
-  const amount = normalizeAmount(record.amount);
-  if (rawAmount !== null && rawAmount === amount) return [];
-  if (rawAmount !== null && amount === null) return [];
-  // Preserve ambiguous source text. Only an explicit, externally evidenced review
-  // may explain its interpretation; there is no parsing or conversion here.
-  const review = record.amountInterpretation;
-  if (rawAmount === null && review?.decision === 'accepted' && review.originalAmount === original
-    && normalizeAmount(review.amount) === amount && amount !== null && review.currency === record.currency
-    && isKnownCurrency(review.currency) && IDENTITIES.some(identity => identity.id === review.reviewedBy)
-    && nonempty(review.evidenceReference)) return [];
-  return [rawAmount === null ? 'SOURCE_AMOUNT_INTERPRETATION_REQUIRED' : 'SOURCE_AMOUNT_MISMATCH'];
-}
-
 /** Inspect structure and unresolved decisions separately; never confirms or posts. */
-export function inspectMovement(record) {
+export function inspectMovement(record, evidenceContext) {
   const { errors, pendingReasons } = inspectEnvelope(record);
   if (!isPlainObject(record)) return { errors, pendingReasons, eligibleForConfirmed: false };
   if (record.moduleId !== MODULES.CONTROL) errors.push('MOVEMENT_REQUIRES_CONTROL_MODULE');
@@ -165,6 +135,10 @@ export function inspectMovement(record) {
   if (record.currency !== null && !isKnownCurrency(record.currency)) errors.push('INVALID_CURRENCY');
   if (record.effectiveDate !== null && !isValidDate(record.effectiveDate)) errors.push('INVALID_DATE');
   if (record.description !== null && typeof record.description !== 'string') errors.push('INVALID_DESCRIPTION');
+  if (record.evidenceReviews !== undefined) {
+    if (!Array.isArray(record.evidenceReviews) || record.evidenceReviews.some(review => !isEvidenceReview(review))) errors.push('INVALID_EVIDENCE_REVIEW');
+    else if (new Set(record.evidenceReviews.map(review => review.id.trim())).size !== record.evidenceReviews.length) errors.push('DUPLICATE_REVIEW_ID');
+  }
   if (typeof record.provenance?.type === 'string' && record.provenance.type.endsWith('excel')
     && (!nonempty(record.provenance.original?.amount) || !nonempty(record.provenance.cells?.amount))) errors.push('MISSING_ORIGINAL_AMOUNT');
   if (record.amount === null || record.currency === null) pendingReasons.push('UNRESOLVED_MONEY');
@@ -173,7 +147,9 @@ export function inspectMovement(record) {
   if (record.kind === 'deposit' && record.contributorId === null) pendingReasons.push('MISSING_CONTRIBUTOR');
   if (record.kind === 'withdrawal' && record.effectiveDate === null) pendingReasons.push('MISSING_WITHDRAWAL_DATE');
   pendingReasons.push(...periodAssignmentIssues(record));
-  pendingReasons.push(...sourceAmountIssues(record));
+  const evidence = inspectExcelEvidence(record, evidenceContext);
+  errors.push(...evidence.errors);
+  pendingReasons.push(...evidence.pendingReasons);
   return {
     errors: [...new Set(errors)], pendingReasons: [...new Set(pendingReasons)],
     eligibleForConfirmed: record.origin === ORIGINS.REAL && record.validationStatus === VALIDATION.CONFIRMED
@@ -181,8 +157,8 @@ export function inspectMovement(record) {
   };
 }
 
-export function validateMovement(record) {
-  const { errors, pendingReasons } = inspectMovement(record);
+export function validateMovement(record, evidenceContext) {
+  const { errors, pendingReasons } = inspectMovement(record, evidenceContext);
   return [...new Set([...errors, ...(record?.validationStatus === VALIDATION.CONFIRMED ? pendingReasons : [])])];
 }
 
@@ -198,21 +174,26 @@ export function findDuplicateIds(records) {
   return [...duplicates];
 }
 
-export function inspectMovementBatch(records) {
-  const duplicateIds = new Set(findDuplicateIds(records));
+// Existing records are supplied separately for reimport preflight. Nothing is posted.
+export function inspectMovementBatch(records, evidenceContext, existingRecords = []) {
+  const duplicateIds = new Set(findDuplicateIds([...existingRecords, ...records]));
+  const keys = [...existingRecords, ...records].map(record => sourceOperationKey(record, evidenceContext));
+  const counts = new Map();
+  for (const key of keys) if (key !== null) counts.set(key, (counts.get(key) ?? 0) + 1);
   return records.map(record => {
-    const inspection = inspectMovement(record);
-    if (nonempty(record?.id) && duplicateIds.has(record.id.trim())) {
-      return { record, ...inspection, errors: [...inspection.errors, 'DUPLICATE_ID'], eligibleForConfirmed: false };
-    }
-    return { record, ...inspection };
+    const inspection = inspectMovement(record, evidenceContext);
+    const errors = [...inspection.errors];
+    if (nonempty(record?.id) && duplicateIds.has(record.id.trim())) errors.push('DUPLICATE_ID');
+    const key = sourceOperationKey(record, evidenceContext);
+    if (key !== null && counts.get(key) > 1) errors.push('DUPLICATE_SOURCE_OPERATION');
+    return { record, ...inspection, errors, eligibleForConfirmed: inspection.eligibleForConfirmed && !errors.length };
   });
 }
 
-// No conversion or posting. Decisions stay pending; all ID collisions are excluded.
-export function partitionMovements(records) {
+// No conversion or posting. Decisions stay pending; all collisions are excluded.
+export function partitionMovements(records, evidenceContext) {
   const groups = { simulated: [], confirmed: [], pending: [], rejected: [], invalid: [] };
-  for (const { record, errors, pendingReasons } of inspectMovementBatch(records)) {
+  for (const { record, errors, pendingReasons } of inspectMovementBatch(records, evidenceContext)) {
     if (errors.length) groups.invalid.push(record);
     else if (record.origin === ORIGINS.SIMULATED) groups.simulated.push(record);
     else if (record.validationStatus === VALIDATION.REJECTED) groups.rejected.push(record);
