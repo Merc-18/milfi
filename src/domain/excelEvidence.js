@@ -85,6 +85,33 @@ function captures(record, field, context) {
   return result.some(value => !value) ? null : result;
 }
 
+// Field/operation associations belong to the trusted workbook layout, never to
+// record-supplied originals, ranges or a self-declared "related" flag. The layout
+// maps each amount anchor to its operation range and exact field references;
+// those references may include verified headers, merges or cross-sheet context.
+function operationEvidence(record, field, context) {
+  const source = record.provenance;
+  const workbook = workbookFor(source, context);
+  const sheet = sheetFor(workbook, source.sheet);
+  const amount = resolveReference(workbook, { sheet: source.sheet, ref: source.operation.amountRef });
+  const layout = amount && plain(sheet?.operations) ? sheet.operations[amount.anchor] : null;
+  const range = plain(layout) && excelRange(layout.range);
+  const refs = plain(layout?.fields) && layout.fields[field];
+  if (!range || !amount || !contains(range, excelRange(amount.range)) || !Array.isArray(refs)
+    || source.row < range.first.row || source.row > range.last.row) return null;
+  const linked = refs.map(ref => plain(ref) ? resolveReference(workbook, ref) : null);
+  if (linked.some(cell => !cell)) return null;
+  return { range: range.ref, linked };
+}
+
+const referenceIdentity = cell => JSON.stringify([cell.sheet, cell.anchor, cell.range, cell.role]);
+function matchesOperation(captured, association) {
+  if (!association) return false;
+  const expected = new Set(association.linked.map(referenceIdentity));
+  const actual = new Set(captured.map(referenceIdentity));
+  return actual.size === expected.size && [...actual].every(key => expected.has(key));
+}
+
 const canonical = value => Array.isArray(value) ? value.map(canonical) : plain(value)
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 
@@ -94,7 +121,8 @@ export function evidenceBinding(record, field, context) {
   const captured = captures(record, field, context);
   if (!captured || !captured.length) return null;
   return JSON.stringify(canonical({ sourceFingerprint: record.provenance.sourceFingerprint.toLowerCase(),
-    operation: sourceOperationKey(record, context), field, captured,
+    operation: sourceOperationKey(record, context), operationRange: excelRange(record.provenance.operation.range).ref,
+    field, captured, association: operationEvidence(record, field, context),
     normalized: field === 'amount' ? { amount: record.amount, currency: record.currency } : record[field] ?? null }));
 }
 
@@ -220,6 +248,7 @@ export function inspectExcelEvidence(record, context) {
     if (cells === null) { errors.push('UNVERIFIABLE_FIELD_REFERENCE'); continue; }
     const optionalAbsent = (field === 'effectiveDate' && record.kind === 'deposit' && record.effectiveDate === null)
       || (field === 'contributorId' && record.kind === 'withdrawal' && record.contributorId === null);
+    const association = operationEvidence(record, field, context);
     const originals = Object.entries(source.original).filter(([key]) => fieldName(key) === field);
     // A field cannot evade its preserved original by selecting a convenient
     // unrelated cell, nor by omitting a nonblank original from its evidence.
@@ -228,13 +257,17 @@ export function inspectExcelEvidence(record, context) {
       const captured = resolveReference(workbook, source.originalReferences?.[key] ?? { sheet: source.sheet, ref: source.cells[key] });
       if (captured && !cells.some(cell => cell.sheet === captured.sheet && cell.anchor === captured.anchor)) errors.push('SOURCE_FIELD_REFERENCE_MISMATCH');
     }
-    if (!cells.length && optionalAbsent && originals.every(([, original]) => original === null)) continue;
+    const verifiedAbsent = association && association.linked.every(cell => cell.type === 'blank' && cell.value === null && !cell.formula);
+    if (!cells.length && optionalAbsent && verifiedAbsent && originals.every(([, original]) => original === null)) continue;
+    const acceptedReview = reviewed(record, field, context);
+    if (!cells.length) pendingReasons.push(`SOURCE_${field.replace(/([A-Z])/g, '_$1').toUpperCase()}_EVIDENCE_REQUIRED`);
+    if (!matchesOperation(cells, association) && !acceptedReview) pendingReasons.push(`SOURCE_${field.replace(/([A-Z])/g, '_$1').toUpperCase()}_RELATION_REVIEW_REQUIRED`);
     const value = fieldValue(field, cells);
     const normalized = field === 'amount' ? normalizeAmount(record.amount) : record[field];
     const allowedBlank = normalized === null && cells.length > 0 && cells.every(cell => cell.type === 'blank' && cell.value === null)
       && ((field === 'effectiveDate' && record.kind === 'deposit') || (field === 'contributorId' && record.kind === 'withdrawal'));
     const agrees = allowedBlank || (value !== null && JSON.stringify(canonical(value)) === JSON.stringify(canonical(normalized)));
-    if (!agrees && !reviewed(record, field, context)) pendingReasons.push(field === 'amount'
+    if (!agrees && !acceptedReview) pendingReasons.push(field === 'amount'
       ? (value === null ? 'SOURCE_AMOUNT_INTERPRETATION_REQUIRED' : 'SOURCE_AMOUNT_MISMATCH')
       : `SOURCE_${fieldName(field).replace(/([A-Z])/g, '_$1').toUpperCase()}_${value === null ? 'AMBIGUOUS' : 'MISMATCH'}`);
     if (field === 'amount' && cells.length) {

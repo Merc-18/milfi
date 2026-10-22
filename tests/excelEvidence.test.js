@@ -4,7 +4,7 @@ import { inspectMovement, inspectMovementBatch, partitionMovements, validateMove
 import { sumConfirmedMovements } from '../src/domain/movementTotals.js';
 import { evidenceBinding, excelRange, sourceOperationKey } from '../src/domain/excelEvidence.js';
 import { prepareEvidenceReview } from '../src/application/evidenceReview.js';
-import { context, review, syntheticMovement } from './helpers/excelFixture.js';
+import { bindOperation, context, review, syntheticMovement } from './helpers/excelFixture.js';
 
 // All records, captures and review references here are invented. Geometry-only
 // regression below reproduces the layout inspected privately, never its records.
@@ -89,6 +89,7 @@ test('A1: mentioning a known currency, person or month in uncertain text is not 
     if (field === 'period') {
       sheet(record).cells.I5 = cell('2035', 'number');
       record.provenance.evidence.period = [reference(record, 'H5', 'month'), reference(record, 'I5', 'year')];
+      bindOperation(record);
     }
     assert.equal(inspected(record).eligibleForConfirmed, false);
     assert.equal(total([record]), null);
@@ -281,6 +282,7 @@ test('A2: two legitimate deposits on one row have independent amount anchors', (
   second.provenance.original.amount = '2.35';
   second.provenance.evidence.amount = [reference(second, 'D5')];
   sheet(first).cells.D5 = cell('2.35', 'number');
+  bindOperation(second);
   assert.notEqual(sourceOperationKey(first, context), sourceOperationKey(second, context));
   assert.equal(confirmed([first, second]).length, 2);
   assert.equal(total([first, second]), '9.6');
@@ -318,6 +320,7 @@ test('A3: header and merged-cell evidence can lie outside the movement row', () 
   record.provenance.original.contributorId = 'Ahorro de Fiorella';
   record.provenance.evidence.currency = [reference(record, 'A1:E1')];
   record.provenance.evidence.contributorId = [reference(record, 'B4')];
+  bindOperation(record);
   assert.equal(inspected(record).eligibleForConfirmed, true);
 });
 
@@ -327,6 +330,7 @@ test('A3: cross-sheet evidence is independently verified and preserves original 
   record.provenance.originalReferences = { currency: { sheet: 'Configuration', ref: 'D2' } };
   record.provenance.cells.currency = 'D2';
   record.provenance.evidence.currency = [{ sheet: 'Configuration', ref: 'B2:D2' }];
+  bindOperation(record);
   assert.equal(inspected(record).eligibleForConfirmed, true);
   record.provenance.evidence.currency[0].sheet = 'Missing';
   assert.ok(inspected(record).errors.includes('UNVERIFIABLE_FIELD_REFERENCE'));
@@ -399,6 +403,8 @@ test('A3: real-layout geometry supports separate C/D deposits, month/year and su
   second.provenance.original.contributorId = 'Asignación de Fiorella'; second.provenance.cells.contributorId = 'A49';
   second.provenance.evidence.contributorId = [reference(second, 'A49')];
   captured.cells.D5 = cell('7.25', 'number');
+  bindOperation(first);
+  bindOperation(second);
   assert.equal(confirmed([first, second]).length, 2);
   captured.cells.A5.value = '1 Noviembre';
   first.period = { year: 2035, month: 11 }; second.period = { year: 2035, month: 11 };

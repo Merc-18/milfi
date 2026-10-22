@@ -214,3 +214,39 @@ declarada entre Vite y el plugin PWA sigue pendiente de revisión posterior.
 No hay importación real, persistencia, autenticación, conexión a Supabase,
 despliegue, push ni merge. Al concluir esta entrega se detiene el trabajo para
 la revisión focalizada de Claude Code, sin comenzar Fase 2.
+
+## Corrección final A1 — Relación entre evidencia y operación
+
+La verificación focalizada identificó que comprobar el contenido de una celda
+no acreditaba su relación con el movimiento. La captura independiente incorpora
+ahora `sheets.NombreDeHoja.operations`, indexado por el ancla del importe. Cada
+entrada declara el rango de la operación y `fields`, con las referencias exactas
+que el lector confiable vincula a cada campo de esa operación. Por ejemplo,
+una entrada sintética puede vincular `C5` con `contributorId` en `C4`, mientras
+que `D5` vincula ese campo con `D4`. Encabezados, combinaciones y contexto de
+otras posiciones se aceptan cuando ese vínculo está verificado en la captura.
+
+Las asociaciones se contrastan siempre, independientemente de la presencia de
+entradas en `original` o `cells`. Debe coincidir el conjunto completo de referencias,
+incluidos sus roles; no basta seleccionar una celda cuyo texto coincida. Ampliar
+el rango declarado o añadir un indicador de relación al registro no altera el
+mapa independiente. Una evidencia existente pero sin vínculo confiable deja el
+campo pendiente de revisión; una evidencia obligatoria ausente no permite
+confirmación. Tampoco se puede ocultar una fecha conocida declarando día nulo y
+eliminando sus metadatos originales. La ausencia legítima de día exacto requiere
+que la captura verificada también acredite esa ausencia.
+
+La revisión explícita existente puede resolver la falta de relación estructural
+para un caso concreto. Su vínculo incorpora ahora también el rango declarado y
+las asociaciones independientes del campo; cambiar evidencia, rango o asociación
+invalida la revisión anterior. Preparar una revisión sigue dejando el registro
+pendiente, sin contabilizarlo automáticamente. Las asociaciones del lector son
+metadatos de confianza: no se deben aceptar mapas fabricados por el cliente o
+derivados del propio registro que se está validando.
+
+Se conservan los 79 escenarios anteriores y se añaden 18 pruebas sintéticas:
+97 aprobadas en total, ESLint sin errores y build completo. Las modificaciones
+en fixtures anteriores solo aportan los vínculos independientes requeridos por
+el nuevo contrato. La identidad de duplicados A2, la resolución de referencias
+A3 y las reglas de Fiorella no cambian. No se infiere una moneda para Control
+Finanzas ni se leen/importan registros financieros reales en estas pruebas.

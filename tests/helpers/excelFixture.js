@@ -37,7 +37,17 @@ export function attachEvidence(record) {
   const cells = Object.fromEntries(Object.entries(source.original).filter(([field]) => source.cells[field]).map(([field, value]) => [source.cells[field],
     { type: value === null ? 'blank' : field === 'amount' && /^\d+(\.\d+)?$/.test(value) ? 'number' : 'text', value }]));
   context.workbooks.set(source.sourceFingerprint?.toLowerCase(), { dateSystem: '1900', sheets: { [source.sheet]: { cells, merges: [] } } });
+  bindOperation(record);
   return record;
+}
+
+// Fixture layout setup only. Tests that alter record references afterwards must
+// not call this: the independently supplied associations must stay unchanged.
+export function bindOperation(record) {
+  const source = record.provenance;
+  const sheet = context.workbooks.get(source.sourceFingerprint?.toLowerCase()).sheets[source.sheet];
+  sheet.operations ??= {};
+  sheet.operations[source.operation.amountRef] = structuredClone({ range: source.operation.range, fields: source.evidence });
 }
 
 export const inspectMovement = record => models.inspectMovement(record, context);
