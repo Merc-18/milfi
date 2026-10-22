@@ -182,9 +182,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.deepEqual(browser.exceptions, []);
     });
 
-    const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase2-2-capturas');
+    const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase3-1-capturas');
     const capture = async name => {
       await mkdir(captures, { recursive: true });
+      await browser.evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
       const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
       await writeFile(join(captures, name), Buffer.from(data, 'base64'));
     };
@@ -377,6 +378,139 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.body?.textContent.includes("Todavía no registraste metas hipotéticas")');
       assert.equal(await browser.evaluate('document.querySelectorAll("#scenario-a option").length'), 1);
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 0);
+      assert.deepEqual(browser.exceptions, []);
+    });
+    const chooseControl = async (id, value) => browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); input.value = ${JSON.stringify(value)}; input.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+    const enterControl = async ({ amount = '0.1', currency = 'PEN', contributor = 'fiorella', purpose = 'expenses', actor = 'milton', kind = 'deposit', date = '2043-07-10', description = 'Ejemplo Control A', source = 'Referencia ficticia A' } = {}) => {
+      await chooseControl('control-kind', kind); await fill('control-date', date); await fill('control-amount', amount); await fill('control-currency', currency);
+      await chooseControl('control-contributor', contributor); await chooseControl('control-purpose', purpose); await chooseControl('control-actor', actor);
+      await fill('control-description', description); await fill('control-source', source);
+    };
+    const openControlReview = async index => {
+      await browser.evaluate(`document.querySelectorAll('[data-control-id]')[${index}].querySelectorAll('button')[1].click()`);
+      await browser.waitFor('!!document.getElementById("control-reviewer")');
+      await chooseControl('control-reviewer', 'milton');
+      await fill('control-review-reason', 'Verificación explícita de los datos inventados de esta operación');
+      await fill('control-review-reference', 'Referencia sintética vinculada a esta operación');
+    };
+    const reviewControl = async index => { await openControlReview(index); await submitForm('Revisión demostrativa de Control'); };
+    const controlSummary = () => browser.evaluate('document.querySelector("[data-testid=control-summary]").textContent');
+    const controlCount = () => browser.evaluate('document.querySelectorAll("[data-control-id]").length');
+
+    await context.test('Control registers separate contributor/destination/recorder and reviews only demonstrative money', async () => {
+      await clickLink('/control', 'Control Finanzas M&F');
+      await fill('control-selected-period', '2043-07');
+      assert.equal(await controlCount(), 0);
+      await enterControl(); await submitForm('Movimiento demostrativo de Control');
+      await browser.waitFor('document.querySelectorAll("[data-control-id]").length === 1');
+      assert.ok((await visibleText()).includes('Aportante: Fiorella · Destino: Gastos'));
+      assert.ok((await visibleText()).includes('Registrado por: Milton (declarado)'));
+      assert.doesNotMatch(await controlSummary(), /PEN 0\.10/);
+      await reviewControl(0);
+      await browser.waitFor('document.querySelector("[data-control-id]").dataset.controlState === "reviewed"');
+      assert.ok((await controlSummary()).includes('PEN 0.10'));
+      await browser.evaluate('document.getElementById("control-kind").form.scrollIntoView({block:"start"})');
+      await capture('16-control-formulario-movil.png');
+      assert.ok((await visibleText()).includes('Nunca confirmado'));
+      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
+      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
+      await capture('12-control-resumen-movil.png');
+    });
+
+    await context.test('Control value duplicates need an explicit distinct-operation explanation', async () => {
+      await enterControl(); await submitForm('Movimiento demostrativo de Control');
+      await browser.waitFor('document.body.textContent.includes("Hay otra operación con los mismos datos")');
+      assert.equal(await controlCount(), 1);
+      await fill('control-distinct', 'Segundo depósito ficticio independiente con valores coincidentes');
+      await submitForm('Movimiento demostrativo de Control');
+      await browser.waitFor('document.querySelectorAll("[data-control-id]").length === 2');
+      assert.ok((await controlSummary()).includes('PEN 0.10'));
+    });
+
+    await context.test('Control keeps PEN/USD and independent withdrawals apart, with unknown currency pending', async () => {
+      await enterControl({ amount: '8', currency: 'USD', contributor: 'milton', purpose: 'savings', actor: 'fiorella', date: '2043-07-11', description: 'Depósito USD sintético' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      await enterControl({ amount: '5', kind: 'withdrawal', contributor: '', purpose: 'savings', date: '2043-07-12', description: 'Retiro sintético independiente' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      const totals = await controlSummary();
+      assert.ok(totals.includes('USD 8.00')); assert.ok(totals.includes('PEN 5.00')); assert.ok(totals.includes('PEN 0.10'));
+      assert.doesNotMatch(totals, /13\.10|−|\b3\.10/);
+      await enterControl({ amount: '4', currency: '', date: '2043-07-13', description: 'Moneda desconocida sintética' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("moneda pendiente")`);
+      assert.equal(await browser.evaluate('document.querySelector("[data-control-id]").dataset.controlState'), 'pending');
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Cerrar revisión").click()');
+      assert.doesNotMatch(await controlSummary(), /4\.00/);
+      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
+      await capture('13-control-monedas-movil.png');
+    });
+
+    await context.test('Control edits invalidate reviews, retain original evidence and expose before/after audit', async () => {
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-control-id]")).find(card => card.textContent.includes("Ejemplo Control A") && card.dataset.controlState === "reviewed").querySelector("button").click()');
+      await fill('control-amount', '0.2'); await submitForm('Movimiento demostrativo de Control');
+      await browser.waitFor('document.body.textContent.includes("Revisión anterior desactualizada")');
+      assert.doesNotMatch(await controlSummary(), /PEN 0\.10|PEN 0\.20/);
+      assert.ok((await visibleText()).includes('Antes: Depósito'));
+      assert.ok((await visibleText()).includes('Después: Depósito'));
+      const index = await browser.evaluate('Array.from(document.querySelectorAll("[data-control-id]")).findIndex(card => card.textContent.includes("Revisión anterior desactualizada"))');
+      await reviewControl(index);
+      await browser.waitFor('document.querySelector("[data-testid=control-summary]").textContent.includes("PEN 0.20")');
+      await browser.evaluate(`document.querySelectorAll('[data-control-id]')[${index}].scrollIntoView({block:"start"})`);
+      await capture('14-control-revision-movil.png');
+    });
+
+    await context.test('Control requires explicit cross-period assignment and keeps unapproved withdrawal/rounding pending', async () => {
+      await fill('control-selected-period', '2043-08'); assert.equal(await controlCount(), 0);
+      await enterControl({ amount: '3', date: '2043-07-31', description: 'Imputación interperiodo sintética' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("Fecha y periodo son distintos")`);
+      await capture('17-control-revision-formulario-movil.png');
+      assert.doesNotMatch(await controlSummary(), /PEN 3\.00/);
+      await browser.evaluate('document.getElementById("control-review-period").click()');
+      await submitForm('Revisión demostrativa de Control');
+      await browser.waitFor('document.querySelector("[data-testid=control-summary]").textContent.includes("PEN 3.00")');
+      await enterControl({ amount: '2', kind: 'withdrawal', contributor: '', purpose: 'expenses', date: '2043-08-02', description: 'Tratamiento pendiente sintético' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("retiros para gastos")`);
+      assert.doesNotMatch(await controlSummary(), /PEN 2\.00/);
+      await chooseControl('control-review-decision', 'rejected'); await submitForm('Revisión demostrativa de Control');
+      await browser.waitFor('document.querySelector("[data-control-id]").dataset.controlState === "rejected"');
+      await enterControl({ amount: '0.001', date: '2043-08-03', description: 'Fracción de céntimo sintética' });
+      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
+      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("fracciones de céntimo")`);
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Cerrar revisión").click()');
+      assert.doesNotMatch(await controlSummary(), /0\.001/);
+    });
+
+    await context.test('Control filters month/year/status, fits mobile/desktop and stays separate across module navigation', async () => {
+      await chooseControl('control-status', 'pending'); assert.equal(await controlCount(), 1);
+      await chooseControl('control-status', 'rejected'); assert.equal(await controlCount(), 1);
+      await chooseControl('control-status', 'reviewed'); assert.equal(await controlCount(), 1);
+      await chooseControl('control-status', 'confirmed'); assert.equal(await controlCount(), 0);
+      assert.ok((await visibleText()).includes('Ninguna demostración es un movimiento confirmado'));
+      await chooseControl('control-status', 'all');
+      for (const width of [320, 390, 768, 1280]) {
+        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
+        const sizes = await browser.evaluate('({width:innerWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
+        assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
+        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
+      }
+      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
+      await capture('15-control-escritorio.png');
+      await fill('control-selected-period', '2044-08'); assert.equal(await controlCount(), 0);
+      await fill('control-selected-period', '2043-07'); assert.equal(await controlCount(), 5);
+      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      assert.doesNotMatch(await visibleText(), /Ejemplo Control|Depósito USD sintético|PEN 0\.20/);
+      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      assert.doesNotMatch(await visibleText(), /Ejemplo Control|Moneda desconocida|Retiro sintético/);
+      await clickLink('/control', 'Control Finanzas M&F');
+      assert.equal(await controlCount(), 5);
+      await browser.page('Page.reload');
+      await browser.waitFor('document.querySelector("[data-testid=control-counts]")?.textContent.includes("Depósitos registrados de demo: 0")');
+      assert.equal(await controlCount(), 0);
+      assert.ok((await visibleText()).includes('Sin cambios en esta sesión'));
+      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
       assert.deepEqual(browser.exceptions, []);
     });
   } finally {
