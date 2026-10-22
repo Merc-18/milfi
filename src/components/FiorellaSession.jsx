@@ -44,4 +44,3 @@ export function AmountStatus({ label, amount, detail }) {
     <p className="text-xl font-bold mt-1 break-all">{amount == null ? 'Sin registrar' : formatAmount(amount)}</p>
     {detail && <p className="text-xs mt-2">{detail}</p>}</div>;
 }
-

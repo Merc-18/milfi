@@ -1,8 +1,10 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 1, con las correcciones de Fases 1.1 y 1.2, prepara el dominio, los contratos de datos y la navegación. Todavía no
-administra dinero real ni ofrece autenticación o sincronización.
+La Fase 2.1 incorpora resumen mensual, presupuestos GF, gastos GV e historial
+de demostración para Fiorella. Los datos de formularios duran solo la sesión y
+se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
+o sincronización.
 
 ## Estado de los datos
 
@@ -60,6 +62,8 @@ No sustituye la verificación visual completa en dispositivos.
 
 - `/`: entrada a los dos módulos.
 - `/fiorella`: resumen y estado de la plantilla.
+- `/fiorella/presupuestos`: presupuestos y ejecución GF por subcategoría y periodo.
+- `/fiorella/gastos`: registro y seguimiento GV de demostración.
 - `/fiorella/calculadora`: simulación con periodo explícito.
 - `/fiorella/historial`: aviso de historial pendiente y simulaciones de la sesión.
 - `/fiorella/configuracion`: consulta de las reglas oficiales.
@@ -74,8 +78,8 @@ página de recuperación. El futuro hosting deberá resolver rutas SPA a `index.
 No hay persistencia de datos financieros, importador, backend, autenticación,
 autorización efectiva, conciliación ni operaciones de dinero real. Las identidades
 y responsabilidades del modelo son metadatos del dominio, no sesiones ni permisos
-de seguridad. Las funciones de presupuestos, gastos, metas y proyecciones completas
-siguen pendientes.
+de seguridad. Presupuestos y gastos de Fiorella pueden probarse como demostración
+de la sesión; metas, proyecciones y flujos de datos reales siguen pendientes.
 
 Déficits, sobrante cero, redondeo monetario, sobregiros y movimientos ambiguos
 requieren aprobación. La calculadora presenta aritmética decimal exacta sin
@@ -93,4 +97,5 @@ documentan los contratos reforzados y las decisiones pendientes sobre M1.
 Las [correcciones A1/A2/A3 de Fase 1.2](docs/FASE_1_2.md) refuerzan la comparación
 con evidencia independiente, revisiones trazables e identidad de operaciones
 para detectar reimportaciones, incluidos encabezados y celdas combinadas.
-La siguiente fase queda detenida hasta la revisión focalizada de Claude Code.
+La [entrega de Fase 2.1](docs/FASE_2_1.md) documenta funcionalidades, contratos,
+pruebas y capturas. Fase 2.2 queda detenida hasta evaluar esta entrega.

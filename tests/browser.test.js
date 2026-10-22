@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { spawn } from 'node:child_process';
-import { mkdtemp, readdir, rm, access } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, access, mkdir, writeFile } from 'node:fs/promises';
+import { Buffer } from 'node:buffer';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
@@ -178,6 +179,111 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok(await browser.evaluate('document.body.textContent.includes("Historial real aún no importado")'));
       await clickLink('/control', 'Control Finanzas M&F');
       assert.ok(await browser.evaluate('document.body.textContent.includes("no hay un saldo confirmado")'));
+      assert.deepEqual(browser.exceptions, []);
+    });
+
+    const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase2-1-capturas');
+    const capture = async name => {
+      await mkdir(captures, { recursive: true });
+      const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      await writeFile(join(captures, name), Buffer.from(data, 'base64'));
+    };
+    const submitForm = label => browser.evaluate(`document.querySelector('form[aria-label="${label}"]').requestSubmit()`);
+    const visibleText = () => browser.evaluate('document.body.textContent');
+
+    await context.test('Fiorella monthly demo separates applied GF, detailed budgets and recorded actuals across periods', async () => {
+      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await navigate('/fiorella', 'Finanzas de Fiorella');
+      assert.ok((await visibleText()).includes('Sin registrar'));
+      await fill('fiorella-period', '2038-04');
+      await fill('monthly-income', '5432.01'); await fill('monthly-fixed', '1500');
+      await submitForm('Datos mensuales de demostración');
+      await browser.waitFor('document.body.textContent.includes("786.402")');
+      assert.ok((await visibleText()).includes('Se perderá al recargar'));
+      await fill('fiorella-period', '2038-05');
+      assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
+      await fill('fiorella-period', '2038-04');
+      assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '5432.01');
+      await browser.evaluate('document.querySelector("main").scrollTop = 0');
+      await capture('01-resumen-movil.png');
+      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await fill('budget-servicios-gas', '120.10'); await fill('actual-servicios-gas', '125.20');
+      await submitForm('Presupuesto servicios-gas');
+      await browser.waitFor('document.body.textContent.includes("S/ 5.10")');
+      await fill('actual-servicios-gas', '110.05'); await submitForm('Presupuesto servicios-gas');
+      await browser.waitFor('document.body.textContent.includes("S/ 10.05")');
+      assert.ok((await visibleText()).includes('S/ 1,500.00'));
+      await browser.evaluate('document.querySelector("main").scrollTop = 0');
+      await capture('02-presupuestos-movil.png');
+      await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
+      await capture('06-formulario-gf-movil.png');
+    });
+
+    await context.test('Fiorella GV accumulates, edits and handles duplicate-looking demos without redistribution', async () => {
+      await clickLink('/fiorella/gastos', 'Seguimiento GV');
+      const expense = async (description, amount, category = 'salud', date = '2038-04-09') => {
+        await fill('gv-date', date); await fill('gv-description', description); await fill('gv-amount', amount);
+        await browser.evaluate(`(() => { const select = document.getElementById('gv-category'); select.value = ${JSON.stringify(category)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+        await submitForm('Gasto variable de demostración');
+      };
+      await expense('Ejemplo sintético A', '0.10'); await browser.waitFor('document.querySelectorAll("article").length === 1');
+      await expense('Ejemplo sintético B', '0.20'); await browser.waitFor('document.querySelectorAll("article").length === 2');
+      assert.ok((await visibleText()).includes('S/ 0.30'));
+      await expense('Ejemplo sintético ocio', '1000', 'ocio'); await browser.waitFor('document.querySelectorAll("article").length === 3');
+      assert.ok((await visibleText()).includes('S/ 213.598'));
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Editar Ejemplo sintético A").click()');
+      await fill('gv-amount', '0.15'); await submitForm('Gasto variable de demostración');
+      await browser.waitFor('document.body.textContent.includes("S/ 0.35")');
+      await expense('Ejemplo sintético A', '0.15');
+      await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("mismos datos")');
+      assert.equal(await browser.evaluate('document.querySelectorAll("article").length'), 3);
+      await browser.evaluate('document.getElementById("gv-similar").click()');
+      await submitForm('Gasto variable de demostración');
+      await browser.waitFor('document.querySelectorAll("article").length === 4');
+      assert.ok((await visibleText()).includes('S/ 0.50'));
+      await expense('Periodo ficticio incorrecto', '2', 'salud', '2038-05-01');
+      await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("mes y año")');
+      assert.equal(await browser.evaluate('document.querySelectorAll("article").length'), 4);
+      await browser.evaluate('document.querySelector("main").scrollTop = 0');
+      await capture('03-gastos-movil.png');
+      await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
+      await capture('07-formulario-gv-movil.png');
+      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      assert.ok((await visibleText()).includes('S/ 125.20 → S/ 110.05'));
+      assert.ok((await visibleText()).includes('otro gasto con datos coincidentes'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 1);
+      await capture('04-historial-movil.png');
+    });
+
+    await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
+      for (const width of [320, 390, 768, 1280]) {
+        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
+        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Seguimiento GV'], ['/fiorella/historial', 'Historial y simulaciones']]) {
+          await clickLink(path, heading);
+          const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
+            document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,
+            unlabeled: Array.from(document.querySelectorAll('input,select')).filter(input => !document.querySelector('label[for="' + input.id + '"]')).length }; })()`);
+          assert.ok(geometry.document <= geometry.width, `${width} ${path}: document overflow ${JSON.stringify(geometry)}`);
+          assert.ok(geometry.content <= geometry.main + 1, `${width} ${path}: content overflow ${JSON.stringify(geometry)}`);
+          assert.equal(geometry.unlabeled, 0, `${width} ${path}: inputs without explicit labels`);
+        }
+      }
+      await clickLink('/fiorella', 'Finanzas de Fiorella'); await capture('05-resumen-escritorio.png');
+      await browser.evaluate('document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight');
+      await clickLink('/control', 'Control Finanzas M&F');
+      assert.equal(await browser.evaluate('document.querySelector("main").scrollTop'), 0);
+      assert.doesNotMatch(await visibleText(), /S\/\s*\d|5432|Ejemplo sintético/);
+      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
+    });
+
+    await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
+      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      await browser.page('Page.reload');
+      await browser.waitFor('document.body?.textContent.includes("Sin registros de demostración en esta sesión")');
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
+      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
       assert.deepEqual(browser.exceptions, []);
     });
   } finally {
