@@ -1,7 +1,7 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 1, con las correcciones de Fase 1.1, prepara el dominio, los contratos de datos y la navegación. Todavía no
+La Fase 1, con las correcciones de Fases 1.1 y 1.2, prepara el dominio, los contratos de datos y la navegación. Todavía no
 administra dinero real ni ofrece autenticación o sincronización.
 
 ## Estado de los datos
@@ -90,4 +90,7 @@ privados como fixtures de pruebas.
 Consulta [la arquitectura y el alcance de Fase 1](docs/FASE_1.md).
 Las [correcciones y el diagnóstico de historial de Fase 1.1](docs/FASE_1_1.md)
 documentan los contratos reforzados y las decisiones pendientes sobre M1.
-La siguiente fase queda detenida hasta la segunda revisión técnica de Claude Code.
+Las [correcciones A1/A2/A3 de Fase 1.2](docs/FASE_1_2.md) refuerzan la comparación
+con evidencia independiente, revisiones trazables e identidad de operaciones
+para detectar reimportaciones, incluidos encabezados y celdas combinadas.
+La siguiente fase queda detenida hasta la revisión focalizada de Claude Code.

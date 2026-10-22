@@ -1,5 +1,9 @@
 # MilFi 2.0 — Fase 1.1
 
+Este informe conserva el diagnóstico de esa entrega. Los requisitos de evidencia,
+revisión e identidad de operaciones quedan ampliados y sustituidos por
+[Fase 1.2](FASE_1_2.md); las restricciones y el diagnóstico M1 siguen vigentes.
+
 Correcciones M2/M3 y diagnóstico M1 posteriores a la aprobación de Fase 1 con
 observaciones. No se inicia Fase 2. No se incorporan datos financieros privados
 a este documento, código, pruebas o artefactos nuevos versionados.
