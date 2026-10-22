@@ -2,8 +2,9 @@
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
 La Fase 3.1 incorpora registro, revisión e historial demostrativo de Control M&F,
-independiente de los formularios GF/GV, escenarios y metas de Fiorella. Los datos duran solo la sesión y
-se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
+independiente de los formularios GF/GV, escenarios y metas de Fiorella. La Fase 3.2
+añade la lectura local del Excel de Control y una preimportación revisable que no
+escribe en el historial real. Los datos duran solo la sesión y se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
 o sincronización.
 
 ## Estado de los datos
@@ -46,7 +47,12 @@ npm test
 npm run test:browser
 npm run lint
 npm run build
+npm run check:control-structure -- <ruta-local-al-xlsx>
 ```
+
+`check:control-structure` contrasta en privado la estructura de un Excel de Control:
+imprime posiciones, recuentos y códigos, nunca importes, fechas, descripciones ni
+nombres, y comprueba que el archivo no cambió.
 
 `npm test` utiliza `node:test`, sin dependencias de pruebas adicionales. Incluye
 aritmética exacta, reglas aprobadas, validación y procedencia, aislamiento del
@@ -69,6 +75,7 @@ No sustituye la verificación visual completa en dispositivos.
 - `/fiorella/historial`: aviso de historial pendiente y simulaciones de la sesión.
 - `/fiorella/configuracion`: consulta de las reglas oficiales.
 - `/control`: dashboard, movimientos y revisiones de demostración; sin historial real importado ni saldo bancario.
+- `/control/preimportacion`: lectura local de un Excel de Control y revisión previa de sus movimientos, solo en la sesión.
 
 Las rutas anteriores `/calculadora`, `/historial`, `/configuracion` y
 `/fondo-comun` redirigen a sus equivalentes. Las rutas desconocidas muestran una
@@ -104,4 +111,5 @@ pruebas y capturas. La [entrega de Fase 2.2](docs/FASE_2_2.md) incorpora las
 correcciones de periodo/GF y la planificación exacta, con decisiones financieras
 y comprobación real en Safari/Firefox pendientes. La [entrega de Fase 3.1](docs/FASE_3_1.md)
 documenta Control M&F temporal, contratos, pruebas, capturas y decisiones pendientes.
-El trabajo queda detenido para su revisión funcional focalizada.
+La [entrega de Fase 3.2](docs/FASE_3_2.md) documenta el lector local, la preimportación,
+los casos soportados y las decisiones pendientes. El trabajo queda detenido para su revisión.
