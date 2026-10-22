@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "node tests/run.js",
+    "test:browser": "npm run build && node tests/browser.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

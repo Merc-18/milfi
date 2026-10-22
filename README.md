@@ -1,7 +1,7 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 1 prepara el dominio, los contratos de datos y la navegación. Todavía no
+La Fase 1, con las correcciones de Fase 1.1, prepara el dominio, los contratos de datos y la navegación. Todavía no
 administra dinero real ni ofrece autenticación o sincronización.
 
 ## Estado de los datos
@@ -41,6 +41,7 @@ Con las dependencias disponibles:
 ```sh
 npm run dev
 npm test
+npm run test:browser
 npm run lint
 npm run build
 ```
@@ -48,7 +49,12 @@ npm run build
 `npm test` utiliza `node:test`, sin dependencias de pruebas adicionales. Incluye
 aritmética exacta, reglas aprobadas, validación y procedencia, aislamiento del
 store y renderizado de rutas mediante Vite/React en memoria, sin escuchar puertos.
-No sustituye pruebas de interacción en un navegador o dispositivo.
+`npm run test:browser` compila y verifica redirecciones, navegación e historial
+de simulaciones con un Chromium ya instalado, sin descargar dependencias.
+Puede indicarse su ejecutable con `MILFI_CHROMIUM_PATH`; en Linux también se
+detecta la caché local de Playwright. Usa un perfil temporal con datos inventados
+y un servidor de preview limitado a localhost; ambos se cierran al terminar.
+No sustituye la verificación visual completa en dispositivos.
 
 ## Navegación
 
@@ -82,4 +88,6 @@ excluidos en `.gitignore`; no se debe forzar su incorporación ni usar registros
 privados como fixtures de pruebas.
 
 Consulta [la arquitectura y el alcance de Fase 1](docs/FASE_1.md).
-La siguiente fase queda detenida hasta la revisión técnica de Claude Code.
+Las [correcciones y el diagnóstico de historial de Fase 1.1](docs/FASE_1_1.md)
+documentan los contratos reforzados y las decisiones pendientes sobre M1.
+La siguiente fase queda detenida hasta la segunda revisión técnica de Claude Code.

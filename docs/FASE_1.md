@@ -1,5 +1,9 @@
 # MilFi 2.0 — Fase 1
 
+Las observaciones de la revisión independiente se atienden en
+[Fase 1.1](FASE_1_1.md), que actualiza contratos, presentación y diagnóstico
+de confidencialidad del código heredado. Este documento conserva el alcance inicial.
+
 ## Alcance y decisiones técnicas
 
 Esta entrega implementa exclusivamente la base técnica autorizada en
@@ -54,8 +58,10 @@ e inválidos. No suma cantidades ni confirma registros. Su validación verifica 
 contrato y la clasificación declarada; no prueba la autenticidad de un archivo,
 una identidad o una huella. Eso corresponde al futuro servidor e importador.
 
-Los movimientos de Control distinguen depósitos para gastos y para ahorro;
-los retiros modelados pertenecen al ahorro. No hay seguimiento de gastos
+Los movimientos de Control distinguen depósitos para gastos y para ahorro.
+Fase 1.1 retira la prohibición de otros destinos de retiro: admite destino
+desconocido o tratamiento pendiente, sin incorporarlos a saldos confirmados.
+No hay seguimiento de gastos
 personales de Milton. No se implementó un cálculo de saldo ni una política
 de sobregiro.
 
@@ -67,7 +73,7 @@ de sobregiro.
 | Registros del Excel actual de Fiorella | Simulados; no importables como historial real |
 | Excel actualizado de Fiorella | Futuro origen real, aún no recibido ni importado |
 | Control Finanzas M&F | Origen real inicial; importación no implementada |
-| Mocks del código anterior | Demostración retirada; nunca origen real |
+| Mocks del código anterior | Excluidos de migraciones; M1 identifica contenido potencialmente sensible en el historial |
 | Entradas manuales de la calculadora | Simulaciones locales, sin persistencia |
 
 Las procedencias simuladas no pueden validarse como origen real. Los registros
