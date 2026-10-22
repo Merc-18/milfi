@@ -1,8 +1,8 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 2.2 añade comparación de escenarios, proyección y metas hipotéticas a
-los formularios GF/GV y al historial de Fiorella. Los datos duran solo la sesión y
+La Fase 3.1 incorpora registro, revisión e historial demostrativo de Control M&F,
+independiente de los formularios GF/GV, escenarios y metas de Fiorella. Los datos duran solo la sesión y
 se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
 o sincronización.
 
@@ -68,7 +68,7 @@ No sustituye la verificación visual completa en dispositivos.
 - `/fiorella/calculadora`: simulación con periodo explícito.
 - `/fiorella/historial`: aviso de historial pendiente y simulaciones de la sesión.
 - `/fiorella/configuracion`: consulta de las reglas oficiales.
-- `/control`: estructura y estado de Control Finanzas M&F, sin saldos ficticios.
+- `/control`: dashboard, movimientos y revisiones de demostración; sin historial real importado ni saldo bancario.
 
 Las rutas anteriores `/calculadora`, `/historial`, `/configuracion` y
 `/fondo-comun` redirigen a sus equivalentes. Las rutas desconocidas muestran una
@@ -102,5 +102,6 @@ para detectar reimportaciones, incluidos encabezados y celdas combinadas.
 La [entrega de Fase 2.1](docs/FASE_2_1.md) documenta funcionalidades, contratos,
 pruebas y capturas. La [entrega de Fase 2.2](docs/FASE_2_2.md) incorpora las
 correcciones de periodo/GF y la planificación exacta, con decisiones financieras
-y comprobación real en Safari/Firefox pendientes. El trabajo queda detenido
-al finalizar esta fase para su evaluación.
+y comprobación real en Safari/Firefox pendientes. La [entrega de Fase 3.1](docs/FASE_3_1.md)
+documenta Control M&F temporal, contratos, pruebas, capturas y decisiones pendientes.
+El trabajo queda detenido para su revisión funcional focalizada.
