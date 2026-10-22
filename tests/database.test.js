@@ -211,3 +211,15 @@ test('audit: every change is recorded with actor and before/after, readable only
   denied(await as(db, null, 'select id from public.audit_events'));
   denied(await as(db, u.milton, "update public.audit_events set actor_id = $1", [u.fiorella]));
 });
+
+test('Data API: authenticated has explicit schema usage; anon cannot execute future public functions', async () => {
+  const usage = (await db.query("select has_schema_privilege('authenticated', 'public', 'USAGE') as authenticated")).rows[0];
+  assert.equal(usage.authenticated, true);
+  await db.exec('create function public.synthetic_future_rpc() returns int language sql as $$ select 1 $$');
+  try {
+    denied(await as(db, null, 'select public.synthetic_future_rpc()'));
+    denied(await as(db, u.fiorella, 'select public.synthetic_future_rpc()'));
+  } finally {
+    await db.exec('drop function public.synthetic_future_rpc()');
+  }
+});

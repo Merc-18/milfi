@@ -1,10 +1,12 @@
 -- MilFi 2.0 · Grants and Row Level Security.
--- Supabase grants every new public table to anon/authenticated by default; start
--- from nothing and grant back only what the policies below are meant to govern.
+-- Supabase grants new public tables to anon/authenticated by default (including
+-- TRUNCATE, which RLS does not govern); start from nothing and grant back only
+-- what the policies below are meant to govern. Defaults are set FOR ROLE postgres
+-- because the CLI may connect through a temporary login role.
 revoke all on all tables in schema public from anon, authenticated, public;
 revoke all on all sequences in schema public from anon, authenticated, public;
-alter default privileges in schema public revoke all on tables from anon, authenticated, public;
-alter default privileges in schema public revoke all on sequences from anon, authenticated, public;
+alter default privileges for role postgres in schema public revoke all on tables from anon, authenticated, public;
+alter default privileges for role postgres in schema public revoke all on sequences from anon, authenticated, public;
 
 grant usage on schema private to authenticated;
 grant execute on function private.is_household_member(uuid) to authenticated;

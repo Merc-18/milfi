@@ -10,7 +10,7 @@ test('module routes render with real-history notices and no simulated financial 
   // JSX is transformed by the installed Vite. No browser, network listener,
   // private Excel, PWA build or additional testing dependency is required.
   const server = await createServer({
-    configFile: false,
+    configFile: false, envDir: new URL('./fixtures/no-env/', import.meta.url).pathname,
     logLevel: 'error',
     server: { middlewareMode: true, hmr: false, ws: false, watch: null },
     optimizeDeps: { noDiscovery: true, include: [] },

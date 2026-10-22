@@ -140,7 +140,7 @@ test('gateway: maps auth errors to codes and reads permissions without user meta
 });
 
 test('screens: routes and management controls follow the loaded module access', async () => {
-  const server = await createServer({ configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null }, optimizeDeps: { noDiscovery: true, include: [] } });
+  const server = await createServer({ configFile: false, envDir: new URL('./fixtures/no-env/', import.meta.url).pathname, logLevel: 'error', server: { middlewareMode: true, hmr: false, ws: false, watch: null }, optimizeDeps: { noDiscovery: true, include: [] } });
   try {
     const { AppRoutes, SessionViewContext } = await server.ssrLoadModule('/tests/helpers/ssrEntry.js');
     let view = null;
