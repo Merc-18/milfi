@@ -10,7 +10,8 @@
     "test": "node tests/run.js",
     "test:browser": "npm run build && node tests/browser.test.js",
     "preview": "vite preview",
-    "check:control-structure": "node scripts/check-control-structure.mjs"
+    "check:control-structure": "node scripts/check-control-structure.mjs",
+    "check:live": "node scripts/rls-live-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

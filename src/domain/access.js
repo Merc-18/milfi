@@ -17,6 +17,10 @@ export function accessFromPermissions(rows) {
   return access;
 }
 
+// Return path after sign-in: internal app paths only. Rejects protocol-relative
+// ("//", "/\\"), schemes, encoded slashes and anything outside a plain path pattern.
+export const safeReturnPath = from => typeof from === 'string' && /^\/(?![/\\])[A-Za-z0-9/_-]*$/.test(from) && !from.includes('//') ? from : null;
+
 export const moduleForPath = pathname => pathname.startsWith('/fiorella') ? 'fiorella' : pathname.startsWith('/control') ? 'control-mf' : null;
 export const canRead = level => level === 'read' || level === 'manage' || level === 'demo';
 export const canManage = level => level === 'manage' || level === 'demo';

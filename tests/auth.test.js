@@ -10,7 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { createServer } from 'vite';
 import { readSupabaseConfig } from '../src/infrastructure/supabase/config.js';
 import { authErrorCode, createAuthGateway } from '../src/infrastructure/supabase/authGateway.js';
-import { accessFromPermissions, APPROVED_ACCESS, canManage, canRead, moduleForPath } from '../src/domain/access.js';
+import { accessFromPermissions, APPROVED_ACCESS, canManage, canRead, moduleForPath, safeReturnPath } from '../src/domain/access.js';
 import { createSessionStore } from '../src/store/sessionStore.js';
 import { as, createDatabase, seedSynthetic } from './helpers/pgHarness.js';
 
@@ -57,6 +57,9 @@ test('access: permissions come only from database rows and match the SQL assignm
   assert.deepEqual(accessFromPermissions(null), { fiorella: 'none', 'control-mf': 'none' });
   assert.deepEqual([canRead('read'), canManage('read'), canManage('manage'), canRead('none'), canManage('demo')], [true, false, true, false, true]);
   assert.deepEqual(['/fiorella/gastos', '/control/preimportacion', '/acceso', '/'].map(moduleForPath), ['fiorella', 'control-mf', null, null]);
+  assert.deepEqual(['/control', '/fiorella/gastos', '/'].map(safeReturnPath), ['/control', '/fiorella/gastos', '/']);
+  for (const hostile of ['//evil.example', '/\\evil.example', '/\\/evil.example', 'https://evil.example', '/x//y', '/%2F%2Fevil', 'javascript:alert(1)', '', null, '/a b'])
+    assert.equal(safeReturnPath(hostile), null, String(hostile));
   const db = await createDatabase();
   const users = await seedSynthetic(db);
   for (const identity of ['milton', 'fiorella']) {

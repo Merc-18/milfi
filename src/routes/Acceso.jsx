@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 import StatusNotice from '../components/StatusNotice.jsx';
 import { useSessionStore } from '../store/sessionStore.js';
+import { safeReturnPath } from '../domain/access.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass } from '../presentation/control.js';
 
 const errors = {
@@ -47,7 +48,8 @@ export default function Acceso() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  if (session.status === 'ready' && state?.from) return <Navigate to={state.from} replace />;
+  const returnPath = safeReturnPath(state?.from);
+  if (session.status === 'ready' && returnPath) return <Navigate to={returnPath} replace />;
   const submit = async event => {
     event.preventDefault();
     setSubmitting(true);
