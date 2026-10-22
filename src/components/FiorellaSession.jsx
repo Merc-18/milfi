@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { useStore } from '../store/useStore.js';
 import { formatAmount } from '../presentation/format.js';
 import { moneyDifference } from '../domain/fiorellaSession.js';
 import StatusNotice from './StatusNotice.jsx';
+import PeriodInput from './PeriodInput.jsx';
 
 export const fieldClass = 'w-full min-w-0 bg-fondo border border-secundario p-3 rounded-xl';
 export const buttonClass = 'bg-texto text-white font-bold px-4 py-3 rounded-xl disabled:opacity-50';
@@ -15,13 +15,14 @@ export function SessionNotice() {
 export function PeriodPicker() {
   const input = useStore(state => state.selectedFiorellaPeriod);
   const select = useStore(state => state.selectFiorellaPeriod);
-  const [error, setError] = useState(false);
   return <div className={`${cardClass} mb-5`}>
-    <label htmlFor="fiorella-period" className="block font-bold mb-2">Mes y año</label>
-    <input id="fiorella-period" type="month" min="0001-01" max="9999-12" className={fieldClass} value={input}
-      onChange={event => setError(!select(event.target.value))} />
-    {error && <p role="alert" className="text-sm mt-2">Selecciona un periodo válido. Se mantiene el último periodo válido.</p>}
+    <PeriodInput id="fiorella-period" label="Mes y año" applied={input} onValidChange={select} className={fieldClass} />
   </div>;
+}
+
+export function FixedTotalComparison({ summary }) {
+  if (summary.fixedComparison.status === 'unavailable') return <p className="text-sm">Sin diferencia global GF: información incompleta. {summary.fixedCoverage.matched}/{summary.budget.expected} subcategorías tienen presupuesto y gasto registrados. Consulta las diferencias individuales; los totales parciales pueden cubrir subcategorías distintas.</p>;
+  return <p className="text-sm">Diferencia global GF · detalle completo: <Comparison budget={summary.budget.amount} spent={summary.actual.amount} /></p>;
 }
 
 export function MoneyInput({ id, label, value, onChange }) {

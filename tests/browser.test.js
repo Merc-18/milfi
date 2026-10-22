@@ -182,7 +182,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.deepEqual(browser.exceptions, []);
     });
 
-    const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase2-1-capturas');
+    const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase2-2-capturas');
     const capture = async name => {
       await mkdir(captures, { recursive: true });
       const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
@@ -284,6 +284,99 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
       await clickLink('/fiorella', 'Finanzas de Fiorella');
       assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
+      assert.deepEqual(browser.exceptions, []);
+    });
+
+    await context.test('period edits preserve native drafts and applied data while incomplete GF totals stay unavailable', async () => {
+      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await fill('fiorella-period', '2040-01');
+      await fill('budget-servicios-gas', '80'); await submitForm('Presupuesto servicios-gas');
+      await fill('actual-servicios-celular', '30'); await submitForm('Presupuesto servicios-celular');
+      assert.ok((await visibleText()).includes('Sin diferencia global GF: información incompleta. 0/19'));
+      assert.doesNotMatch(await visibleText(), /Diferencia a favor: S\/ 50\.00/);
+      await fill('actual-servicios-gas', '90'); await submitForm('Presupuesto servicios-gas');
+      assert.ok((await visibleText()).includes('Exceso: −S/ 10.00'));
+      assert.ok((await visibleText()).includes('Sin diferencia global GF: información incompleta. 1/19'));
+      await fill('fiorella-period', '');
+      assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '');
+      assert.equal(await browser.evaluate('document.querySelectorAll("[role=alert]").length'), 0);
+      assert.ok((await visibleText()).includes('S/ 80.00'));
+      await browser.evaluate('document.getElementById("fiorella-period").focus(); document.getElementById("fiorella-period").blur()');
+      await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("AAAA-MM")');
+      await fill('fiorella-period', '2040-02');
+      assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '');
+      await fill('fiorella-period', '2040-01');
+      await browser.evaluate('Array.from(document.querySelectorAll("p")).find(p => p.textContent.startsWith("Sin diferencia global GF")).scrollIntoView({block:"start"})');
+      await capture('08-gf-incompleto-movil.png');
+    });
+
+    await context.test('scenario alternatives compare exact distributions without duplicating a projection period', async () => {
+      await clickLink('/fiorella/simulador', 'Simulador y metas');
+      const saveScenario = async (period, income) => {
+        await fill('simulation-period', period); await fill('simulation-income', income);
+        await browser.waitFor('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación") && !button.disabled)');
+        await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Guardar simulación")).click()');
+      };
+      await saveScenario('2040-01', '4000'); await saveScenario('2040-02', '4000'); await saveScenario('2040-01', '5000');
+      await browser.waitFor('document.querySelectorAll("#scenario-a option").length === 4');
+      const choose = async (id, index) => browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); input.value = input.options[${index}].value; input.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+      await choose('scenario-a', 3); await choose('scenario-b', 1);
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=scenario-comparison]").textContent.includes("+S/ 240.00")'));
+      await browser.evaluate('document.querySelectorAll("input[type=checkbox]")[0].click(); document.querySelectorAll("input[type=checkbox]")[2].click()');
+      await browser.waitFor('document.body.textContent.includes("Elige solo una por mes")');
+      assert.equal(await browser.evaluate('document.querySelector("[data-testid=projection]")'), null);
+      await browser.evaluate('document.querySelectorAll("input[type=checkbox]")[0].click(); document.querySelectorAll("input[type=checkbox]")[1].click()');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=projection]").textContent.includes("S/ 1,200.00")'));
+      await browser.evaluate('document.querySelector("[data-testid=scenario-comparison]").scrollIntoView({block:"start"})');
+      await capture('09-comparacion-movil.png');
+      await fill('simulation-income', '1000');
+      await browser.waitFor('document.body.textContent.includes("Tratamiento pendiente de aprobación")');
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))'), false);
+      await fill('simulation-income', '4000');
+    });
+
+    await context.test('goals use exact Excel-backed ratios, preserve revisions and exclude personal capacity', async () => {
+      await fill('goal-title', 'Objetivo inventado de prueba'); await fill('goal-target', '1200'); await fill('goal-months', '2');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("S/ 600.00")'));
+      await submitForm('Meta de ahorro hipotética');
+      await browser.waitFor('document.querySelectorAll("[data-goal-id]").length === 1');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("coincide matemáticamente")'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("S/ 1,800.00")'));
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.startsWith("Editar meta")).click()');
+      await fill('goal-target', '1300'); await submitForm('Meta de ahorro hipotética');
+      await browser.waitFor('document.querySelector("[data-goal-id]").textContent.includes("Revisión 2")');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("Faltaría S/ 100.00")'));
+      await fill('goal-title', 'Fracción sintética'); await fill('goal-target', '1'); await fill('goal-months', '3');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("1 / 3 (fracción exacta)")'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("redondeo monetario pendiente")'));
+      await fill('goal-months', '0');
+      assert.equal(await browser.evaluate('document.getElementById("goal-title").form.querySelector("button[type=submit]").disabled'), true);
+      await fill('goal-months', '3');
+      await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
+      await capture('10-meta-fraccion-movil.png');
+    });
+
+    await context.test('planning fits phone and desktop, leaves demo GF untouched and resets on reload', async () => {
+      for (const width of [320, 390, 768, 1280]) {
+        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
+        const sizes = await browser.evaluate('({width:innerWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
+        assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
+        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
+      }
+      await browser.evaluate('document.querySelector("[data-testid=projection]").scrollIntoView({block:"start"})');
+      await capture('11-proyeccion-escritorio.png');
+      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '80');
+      assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');
+      await clickLink('/control', 'Control Finanzas');
+      assert.doesNotMatch(await visibleText(), /S\/\s*\d|Objetivo inventado|Fracción sintética/);
+      await clickLink('/fiorella', 'Finanzas de Fiorella'); await clickLink('/fiorella/simulador', 'Simulador y metas');
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 1);
+      await browser.page('Page.reload');
+      await browser.waitFor('document.body?.textContent.includes("Todavía no registraste metas hipotéticas")');
+      assert.equal(await browser.evaluate('document.querySelectorAll("#scenario-a option").length'), 1);
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 0);
       assert.deepEqual(browser.exceptions, []);
     });
   } finally {

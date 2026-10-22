@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore.js';
 import { FIXED_CATEGORIES } from '../domain/fiorellaCategories.js';
 import { compareAmounts } from '../domain/amounts.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
-import { AmountStatus, buttonClass, cardClass, Comparison, MoneyInput, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
+import { AmountStatus, buttonClass, cardClass, Comparison, FixedTotalComparison, MoneyInput, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
 
 function BudgetRow({ category, record, period }) {
   const save = useStore(state => state.saveFiorellaDemo);
@@ -40,7 +40,7 @@ export default function PresupuestosGF() {
       <AmountStatus label="Ejecución GF registrada · demo" amount={summary.actual.amount} detail={`${summary.actual.registered}/19 subcategorías con gasto. No representa un total real confirmado.`} />
       <AmountStatus label="GF aplicado al cálculo" amount={summary.monthly?.appliedFixedExpense} detail="Se define por separado en el resumen mensual." />
     </div>
-    <p className="text-sm"><Comparison budget={summary.budget.amount} spent={summary.actual.amount} partial={summary.budget.status !== 'complete' || summary.actual.status !== 'complete'} /></p>
+    <FixedTotalComparison summary={summary} />
     {over && <p className="text-sm bg-acento/40 p-3 rounded-xl">El presupuesto detallado supera el tope GF. Se conserva como ejemplo, sin cambiar el GF aplicado ni redistribuir fondos.</p>}
     {summary.requiresRoundingDecision && <p className="text-sm">Hay fracciones de céntimo. Se muestran exactas, sin decidir su redondeo monetario.</p>}
     {FIXED_CATEGORIES.map(group => <details key={group.id} className={cardClass} open={group.id === 'servicios'}>

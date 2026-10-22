@@ -20,6 +20,7 @@ export default function Layout() {
             {[
               ['/fiorella', 'Resumen'], ['/fiorella/calculadora', 'Simular'],
               ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos GV'],
+              ['/fiorella/simulador', 'Escenarios y metas'],
               ['/fiorella/historial', 'Historial'], ['/fiorella/configuracion', 'Reglas'],
             ].map(([to, label]) => <NavLink key={to} to={to} end className={({ isActive }) => `px-3 py-3 min-h-11 rounded-xl ${isActive ? 'bg-principal font-bold' : 'bg-white'}`}>{label}</NavLink>)}
           </nav>

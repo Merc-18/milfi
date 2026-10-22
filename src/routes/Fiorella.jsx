@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore.js';
 import { formatAmount } from '../presentation/format.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
-import { AmountStatus, buttonClass, cardClass, Comparison, MoneyInput, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
+import { AmountStatus, buttonClass, cardClass, Comparison, FixedTotalComparison, MoneyInput, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
 
 function MonthlyForm({ period, record }) {
   const save = useStore(state => state.saveFiorellaDemo);
@@ -39,7 +39,7 @@ export default function Fiorella() {
       <AmountStatus label="Presupuesto detallado GF" amount={summary.budget.amount} detail={`${summary.budget.registered}/${summary.budget.expected} subcategorías con presupuesto. Es independiente del GF aplicado.`} />
       <AmountStatus label="Gasto GF registrado · demo" amount={summary.actual.amount} detail={`${summary.actual.registered}/${summary.actual.expected} subcategorías con ejecución. Total parcial hasta completar el detalle.`} />
     </div>
-    <p className="text-sm"><Comparison budget={summary.budget.amount} spent={summary.actual.amount} partial={summary.budget.status !== 'complete' || summary.actual.status !== 'complete'} /></p>
+    <FixedTotalComparison summary={summary} />
     <MonthlyForm key={input} period={period} record={summary.monthly} />
     <section className={cardClass}>
       <h2 className="font-bold text-lg mb-3">Distribución del mes · demo</h2>
@@ -64,6 +64,7 @@ export default function Fiorella() {
       {[
         ['/fiorella/presupuestos', 'Asignar presupuestos GF'], ['/fiorella/gastos', 'Registrar gastos GV'],
         ['/fiorella/historial', 'Historial y cambios de la sesión'], ['/fiorella/calculadora', 'Simular distribución independiente'],
+        ['/fiorella/simulador', 'Comparar escenarios y planificar metas'],
         ['/fiorella/configuracion', 'Consultar reglas oficiales'],
       ].map(([to, label]) => <Link key={to} to={to} className={`${cardClass} underline`}>{label}</Link>)}
     </div>
