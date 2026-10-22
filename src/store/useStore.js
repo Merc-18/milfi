@@ -4,6 +4,7 @@ import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { IDENTITIES, MODULE_DEFINITIONS } from '../domain/models.js';
 import { prepareFiorellaDemo } from '../domain/fiorellaSession.js';
 import { currentPeriodInput, parsePeriodInput } from '../presentation/format.js';
+import { prepareSavingsGoal } from '../application/savingsGoals.js';
 
 export function createMilfiStore() {
   return create((set, get) => ({
@@ -14,6 +15,16 @@ export function createMilfiStore() {
     fiorellaRecords: [],
     controlMovements: [],
     simulations: [],
+    savingsGoals: [],
+    saveSavingsGoal: input => {
+      const id = typeof input?.id === 'string' ? input.id.trim() : null;
+      const previous = get().savingsGoals.find(goal => goal.id === id);
+      const result = prepareSavingsGoal(input, previous);
+      if (!result.ok || result.unchanged) return result;
+      const snapshot = structuredClone(result.value);
+      set(state => ({ savingsGoals: [...state.savingsGoals.filter(goal => goal.id !== snapshot.id), snapshot] }));
+      return result;
+    },
     selectedFiorellaPeriod: currentPeriodInput(),
     fiorellaDemoRecords: [],
     fiorellaDemoEvents: [],

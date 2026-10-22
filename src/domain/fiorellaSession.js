@@ -103,6 +103,9 @@ export function summarizeFiorella(records, period) {
   const calculation = calculateDistribution({ income: monthly?.income ?? '', fixedExpense: monthly?.appliedFixedExpense ?? '' });
   const budget = aggregate(fixed, 'budgetAmount', FIXED_SUBCATEGORIES.length);
   const actual = aggregate(fixed, 'actualAmount', FIXED_SUBCATEGORIES.length);
+  const fixedCoverage = { matched: fixed.filter(record => record.budgetAmount !== null && record.actualAmount !== null).length };
+  const fixedComparison = budget.status === 'complete' && actual.status === 'complete'
+    ? moneyDifference(budget.amount, actual.amount) : { status: 'unavailable', amount: null, reason: 'INCOMPLETE_FIXED_DETAIL' };
   const categories = FINANCIAL_RULES.variableCategories.map(category => {
     const expenses = variable.filter(record => record.categoryId === category.id);
     const executed = aggregate(expenses, 'amount', expenses.length);
@@ -110,7 +113,7 @@ export function summarizeFiorella(records, period) {
     return { ...category, allocation, executed, comparison: moneyDifference(allocation, executed.amount) };
   });
   return { monthly, fixed, variable, calculation, budget, actual, categories,
-    fixedComparison: moneyDifference(budget.amount, actual.amount),
+    fixedComparison, fixedCoverage,
     requiresRoundingDecision: selected.some(record => ['income', 'appliedFixedExpense', 'budgetAmount', 'actualAmount', 'amount']
       .some(field => typeof record[field] === 'string' && hasFractionalCent(record[field]))) || calculation.requiresRoundingDecision === true };
 }
