@@ -18,7 +18,9 @@ export function fiorellaRecordKey(record) {
 }
 
 /** Pure, session-only command. Real records require a separate future workflow. */
-export function prepareFiorellaDemo(input, records = [], events = []) {
+// origin 'simulated' (session demo, default) or 'real' (persisted for the authenticated owner).
+export function prepareFiorellaDemo(input, records = [], events = [], { origin = 'simulated' } = {}) {
+  if (!['simulated', 'real'].includes(origin)) return { ok: false, errors: ['INVALID_ORIGIN'] };
   if (!input || typeof input !== 'object') return { ok: false, errors: ['INVALID_COMMAND'] };
   const errors = [];
   if (!nonempty(input.id)) errors.push('INVALID_ID');
@@ -27,7 +29,7 @@ export function prepareFiorellaDemo(input, records = [], events = []) {
   if (!Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) errors.push('INVALID_REVISION');
   if (!validTimestamp(input.occurredAt)) errors.push('INVALID_TIMESTAMP');
   if (!nonempty(input.eventId)) errors.push('INVALID_EVENT_ID');
-  if (input.origin !== undefined && input.origin !== 'simulated') errors.push('REAL_DATA_NOT_ALLOWED');
+  if (input.origin !== undefined && input.origin !== origin) errors.push('REAL_DATA_NOT_ALLOWED');
   if (input.validationStatus !== undefined && input.validationStatus !== 'pending') errors.push('CONFIRMATION_NOT_ALLOWED');
   if (input.currency !== undefined && input.currency !== 'PEN') errors.push('UNSUPPORTED_CURRENCY');
   if ((input.moduleId !== undefined && input.moduleId !== 'fiorella')
@@ -58,9 +60,10 @@ export function prepareFiorellaDemo(input, records = [], events = []) {
   }
   if (errors.length) return { ok: false, errors };
   const candidate = { schemaVersion: FIORELLA_SESSION_VERSION, id: input.id.trim(), moduleId: 'fiorella', ownerId: 'fiorella',
-    actorId: null, householdId: null, origin: 'simulated', validationStatus: 'pending', currency: 'PEN',
+    actorId: null, householdId: null, origin, validationStatus: 'pending', currency: 'PEN',
     kind: input.kind, period: { year: input.period.year, month: input.period.month }, ...payload,
-    provenance: { type: 'manual-simulation', sourceId: 'fiorella-session-demo', rulesVersion: FINANCIAL_RULES.version } };
+    provenance: origin === 'real' ? { type: 'manual-entry', sourceId: 'milfi-app', rulesVersion: FINANCIAL_RULES.version }
+      : { type: 'manual-simulation', sourceId: 'fiorella-session-demo', rulesVersion: FINANCIAL_RULES.version } };
   const previous = records.find(record => fiorellaRecordKey(record) === fiorellaRecordKey(candidate));
   if (records.some(record => record.id === candidate.id && record !== previous)) return { ok: false, errors: ['DUPLICATE_RECORD_ID'] };
   if (previous && periodKey(previous.period) !== periodKey(candidate.period)) return { ok: false, errors: ['PERIOD_CHANGE_REQUIRES_REVIEW'] };
@@ -75,7 +78,7 @@ export function prepareFiorellaDemo(input, records = [], events = []) {
   const value = { ...candidate, revision: (previous?.revision ?? 0) + 1, createdAt: previous?.createdAt ?? input.occurredAt, updatedAt: input.occurredAt };
   if (!Number.isSafeInteger(value.revision)) return { ok: false, errors: ['REVISION_LIMIT'] };
   const event = { schemaVersion: 1, id: input.eventId.trim(), recordId: value.id, revision: value.revision, period: value.period,
-    moduleId: 'fiorella', origin: 'simulated', actorId: null, action: previous ? 'updated' : 'created', occurredAt: input.occurredAt,
+    moduleId: 'fiorella', origin, actorId: null, action: previous ? 'updated' : 'created', occurredAt: input.occurredAt,
     similarExpenseAcknowledged: input.allowSimilar === true, before: previous ?? null, after: value };
   return { ok: true, value: structuredClone(value), event: structuredClone(event) };
 }
@@ -94,8 +97,8 @@ function aggregate(records, field, expected) {
     status: !values.length ? 'unregistered' : values.length < expected ? 'partial' : 'complete' };
 }
 
-export function summarizeFiorella(records, period) {
-  const selected = records.filter(record => record.moduleId === 'fiorella' && record.origin === 'simulated'
+export function summarizeFiorella(records, period, origin = 'simulated') {
+  const selected = records.filter(record => record.moduleId === 'fiorella' && record.origin === origin
     && record.validationStatus === 'pending' && periodKey(record.period) === periodKey(period) && isValidPeriod(period));
   const monthly = selected.find(record => record.kind === 'monthly-plan') ?? null;
   const fixed = selected.filter(record => record.kind === 'fixed-budget');
@@ -118,13 +121,13 @@ export function summarizeFiorella(records, period) {
       .some(field => typeof record[field] === 'string' && hasFractionalCent(record[field]))) || calculation.requiresRoundingDecision === true };
 }
 
-export function fiorellaHistory(records, events, simulations) {
-  const demos = records.filter(record => record.moduleId === 'fiorella' && record.origin === 'simulated' && record.validationStatus === 'pending');
+export function fiorellaHistory(records, events, simulations, origin = 'simulated') {
+  const demos = records.filter(record => record.moduleId === 'fiorella' && record.origin === origin && record.validationStatus === 'pending');
   const scenarios = simulations.filter(record => record.moduleId === 'fiorella' && record.origin === 'simulated' && record.validationStatus === 'pending');
   const periods = new Map([...demos, ...scenarios].filter(record => isValidPeriod(record.period)).map(record => [periodKey(record.period), record.period]));
   return [...periods.keys()].sort().reverse().map(key => ({ key, period: periods.get(key),
     records: demos.filter(record => periodKey(record.period) === key),
-    events: events.filter(event => event.moduleId === 'fiorella' && event.origin === 'simulated' && periodKey(event.period) === key && demos.some(record => record.id === event.recordId)),
+    events: events.filter(event => event.moduleId === 'fiorella' && event.origin === origin && periodKey(event.period) === key && demos.some(record => record.id === event.recordId)),
     simulations: scenarios.filter(record => periodKey(record.period) === key),
   }));
 }

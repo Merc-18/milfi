@@ -15,6 +15,9 @@ export const COLUMNS = Object.freeze({
 
 const period = row => row.period_year == null ? null : { year: row.period_year, month: row.period_month };
 // PostgREST returns DATE as 'YYYY-MM-DD'; a direct Postgres client may return a Date.
+// Amounts come as strings from ::text columns; audit JSON snapshots may carry numbers.
+const money = value => value == null ? null : String(value);
+const isoTime = value => value == null ? null : new Date(value).toISOString();
 const isoDate = value => value == null ? null : value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
 
 // ── Control Finanzas M&F ─────────────────────────────────────────────────────
@@ -29,41 +32,48 @@ export function controlMovementToRow(record, householdId) {
     source_amount_ref: excel ? source.operation.amountRef : null, provenance: source, period_assignment: record.periodAssignment ?? null };
 }
 
-const REVIEW_TYPES = [['evidenceReviews', 'evidence'], ['preimportResolutions', 'resolution'], ['preimportDecisions', 'decision'], ['demoReviews', 'demo']];
+const REVIEW_TYPES = [['evidenceReviews', 'evidence'], ['preimportResolutions', 'resolution'], ['preimportDecisions', 'decision'], ['demoReviews', 'demo'], ['manualReviews', 'manual']];
 export function controlReviewsToRows(record, householdId, movementId) {
   return REVIEW_TYPES.flatMap(([key, type]) => (record[key] ?? []).map(review => ({ household_id: householdId, movement_id: movementId, review_type: type,
     field: review.field ?? null, decision: review.decision, binding: review.binding, reason: review.reason, evidence_reference: review.evidenceReference })));
 }
 
+export const reviewFromRow = review => ({ id: review.id, ...(review.field ? { field: review.field } : {}), decision: review.decision, binding: review.binding,
+  reason: review.reason, reviewedBy: review.reviewed_by, reviewedAt: new Date(review.reviewed_at).toISOString(), evidenceReference: review.evidence_reference });
+
 export function controlMovementFromRow(row, reviews = []) {
-  const typed = type => reviews.filter(review => review.review_type === type).map(review => ({ id: review.id, ...(review.field ? { field: review.field } : {}),
-    decision: review.decision, binding: review.binding, reason: review.reason, reviewedBy: review.reviewed_by, reviewedAt: new Date(review.reviewed_at).toISOString(),
-    evidenceReference: review.evidence_reference }));
+  const typed = type => reviews.filter(review => review.review_type === type).map(reviewFromRow);
   return { id: row.id, schemaVersion: 1, householdId: row.household_id, revision: row.revision, moduleId: 'control-mf', origin: row.origin,
-    validationStatus: row.validation_status, actorId: null, kind: row.kind, purpose: row.purpose, contributorId: row.contributor_identity,
-    currency: row.currency, amount: row.amount, effectiveDate: isoDate(row.effective_date),
+    validationStatus: row.validation_status, actorId: row.provenance?.enteredBy ?? null, kind: row.kind, purpose: row.purpose, contributorId: row.contributor_identity,
+    currency: row.currency, amount: money(row.amount), effectiveDate: isoDate(row.effective_date),
     period: period(row), description: row.description, provenance: row.provenance,
     ...(row.period_assignment ? { periodAssignment: row.period_assignment } : {}),
-    evidenceReviews: typed('evidence'), preimportResolutions: typed('resolution'), preimportDecisions: typed('decision'), demoReviews: typed('demo') };
+    evidenceReviews: typed('evidence'), preimportResolutions: typed('resolution'), preimportDecisions: typed('decision'), demoReviews: typed('demo'), manualReviews: typed('manual'),
+    createdAt: isoTime(row.created_at), updatedAt: isoTime(row.updated_at) };
 }
 
 // ── Finanzas de Fiorella ─────────────────────────────────────────────────────
+// Same record shape as the session domain (fiorellaSession.js), marked real.
+const fiorellaMeta = row => ({ schemaVersion: 1, moduleId: 'fiorella', ownerId: 'fiorella', actorId: null, householdId: row.household_id,
+  origin: row.origin, validationStatus: row.validation_status, currency: row.currency, revision: row.revision,
+  provenance: { type: 'manual-entry', sourceId: 'milfi-app', rulesVersion: 'fiorella-official-v1' },
+  createdAt: isoTime(row.created_at), updatedAt: isoTime(row.updated_at) });
 export const monthlyPlanToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
   income: record.income ?? null, applied_fixed_expense: record.appliedFixedExpense ?? null, origin: 'real', validation_status: 'pending' });
-export const monthlyPlanFromRow = row => ({ id: row.id, kind: 'monthly-plan', moduleId: 'fiorella', period: period(row), income: row.income,
-  appliedFixedExpense: row.applied_fixed_expense, currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
+export const monthlyPlanFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'monthly-plan', period: period(row), income: money(row.income),
+  appliedFixedExpense: money(row.applied_fixed_expense), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const fixedBudgetToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
   category_id: record.categoryId, budget_amount: record.budgetAmount ?? null, actual_amount: record.actualAmount ?? null, origin: 'real', validation_status: 'pending' });
-export const fixedBudgetFromRow = row => ({ id: row.id, kind: 'fixed-budget', moduleId: 'fiorella', period: period(row), categoryId: row.category_id,
-  budgetAmount: row.budget_amount, actualAmount: row.actual_amount, currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
+export const fixedBudgetFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'fixed-budget', period: period(row), categoryId: row.category_id,
+  budgetAmount: money(row.budget_amount), actualAmount: money(row.actual_amount), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const variableExpenseToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
   category_id: record.categoryId, effective_date: record.effectiveDate, description: record.description, amount: record.amount,
   distinct_operation_reason: record.distinctOperationReason ?? null, origin: 'real', validation_status: 'pending' });
-export const variableExpenseFromRow = row => ({ id: row.id, kind: 'variable-expense', moduleId: 'fiorella', period: period(row), categoryId: row.category_id,
-  effectiveDate: isoDate(row.effective_date), description: row.description, amount: row.amount, currency: row.currency,
+export const variableExpenseFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'variable-expense', period: period(row), categoryId: row.category_id,
+  effectiveDate: isoDate(row.effective_date), description: row.description, amount: money(row.amount), currency: row.currency,
   origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const savingsGoalToRow = (record, householdId) => ({ household_id: householdId, title: record.title, target_amount: record.target, months: Number(record.months) });
-export const savingsGoalFromRow = row => ({ id: row.id, kind: 'savings-goal', moduleId: 'fiorella', scope: row.scope, title: row.title, target: row.target_amount,
+export const savingsGoalFromRow = row => ({ ...fiorellaMeta(row), provenance: { type: 'manual-simulation', sourceId: 'session-savings-goal' }, id: row.id, kind: 'savings-goal', period: null, scope: row.scope, title: row.title, target: money(row.target_amount),
   months: String(row.months), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 
 // ── Generic repository with optimistic concurrency ───────────────────────────

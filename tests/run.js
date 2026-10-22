@@ -13,3 +13,4 @@ import './controlPreimport.test.js';
 import './database.test.js';
 import './auth.test.js';
 import './repositories.test.js';
+import './persistence.test.js';
