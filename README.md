@@ -1,8 +1,8 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 2.1 incorpora resumen mensual, presupuestos GF, gastos GV e historial
-de demostración para Fiorella. Los datos de formularios duran solo la sesión y
+La Fase 2.2 añade comparación de escenarios, proyección y metas hipotéticas a
+los formularios GF/GV y al historial de Fiorella. Los datos duran solo la sesión y
 se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
 o sincronización.
 
@@ -64,6 +64,7 @@ No sustituye la verificación visual completa en dispositivos.
 - `/fiorella`: resumen y estado de la plantilla.
 - `/fiorella/presupuestos`: presupuestos y ejecución GF por subcategoría y periodo.
 - `/fiorella/gastos`: registro y seguimiento GV de demostración.
+- `/fiorella/simulador`: alternativas, proyección y metas hipotéticas de pareja.
 - `/fiorella/calculadora`: simulación con periodo explícito.
 - `/fiorella/historial`: aviso de historial pendiente y simulaciones de la sesión.
 - `/fiorella/configuracion`: consulta de las reglas oficiales.
@@ -79,7 +80,8 @@ No hay persistencia de datos financieros, importador, backend, autenticación,
 autorización efectiva, conciliación ni operaciones de dinero real. Las identidades
 y responsabilidades del modelo son metadatos del dominio, no sesiones ni permisos
 de seguridad. Presupuestos y gastos de Fiorella pueden probarse como demostración
-de la sesión; metas, proyecciones y flujos de datos reales siguen pendientes.
+de la sesión. Las metas y proyecciones respaldadas por fórmulas verificadas son
+hipotéticas; los flujos de datos reales siguen pendientes.
 
 Déficits, sobrante cero, redondeo monetario, sobregiros y movimientos ambiguos
 requieren aprobación. La calculadora presenta aritmética decimal exacta sin
@@ -98,4 +100,7 @@ Las [correcciones A1/A2/A3 de Fase 1.2](docs/FASE_1_2.md) refuerzan la comparaci
 con evidencia independiente, revisiones trazables e identidad de operaciones
 para detectar reimportaciones, incluidos encabezados y celdas combinadas.
 La [entrega de Fase 2.1](docs/FASE_2_1.md) documenta funcionalidades, contratos,
-pruebas y capturas. Fase 2.2 queda detenida hasta evaluar esta entrega.
+pruebas y capturas. La [entrega de Fase 2.2](docs/FASE_2_2.md) incorpora las
+correcciones de periodo/GF y la planificación exacta, con decisiones financieras
+y comprobación real en Safari/Firefox pendientes. El trabajo queda detenido
+al finalizar esta fase para su evaluación.
