@@ -192,7 +192,7 @@ selector de archivos se ejercita mediante CDP en Chromium.
 - `dec1427`: lector local, reconocimiento, preimportación, pantalla, script de
   contraste privado y 15 pruebas.
 - `911db45`: recorridos Chromium de la preimportación.
-- Commit documental posterior: este informe y el README.
+- `9e518a5`: este informe y el README.
 
 `main` y `origin/main` permanecen en `084eeb1`. No hubo push, merge, despliegue,
 reescritura de historial ni cambios de dependencias (solo un script npm). La
