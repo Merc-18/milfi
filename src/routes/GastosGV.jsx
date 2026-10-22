@@ -1,5 +1,8 @@
 import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { formatAmount } from '../presentation/format.js';
@@ -35,7 +38,7 @@ function VariableForm({ period, record, onDone, onCancel }) {
   </form>;
 }
 
-function VariableWorkspace({ period, summary }) {
+function VariableWorkspace({ period, summary, manage }) {
   const [editing, setEditing] = useState(null);
   const [generation, setGeneration] = useState(0);
   const [feedback, setFeedback] = useState('');
@@ -49,23 +52,24 @@ function VariableWorkspace({ period, summary }) {
     </section>)}
     {summary.requiresRoundingDecision && <p className="text-sm">Importes exactos con fracciones de céntimo; redondeo monetario pendiente.</p>}
     {feedback && <p role="status" className="text-sm">{feedback}</p>}
-    <VariableForm key={`${editing ?? 'new'}:${generation}`} period={period} record={summary.variable.find(record => record.id === editing)} onDone={done} onCancel={() => done('Edición cancelada.')} />
+    {manage ? <VariableForm key={`${editing ?? 'new'}:${generation}`} period={period} record={summary.variable.find(record => record.id === editing)} onDone={done} onCancel={() => done('Edición cancelada.')} /> : <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
     <section className="space-y-3"><h2 className="font-bold text-lg">Gastos del periodo · demo</h2>
       {!summary.variable.length && <p className={cardClass}>Sin gastos registrados en este periodo.</p>}
       {[...summary.variable].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate) || a.id.localeCompare(b.id)).map(record => <article key={record.id} className={`${cardClass} text-sm space-y-2`}>
         <p className="font-bold">{record.effectiveDate} · {record.categoryId === 'salud' ? 'Salud' : 'Ocio'}</p>
         <p className="break-words">{record.description}</p><p className="font-bold break-all">{formatAmount(record.amount)}</p>
         <p>Demostración · Revisión {record.revision}</p>
-        <button type="button" className="underline font-bold" onClick={() => { setEditing(record.id); setFeedback(''); }}>Editar {record.description}</button>
+        {manage && <button type="button" className="underline font-bold" onClick={() => { setEditing(record.id); setFeedback(''); }}>Editar {record.description}</button>}
       </article>)}
     </section>
   </>;
 }
 
 export default function GastosGV() {
+  const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary } = useFiorellaPeriod();
   return <div className="pb-10 space-y-5"><header className="my-6"><h1 className="text-2xl font-bold">Seguimiento GV</h1><p className="text-sm mt-2">Salud y Ocio · registros de demostración</p></header>
     <SessionNotice /><PeriodPicker />
-    <VariableWorkspace key={input} period={period} summary={summary} />
+    <VariableWorkspace key={input} period={period} summary={summary} manage={manage} />
   </div>;
 }

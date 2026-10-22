@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import ScenarioEditor from '../components/ScenarioEditor.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
@@ -77,11 +80,12 @@ function GoalCard({ goal, selected, onEdit }) {
       {comparison.requiresRoundingDecision && <RoundingNotice />}
     </div> : <p>{comparison.reason === 'HORIZON_MISMATCH' ? `Para comparar esta meta, elige ${comparison.required} periodos mensuales distintos. Elegidos: ${comparison.selected}.` : messages[comparison.reason] ?? 'Sin comparación disponible.'}</p>}
     <p>Esta planificación no acredita que se haya alcanzado una meta real.</p>
-    <button type="button" onClick={onEdit} className="underline font-bold">Editar meta {goal.title}</button>
+    {onEdit && <button type="button" onClick={onEdit} className="underline font-bold">Editar meta {goal.title}</button>}
   </article>;
 }
 
 export default function Simulador() {
+  const manage = canManage(useModuleAccess('fiorella'));
   const scenarios = useStore(state => state.simulations);
   const goals = useStore(state => state.savingsGoals);
   const [left, setLeft] = useState(''); const [right, setRight] = useState('');
@@ -126,11 +130,11 @@ export default function Simulador() {
         {projection.requiresRoundingDecision && <RoundingNotice />}
       </div> : <p role={projection.status === 'blocked' ? 'alert' : undefined} className="text-sm">{messages[projection.reason]}</p>}
     </section>
-    <GoalForm key={`${editing ?? 'new'}:${generation}`} record={goals.find(goal => goal.id === editing)} onDone={goalDone} onCancel={() => goalDone('Edición de meta cancelada.')} />
+    {manage ? <GoalForm key={`${editing ?? 'new'}:${generation}`} record={goals.find(goal => goal.id === editing)} onDone={goalDone} onCancel={() => goalDone('Edición de meta cancelada.')} /> : <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
     <section className="space-y-4"><h2 className="font-bold text-xl">Metas hipotéticas de esta sesión</h2>
       <p className="text-sm">Cada meta se evalúa por separado. No se reserva ni reparte ahorro entre metas, ni se supone que la misma capacidad cubra todas a la vez.</p>
       {!goals.length && <p className={cardClass}>Todavía no registraste metas hipotéticas. No se han importado metas de ejemplo del Excel.</p>}
-      {goals.map(goal => <GoalCard key={goal.id} goal={goal} selected={selected} onEdit={() => setEditing(goal.id)} />)}
+      {goals.map(goal => <GoalCard key={goal.id} goal={goal} selected={selected} onEdit={manage ? () => setEditing(goal.id) : null} />)}
     </section>
   </div>;
 }

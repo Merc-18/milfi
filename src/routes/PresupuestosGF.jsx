@@ -1,5 +1,8 @@
 import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import { FIXED_CATEGORIES } from '../domain/fiorellaCategories.js';
 import { compareAmounts } from '../domain/amounts.js';
@@ -29,6 +32,7 @@ function BudgetRow({ category, record, period }) {
 }
 
 export default function PresupuestosGF() {
+  const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary } = useFiorellaPeriod();
   const over = summary.budget.amount !== null && compareAmounts(summary.budget.amount, FINANCIAL_RULES.fixedExpenseCap) > 0;
   return <div className="pb-10 space-y-5">
@@ -43,9 +47,12 @@ export default function PresupuestosGF() {
     <FixedTotalComparison summary={summary} />
     {over && <p className="text-sm bg-acento/40 p-3 rounded-xl">El presupuesto detallado supera el tope GF. Se conserva como ejemplo, sin cambiar el GF aplicado ni redistribuir fondos.</p>}
     {summary.requiresRoundingDecision && <p className="text-sm">Hay fracciones de céntimo. Se muestran exactas, sin decidir su redondeo monetario.</p>}
+    {!manage && <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
     {FIXED_CATEGORIES.map(group => <details key={group.id} className={cardClass} open={group.id === 'servicios'}>
       <summary className="font-bold text-lg cursor-pointer">{group.name} · {group.children.length} subcategorías</summary>
-      {group.children.map(category => <BudgetRow key={`${input}:${category.id}`} category={category} period={period} record={summary.fixed.find(record => record.categoryId === category.id)} />)}
+      {group.children.map(category => { const record = summary.fixed.find(item => item.categoryId === category.id);
+        return manage ? <BudgetRow key={`${input}:${category.id}`} category={category} period={period} record={record} />
+          : <div key={category.id} className="border-t border-secundario py-4 text-sm"><h3 className="font-bold">{category.name}</h3><p><Comparison budget={record?.budgetAmount ?? null} spent={record?.actualAmount ?? null} /></p></div>; })}
     </details>)}
   </div>;
 }

@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import StatusNotice from '../components/StatusNotice.jsx';
 import { PreimportDecisionForm, PreimportResolutionForm } from '../components/PreimportForms.jsx';
 import { usePreimportStore } from '../store/preimportStore.js';
@@ -79,6 +82,13 @@ function MovementCard({ entry, entries, context, active, setActive, resolveField
 }
 
 export default function ControlPreimportacion() {
+  const manage = canManage(useModuleAccess('control-mf'));
+  if (!manage) return <div className="pb-10 space-y-5"><header className="my-6"><h1 className="text-2xl font-bold mb-2">Preimportación de Control</h1></header>
+    <ReadOnlyNotice>La preimportación es una tarea de administración de Control Finanzas M&F.</ReadOnlyNotice></div>;
+  return <PreimportWorkspace />;
+}
+
+function PreimportWorkspace() {
   const { batches, records, context, loadWorkbook, discardWorkbook, resolveField, decide } = usePreimportStore();
   const [loading, setLoading] = useState(false);
   const [fileError, setFileError] = useState('');

@@ -638,6 +638,18 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.deepEqual(await browser.evaluate('({local: localStorage.length, session: sessionStorage.length})'), { local: 0, session: 0 });
       assert.deepEqual(browser.exceptions, []);
     });
+
+    await context.test('Access page states that authentication is not configured and no auth client stores anything', async () => {
+      await navigate('/acceso', 'Acceso');
+      const text = await visibleText();
+      assert.ok(text.includes('Autenticación no configurada') && text.includes('No existe un inicio de sesión simulado'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("#login-email, #login-password").length'), 0);
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));
+      await clickLink('/control', 'Control Finanzas M&F');
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));
+      assert.deepEqual(await browser.evaluate('({local: localStorage.length, session: sessionStorage.length})'), { local: 0, session: 0 });
+      assert.deepEqual(browser.exceptions, []);
+    });
   } finally {
     try { if (browser) await browser.close(); } finally {
       if (app) await app.close();

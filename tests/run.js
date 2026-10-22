@@ -11,3 +11,5 @@ import './planning.test.js';
 import './controlSession.test.js';
 import './controlPreimport.test.js';
 import './database.test.js';
+import './auth.test.js';
+import './repositories.test.js';

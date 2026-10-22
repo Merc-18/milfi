@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import StatusNotice from '../components/StatusNotice.jsx';
 import PeriodInput from '../components/PeriodInput.jsx';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
@@ -12,6 +15,7 @@ import { controlButtonClass as buttonClass, controlCardClass as cardClass, contr
 
 export default function ControlFinanzas() {
   const state = useControlStore();
+  const manage = canManage(useModuleAccess('control-mf'));
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
   const [formVersion, setFormVersion] = useState(0);
@@ -44,9 +48,10 @@ export default function ControlFinanzas() {
   return <div className="pb-10 space-y-5 [overflow-wrap:anywhere]">
     <header className="my-6"><h1 className="text-2xl font-bold mb-2">Control Finanzas M&F</h1><p className="text-sm">Administración prevista: Milton · Consulta de ambos</p></header>
     <StatusNotice title="Historial real pendiente de importación"><p>El Excel de Control contiene operaciones reales. Todavía no se ha importado ningún movimiento; no hay un saldo confirmado para mostrar.</p></StatusNotice>
-    <section className={cardClass}><h2 className="font-bold text-lg">Preimportación del Excel de Control</h2>
+    {!manage && <ReadOnlyNotice>Tu usuario puede consultar Control Finanzas M&F, pero no registrar, editar, revisar ni preimportar movimientos.</ReadOnlyNotice>}
+    {manage && <section className={cardClass}><h2 className="font-bold text-lg">Preimportación del Excel de Control</h2>
       <p className="text-sm">Lee localmente un Excel de Control y revisa sus movimientos antes de una importación futura. No escribe en el historial real.</p>
-      <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>
+      <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>}
     <StatusNotice title="Demostración temporal · Sin dinero real"><p>Introduce únicamente datos inventados. Los ejemplos y sus revisiones se perderán al recargar. No hay almacenamiento permanente ni autenticación: los responsables se declaran, sus permisos no se verifican. La administración de Milton y la consulta de Fiorella se aplicarán con el backend futuro.</p></StatusNotice>
     <section className={cardClass}>
       <PeriodInput id="control-selected-period" label="Periodo de consulta" applied={state.selectedPeriod} className={fieldClass} onValidChange={value => {
@@ -68,11 +73,11 @@ export default function ControlFinanzas() {
       <h2 className="font-bold text-lg">Depósitos por destino</h2><p className="text-sm">Los aportes para gastos y los depósitos para ahorro se mantienen separados. Cada depósito identifica su aportante, su destino y el usuario que lo registra. Ninguna persona se convierte automáticamente en destinataria por aportar.</p>
       <h2 className="font-bold text-lg">Retiros y consulta de saldos</h2><p className="text-sm">Los retiros son movimientos independientes; no se deducen de diferencias entre saldos ni se atribuyen automáticamente a una persona. Los casos cuyo tratamiento requiera aprobación quedan pendientes.</p>
     </section>
-    <section className={cardClass} ref={editorRef}>
+    {manage && <section className={cardClass} ref={editorRef}>
       <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${state.selectedPeriod}`} record={editing} period={state.selectedPeriod} onSave={save} onCancel={() => setEditing(null)} />
       {notice && <p role="status" className="text-sm bg-secundario/30 rounded-xl p-3">{notice}</p>}
-    </section>
-    {reviewing && <section ref={reviewRef}><ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} /></section>}
+    </section>}
+    {manage && reviewing && <section ref={reviewRef}><ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} /></section>}
     <section className="space-y-4" aria-label="Historial de Control">
       <h2 className="text-lg font-bold">Historial y pendientes de validación</h2>
       <div><label htmlFor="control-status" className="block text-sm font-bold mb-2">Estado en el periodo seleccionado</label><select id="control-status" className={fieldClass} value={status} onChange={event => setStatus(event.target.value)}>
@@ -95,7 +100,7 @@ export default function ControlFinanzas() {
           {entry.needsReview && <p className="text-sm">Requiere revisión explícita de los datos y de su procedencia, incluso cuando están completos.</p>}
           {!!entry.pendingReasons.length && <ul className="text-sm space-y-1">{entry.pendingReasons.map(reason => <li key={reason}>{controlExplanation(reason)}</li>)}</ul>}
           {record.distinctOperationReason && <p className="text-sm">Operación coincidente declarada distinta: {record.distinctOperationReason}</p>}
-          <div className="flex flex-wrap gap-3"><button type="button" className={buttonClass} onClick={() => { setEditing(structuredClone(record)); setReviewing(null); setNotice(''); }}>Editar ejemplo</button><button type="button" className={buttonClass} onClick={() => { setReviewing(entry); setEditing(null); setNotice(''); }}>Revisar ejemplo</button></div>
+          {manage && <div className="flex flex-wrap gap-3"><button type="button" className={buttonClass} onClick={() => { setEditing(structuredClone(record)); setReviewing(null); setNotice(''); }}>Editar ejemplo</button><button type="button" className={buttonClass} onClick={() => { setReviewing(entry); setEditing(null); setNotice(''); }}>Revisar ejemplo</button></div>}
           <details className="text-sm"><summary className="cursor-pointer min-h-11 py-3 font-bold">Procedencia original y revisiones</summary>
             <p>Declaración original: {record.provenance.original.effectiveDate} · {controlMoney(record.provenance.original.amount, record.provenance.original.currency)}</p>
             <p>Aportante original: {personName(record.provenance.original.contributorId)} · Destino original: {purposeName(record.provenance.original.purpose)} · Registrador original: {personName(record.provenance.enteredBy)}</p>

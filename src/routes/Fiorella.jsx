@@ -1,5 +1,8 @@
 import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
+import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
+import { useModuleAccess } from '../presentation/moduleAccess.js';
+import { canManage } from '../domain/access.js';
 import { Link } from 'react-router-dom';
 import { useStore } from '../store/useStore.js';
 import { formatAmount } from '../presentation/format.js';
@@ -29,6 +32,7 @@ function MonthlyForm({ period, record }) {
 }
 
 export default function Fiorella() {
+  const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary } = useFiorellaPeriod();
   return <div className="pb-10 space-y-5">
     <header className="my-6"><h1 className="text-2xl font-bold mb-2">Finanzas de Fiorella 🌸</h1><p className="text-sm">Resumen mensual · Administración prevista: Fiorella · Consulta de ambos</p></header>
@@ -40,7 +44,7 @@ export default function Fiorella() {
       <AmountStatus label="Gasto GF registrado · demo" amount={summary.actual.amount} detail={`${summary.actual.registered}/${summary.actual.expected} subcategorías con ejecución. Total parcial hasta completar el detalle.`} />
     </div>
     <FixedTotalComparison summary={summary} />
-    <MonthlyForm key={input} period={period} record={summary.monthly} />
+    {manage ? <MonthlyForm key={input} period={period} record={summary.monthly} /> : <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
     <section className={cardClass}>
       <h2 className="font-bold text-lg mb-3">Distribución del mes · demo</h2>
       {summary.calculation.status === 'calculated' ? <>
