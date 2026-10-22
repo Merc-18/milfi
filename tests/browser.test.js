@@ -86,7 +86,7 @@ async function openBrowser(executable, profile) {
         if (await evaluate(expression)) return;
         await new Promise(resolve => setTimeout(resolve, 75));
       }
-      const state = await evaluate('({path: location.pathname, heading: document.querySelector("h1")?.textContent})');
+      const state = await evaluate('({path: location.pathname, heading: document.querySelector("h1")?.textContent, formTops: Array.from(document.querySelectorAll("form")).map(form => ({label: form.getAttribute("aria-label"), top: form.getBoundingClientRect().top})), viewportHeight: innerHeight})');
       throw new Error(`Browser condition timed out: ${expression}; state=${JSON.stringify(state)}; exceptions=${JSON.stringify(exceptions)}`);
     };
     return { child, exceptions, evaluate, waitFor, page, close: async () => {
@@ -389,6 +389,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     const openControlReview = async index => {
       await browser.evaluate(`document.querySelectorAll('[data-control-id]')[${index}].querySelectorAll('button')[1].click()`);
       await browser.waitFor('!!document.getElementById("control-reviewer")');
+      await browser.waitFor(`(() => { const top = document.querySelector('form[aria-label="Revisión demostrativa de Control"]').getBoundingClientRect().top; return top >= -1 && top < innerHeight / 2; })()`);
       await chooseControl('control-reviewer', 'milton');
       await fill('control-review-reason', 'Verificación explícita de los datos inventados de esta operación');
       await fill('control-review-reference', 'Referencia sintética vinculada a esta operación');
@@ -448,6 +449,7 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('Control edits invalidate reviews, retain original evidence and expose before/after audit', async () => {
       await browser.evaluate('Array.from(document.querySelectorAll("[data-control-id]")).find(card => card.textContent.includes("Ejemplo Control A") && card.dataset.controlState === "reviewed").querySelector("button").click()');
+      await browser.waitFor(`(() => { const top = document.querySelector('form[aria-label="Movimiento demostrativo de Control"]').getBoundingClientRect().top; return top >= -1 && top < innerHeight / 2; })()`);
       await fill('control-amount', '0.2'); await submitForm('Movimiento demostrativo de Control');
       await browser.waitFor('document.body.textContent.includes("Revisión anterior desactualizada")');
       assert.doesNotMatch(await controlSummary(), /PEN 0\.10|PEN 0\.20/);
