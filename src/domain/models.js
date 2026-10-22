@@ -20,6 +20,8 @@ const SOURCE_CLASSIFICATION = Object.freeze({
   'fiorella-template': ORIGINS.SIMULATED,
   'legacy-mock': ORIGINS.SIMULATED,
   'control-excel': ORIGINS.REAL,
+  'control-session-demo': ORIGINS.SIMULATED,
+  'control-demo-excel': ORIGINS.SIMULATED,
   'fiorella-updated-excel': ORIGINS.REAL,
 });
 
@@ -92,7 +94,7 @@ function inspectEnvelope(record) {
     errors.push('INVALID_PROVENANCE');
   } else {
     if (SOURCE_CLASSIFICATION[source.type] !== record.origin) errors.push('SOURCE_ORIGIN_MISMATCH');
-    const expectedModule = source.type === 'control-excel' ? MODULES.CONTROL : MODULES.FIORELLA;
+    const expectedModule = ['control-excel', 'control-session-demo', 'control-demo-excel'].includes(source.type) ? MODULES.CONTROL : MODULES.FIORELLA;
     if (source.type !== 'legacy-mock' && record.moduleId !== expectedModule) errors.push('SOURCE_MODULE_MISMATCH');
     errors.push(...validateExcelTrace(source));
   }
