@@ -6,3 +6,4 @@ import './routes.test.js';
 import './contracts.test.js';
 import './excelEvidence.test.js';
 import './evidenceRelations.test.js';
+import './fiorellaSession.test.js';
