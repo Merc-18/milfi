@@ -42,6 +42,11 @@ export function compareAmounts(left, right) {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
+export function addAmounts(left, right) {
+  const [a, b, scale] = align(left, right);
+  return fromParts(a + b, scale);
+}
+
 export function subtractAmounts(left, right) {
   const [a, b, scale] = align(left, right);
   if (a < b) throw new RangeError('A negative result requires a financial policy.');

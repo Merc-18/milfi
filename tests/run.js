@@ -3,3 +3,4 @@ import './distribution.test.js';
 import './models.test.js';
 import './store.test.js';
 import './routes.test.js';
+import './contracts.test.js';

@@ -10,8 +10,9 @@ function movement(overrides = {}) {
     moduleId: 'control-mf', origin: 'real', validationStatus: 'confirmed',
     actorId: null, period: { year: 2030, month: 6 }, kind: 'deposit', purpose: 'savings',
     contributorId: 'fiorella', amount: '25', currency: 'PEN', effectiveDate: null, description: null,
-    provenance: { type: 'control-excel', sourceId: 'synthetic-source', sourceFingerprint: 'synthetic-fingerprint',
-      importBatchId: 'synthetic-batch', sheet: 'Synthetic', row: 1, original: { amount: '25', date: null } },
+    provenance: { type: 'control-excel', sourceId: 'synthetic-source', sourceFingerprint: 'a'.repeat(64),
+      importBatchId: 'synthetic-batch', sheet: 'Synthetic', row: 1,
+      cells: { amount: 'C1', date: 'A1' }, original: { amount: '25', date: null } },
     ...overrides,
   };
 }
@@ -53,7 +54,7 @@ test('source trace and module must match the original classification', () => {
 
 test('only validated real movements enter the confirmed partition', () => {
   const confirmed = movement();
-  const simulated = movement({ id: 'demo', origin: 'simulated', provenance: { type: 'legacy-mock', sourceId: 'synthetic' } });
+  const simulated = movement({ id: 'demo', origin: 'simulated', validationStatus: 'pending', provenance: { type: 'legacy-mock', sourceId: 'synthetic' } });
   const pending = movement({ id: 'pending', validationStatus: 'pending' });
   const rejected = movement({ id: 'rejected', validationStatus: 'rejected' });
   const invalid = movement({ id: 'invalid', amount: '25+' });
@@ -61,10 +62,11 @@ test('only validated real movements enter the confirmed partition', () => {
   assert.deepEqual(groups, { confirmed: [confirmed], simulated: [simulated], pending: [pending], rejected: [rejected], invalid: [invalid] });
 });
 
-test('confirmed withdrawals require a known date and the savings purpose', () => {
+test('confirmed withdrawals require a known date; unapproved purposes stay pending', () => {
   assert.deepEqual(validateMovement(movement({ kind: 'withdrawal', effectiveDate: '2030-06-03' })), []);
   assert.ok(validateMovement(movement({ kind: 'withdrawal' })).includes('MISSING_WITHDRAWAL_DATE'));
-  assert.ok(validateMovement(movement({ kind: 'withdrawal', purpose: 'expenses' })).includes('UNSUPPORTED_WITHDRAWAL_PURPOSE'));
+  assert.deepEqual(validateMovement(movement({ kind: 'withdrawal', purpose: 'expenses', validationStatus: 'pending' })), []);
+  assert.ok(validateMovement(movement({ kind: 'withdrawal', purpose: 'expenses' })).includes('WITHDRAWAL_PURPOSE_POLICY_PENDING'));
   assert.ok(validateMovement(movement({ currency: '$' })).includes('INVALID_CURRENCY'));
   assert.ok(validateMovement(movement({ amount: '-1' })).includes('INVALID_AMOUNT'));
 });

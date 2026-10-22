@@ -35,6 +35,8 @@ test('module routes render with real-history notices and no simulated financial 
       assert.doesNotMatch(html, /Gustos|Ropa|Abril 2026/);
     }
     assert.doesNotMatch(renderPath('/control'), /S\/\s*[\d]/);
+    assert.doesNotMatch(renderPath('/control'), /Aportes de Milton|solo Fiorella|únicamente Fiorella/);
+    for (const field of ['aportante', 'destino', 'usuario que lo registra']) assert.ok(renderPath('/control').includes(field));
     assert.doesNotMatch(renderPath('/'), /S\/\s*[\d]/);
     const config = renderPath('/fiorella/configuracion');
     assert.ok(config.includes('Salud'));
