@@ -10,3 +10,4 @@ import './fiorellaSession.test.js';
 import './planning.test.js';
 import './controlSession.test.js';
 import './controlPreimport.test.js';
+import './database.test.js';

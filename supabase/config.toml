@@ -1,0 +1,29 @@
+# Supabase CLI settings for local development. No secrets belong here.
+# The hosted project must be configured equivalently in the dashboard
+# (see docs/FASE_4_1.md): public sign-ups disabled, only invited users.
+project_id = "milfi"
+
+[api]
+enabled = true
+schemas = ["public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# No public registration: accounts are created by the project administrator.
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
