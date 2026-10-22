@@ -6,7 +6,8 @@ import { prepareSimulation } from '../src/application/simulations.js';
 // Synthetic fixtures only. Never copy records from private workbooks here.
 function movement(overrides = {}) {
   return {
-    id: 'synthetic-movement', moduleId: 'control-mf', origin: 'real', validationStatus: 'confirmed',
+    id: 'synthetic-movement', schemaVersion: 1, householdId: 'synthetic-household', revision: 1,
+    moduleId: 'control-mf', origin: 'real', validationStatus: 'confirmed',
     actorId: null, period: { year: 2030, month: 6 }, kind: 'deposit', purpose: 'savings',
     contributorId: 'fiorella', amount: '25', currency: 'PEN', effectiveDate: null, description: null,
     provenance: { type: 'control-excel', sourceId: 'synthetic-source', sourceFingerprint: 'synthetic-fingerprint',
@@ -66,6 +67,20 @@ test('confirmed withdrawals require a known date and the savings purpose', () =>
   assert.ok(validateMovement(movement({ kind: 'withdrawal', purpose: 'expenses' })).includes('UNSUPPORTED_WITHDRAWAL_PURPOSE'));
   assert.ok(validateMovement(movement({ currency: '$' })).includes('INVALID_CURRENCY'));
   assert.ok(validateMovement(movement({ amount: '-1' })).includes('INVALID_AMOUNT'));
+});
+
+test('unknown historical period stays pending rather than being invented', () => {
+  const record = movement({ period: null, validationStatus: 'pending' });
+  assert.deepEqual(validateMovement(record), []);
+  assert.ok(validateMovement({ ...record, validationStatus: 'confirmed' }).includes('MISSING_CONFIRMED_PERIOD'));
+});
+
+test('fractional cents and missing synchronization identity cannot be silently confirmed', () => {
+  assert.ok(validateMovement(movement({ amount: '0.001' })).includes('ROUNDING_POLICY_PENDING'));
+  assert.deepEqual(validateMovement(movement({ amount: '0.001', validationStatus: 'pending' })), []);
+  assert.ok(validateMovement(movement({ householdId: null })).includes('MISSING_CONFIRMED_HOUSEHOLD'));
+  assert.ok(validateMovement(movement({ revision: -1 })).includes('INVALID_REVISION'));
+  assert.ok(validateMovement(movement({ schemaVersion: 2 })).includes('UNSUPPORTED_SCHEMA_VERSION'));
 });
 
 test('preparing a simulation cannot create a real record or imply an authenticated actor', () => {

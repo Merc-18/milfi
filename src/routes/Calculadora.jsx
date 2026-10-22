@@ -1,176 +1,76 @@
-import { useState, useEffect } from 'react';
-import { useStore } from '../store/useStore';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Calculator as CalcIcon, Save, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { Calculator as CalcIcon, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useStore } from '../store/useStore.js';
+import { FINANCIAL_RULES } from '../domain/financialRules.js';
+import { calculateDistribution } from '../domain/distribution.js';
+import { currentPeriodInput, parsePeriodInput } from '../presentation/format.js';
+import DistributionDetails from '../components/DistributionDetails.jsx';
+import StatusNotice from '../components/StatusNotice.jsx';
+
+const issueMessages = {
+  INVALID_INCOME: 'Ingresa un ingreso no negativo y finito, usando punto para los decimales.',
+  INVALID_FIXED_EXPENSE: 'Ingresa un gasto fijo no negativo y finito, usando punto para los decimales.',
+  FIXED_EXPENSE_ABOVE_CAP: 'El gasto fijo no puede superar el tope oficial de S/ 1,500.',
+};
 
 export default function Calculadora() {
   const navigate = useNavigate();
-  const config = useStore(state => state.config);
-  const calcularDistribucion = useStore(state => state.calcularDistribucion);
-  const agregarIngresoMensual = useStore(state => state.agregarIngresoMensual);
+  const saveSimulation = useStore(state => state.saveSimulation);
+  const [income, setIncome] = useState('');
+  const [fixedExpense, setFixedExpense] = useState(FINANCIAL_RULES.fixedExpenseCap);
+  const [periodInput, setPeriodInput] = useState(currentPeriodInput);
+  const [saveError, setSaveError] = useState('');
+  const period = parsePeriodInput(periodInput);
+  // Derived directly; no effect synchronizes a duplicate result state.
+  const calculation = calculateDistribution({ income, fixedExpense });
 
-  const [ingresoStr, setIngresoStr] = useState('');
-  const [gfStr, setGfStr] = useState(config.gf_tope.toString());
-  const [resultado, setResultado] = useState(null);
-
-  // Efecto de cálculo en vivo
-  useEffect(() => {
-    const ingreso = Number(ingresoStr) || 0;
-    let gf = Number(gfStr) || 0;
-
-    // Bloqueo duro visual
-    if (gf > config.gf_tope) {
-      gf = config.gf_tope;
-    }
-
-    if (ingreso > 0) {
-      const res = calcularDistribucion(ingreso, gf);
-      setResultado(res);
-    } else {
-      setResultado(null);
-    }
-  }, [ingresoStr, gfStr, config, calcularDistribucion]);
-
-  const handleGfChange = (e) => {
-    let val = e.target.value;
-    if (Number(val) > config.gf_tope) {
-      setGfStr(config.gf_tope.toString());
-    } else {
-      setGfStr(val);
-    }
-  };
-
-  const guardar = () => {
-    if (!resultado) return;
-
-    const nuevo = {
-      id: Date.now().toString(),
-      mes: 4, // Abril simulado
-      año: 2026,
-      monto_ingresado: resultado.ingreso,
-      gf_aplicado: resultado.gfFinal,
-      ahorro_pareja: resultado.ahorro.pareja,
-      snapshot: resultado,
-      fecha_registro: new Date()
-    };
-
-    agregarIngresoMensual(nuevo);
-    navigate('/historial');
+  const save = () => {
+    const result = saveSimulation({ id: crypto.randomUUID(), period, income, fixedExpense, createdAt: new Date().toISOString() });
+    if (result.ok) navigate('/fiorella/historial');
+    else setSaveError('No se pudo guardar la simulación. Revisa el periodo y las entradas.');
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      <header className="mb-6 mt-4 flex items-center gap-3">
-        <div className="bg-principal p-2.5 rounded-[18px] text-texto shadow-sm">
-          <CalcIcon size={26} strokeWidth={2.5} />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-texto tracking-tight">Calculadora</h1>
-          <p className="text-texto-light text-sm font-semibold">Distribuye tu sueldo al instante</p>
-        </div>
+    <div className="pb-10">
+      <header className="my-6 flex items-center gap-3">
+        <div className="bg-principal p-3 rounded-[18px]"><CalcIcon size={26} aria-hidden="true" /></div>
+        <div><h1 className="text-2xl font-bold">Simular distribución</h1><p className="text-sm">Finanzas de Fiorella</p></div>
       </header>
-
-      {/* Entradas */}
+      <StatusNotice title="Solo simulación"><p>Los importes de esta pantalla no se incorporan al historial real ni generan depósitos. Las simulaciones guardadas duran solo esta sesión y se pierden al recargar.</p></StatusNotice>
       <div className="space-y-4 mb-6">
-        <div className="bg-white p-5 rounded-[24px] shadow-soft border border-transparent focus-within:border-principal focus-within:shadow-md transition-all">
-          <label className="block text-xs font-bold text-texto-light uppercase tracking-widest mb-2">¿Cuánto recibiste este mes?</label>
-          <div className="flex items-center text-4xl font-bold text-texto">
-            <span className="mr-2 text-principal">S/</span>
-            <input
-              type="number"
-              value={ingresoStr}
-              onChange={(e) => setIngresoStr(e.target.value)}
-              placeholder="0"
-              className="w-full bg-transparent outline-none placeholder:text-secundario text-texto"
-            />
-          </div>
+        <div className="bg-white p-5 rounded-[24px] shadow-soft">
+          <label htmlFor="simulation-period" className="block text-sm font-bold mb-2">Periodo de la simulación</label>
+          <input id="simulation-period" type="month" value={periodInput} onChange={event => setPeriodInput(event.target.value)} className="w-full bg-fondo p-3 rounded-xl" />
+          {!period && <p className="text-sm mt-2" role="alert">Selecciona un periodo válido.</p>}
         </div>
-
-        <div className="bg-white p-5 rounded-[24px] shadow-soft border border-transparent focus-within:border-principal focus-within:shadow-md transition-all">
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-xs font-bold text-texto-light uppercase tracking-widest">Gasto Fijo Aplicado</label>
-            <span className="text-[10px] font-bold bg-principal/50 text-texto px-2 py-0.5 rounded-lg">Tope S/ {config.gf_tope}</span>
-          </div>
-          <div className="flex items-center text-2xl font-bold text-texto">
-            <span className="mr-2 text-principal">S/</span>
-            <input
-              type="number"
-              value={gfStr}
-              onChange={handleGfChange}
-              max={config.gf_tope}
-              className="w-full bg-transparent outline-none text-texto"
-            />
-          </div>
-          {Number(gfStr) === config.gf_tope && (
-            <p className="text-xs text-principal font-bold mt-2 flex items-center gap-1">
-              <AlertCircle size={12} strokeWidth={3} /> Límite alcanzado
-            </p>
-          )}
+        <div className="bg-white p-5 rounded-[24px] shadow-soft">
+          <label htmlFor="simulation-income" className="block text-sm font-bold mb-2">Ingreso simulado (S/)</label>
+          <input id="simulation-income" type="text" inputMode="decimal" autoComplete="off" maxLength={100} value={income} onChange={event => setIncome(event.target.value)} placeholder="0.00" className="w-full text-3xl bg-transparent rounded-lg p-1" aria-describedby="decimal-help" />
         </div>
+        <div className="bg-white p-5 rounded-[24px] shadow-soft">
+          <label htmlFor="simulation-fixed" className="block text-sm font-bold mb-2">Gasto fijo simulado (S/) · Tope 1,500</label>
+          <input id="simulation-fixed" type="text" inputMode="decimal" autoComplete="off" maxLength={100} value={fixedExpense} onChange={event => setFixedExpense(event.target.value)} className="w-full text-2xl bg-transparent rounded-lg p-1" aria-describedby="decimal-help" />
+        </div>
+        <p id="decimal-help" className="text-sm">Usa punto para los decimales, sin símbolos ni separadores de miles.</p>
       </div>
-
-      {/* Resultados Animados */}
+      <div aria-live="polite" aria-atomic="true">
+        {calculation.status === 'invalid' && <ul className="text-sm bg-acento/30 p-4 rounded-xl mb-4">{calculation.issues.map(issue => <li key={issue}>{issueMessages[issue]}</li>)}</ul>}
+        {calculation.status === 'decision_required' && (
+          <StatusNotice title="Tratamiento pendiente de aprobación"><p>{calculation.reason === 'DEFICIT_POLICY_PENDING' ? 'El ingreso es menor que el gasto fijo.' : 'El sobrante es cero.'} No se genera una distribución para este caso hasta aprobar su tratamiento.</p></StatusNotice>
+        )}
+      </div>
       <AnimatePresence>
-        {resultado && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-4"
-          >
-            {/* Gasto Fijo */}
-            <div className="bg-principal/20 border-2 border-principal/40 rounded-[24px] p-5">
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold text-texto text-lg flex items-center gap-2">🌸 GASTO FIJO</h3>
-                <span className="font-bold text-xl">S/ {resultado.gfFinal.toLocaleString('es-PE')}</span>
-              </div>
-            </div>
-
-            {/* Variables */}
-            <div className="bg-acento/20 border-2 border-acento/40 rounded-[24px] p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-texto text-lg flex items-center gap-2">🍑 VARIABLES <span className="bg-white px-2 py-0.5 rounded-lg text-xs shadow-sm">{config.pct_gv}%</span></h3>
-                <span className="font-bold text-xl">S/ {resultado.gv.total.toLocaleString('es-PE')}</span>
-              </div>
-              <div className="space-y-2.5">
-                {config.subcategorias_gv.map(cat => (
-                  <div key={cat.id} className="flex justify-between text-sm font-semibold text-texto/80 bg-white/50 px-3 py-2 rounded-xl">
-                    <span>{cat.nombre} ({cat.porcentaje}%)</span>
-                    <span className="font-bold text-texto">S/ {resultado.gv[cat.nombre.toLowerCase()]?.toLocaleString('es-PE') || 0}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Ahorro */}
-            <div className="bg-exito/30 border-2 border-exito/50 rounded-[24px] p-5">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-texto text-lg flex items-center gap-2">💚 AHORRO <span className="bg-white px-2 py-0.5 rounded-lg text-xs shadow-sm">{config.pct_ahorro}%</span></h3>
-                <span className="font-bold text-xl text-green-800">S/ {resultado.ahorro.total.toLocaleString('es-PE')}</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm font-bold text-texto px-2">
-                  <span>Personal ({config.pct_ahorro_personal}%)</span>
-                  <span>S/ {resultado.ahorro.personal.toLocaleString('es-PE')}</span>
-                </div>
-                <div className="flex justify-between text-sm font-bold text-texto bg-white p-3 rounded-xl shadow-soft border border-exito/30">
-                  <span className="flex items-center gap-1">Pareja ({config.pct_ahorro_pareja}%) ✨</span>
-                  <span className="text-green-700 text-base">S/ {resultado.ahorro.pareja.toLocaleString('es-PE')}</span>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={guardar}
-              className="w-full bg-texto text-white font-bold text-lg p-5 rounded-[20px] shadow-soft flex items-center justify-center gap-2 mt-8 hover:bg-texto-light transition-all active:scale-95"
-            >
-              <Save size={22} />
-              Guardar este mes
-            </button>
-          </motion.div>
+        {calculation.status === 'calculated' && (
+          <Motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <DistributionDetails distribution={calculation.distribution} />
+            <p className="text-sm mt-4">Vista matemática exacta, sin redondear.{calculation.requiresRoundingDecision && ' Hay fracciones de céntimo; su tratamiento monetario está pendiente de aprobación.'}</p>
+            <button type="button" onClick={save} disabled={!period} className="w-full bg-texto text-white font-bold p-5 rounded-[20px] flex items-center justify-center gap-2 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"><Save size={22} aria-hidden="true" /> Guardar simulación de esta sesión</button>
+          </Motion.div>
         )}
       </AnimatePresence>
+      {saveError && <p role="alert" className="text-sm mt-4">{saveError}</p>}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { normalizeAmount } from './amounts.js';
+import { hasFractionalCent, normalizeAmount } from './amounts.js';
 
 export const MODULES = Object.freeze({ FIORELLA: 'fiorella', CONTROL: 'control-mf' });
 export const ORIGINS = Object.freeze({ SIMULATED: 'simulated', REAL: 'real' });
@@ -27,8 +27,9 @@ const SOURCE_CLASSIFICATION = Object.freeze({
  * @typedef {{type: string, sourceId: string, sheet?: string, row?: number,
  * sourceFingerprint?: string, importBatchId?: string,
  * original?: Object<string, string|null>}} Provenance
- * @typedef {{id: string, moduleId: string, origin: 'simulated'|'real',
- * validationStatus: 'pending'|'confirmed'|'rejected', period: Period,
+ * @typedef {{id: string, householdId: string|null, schemaVersion: 1, revision: number,
+ * moduleId: string, origin: 'simulated'|'real',
+ * validationStatus: 'pending'|'confirmed'|'rejected', period: Period|null,
  * provenance: Provenance, actorId: string|null}} RecordEnvelope
  * @typedef {RecordEnvelope & {kind: 'deposit'|'withdrawal', purpose: 'expenses'|'savings',
  * contributorId: string|null, amount: string|null, currency: string|null,
@@ -61,10 +62,17 @@ export function validateEnvelope(record) {
   if (!record || typeof record !== 'object') return ['INVALID_RECORD'];
   const errors = [];
   if (!nonempty(record.id)) errors.push('INVALID_ID');
+  if (record.schemaVersion !== 1) errors.push('UNSUPPORTED_SCHEMA_VERSION');
   if (!Object.values(MODULES).includes(record.moduleId)) errors.push('INVALID_MODULE');
   if (!Object.values(ORIGINS).includes(record.origin)) errors.push('INVALID_ORIGIN');
   if (!Object.values(VALIDATION).includes(record.validationStatus)) errors.push('INVALID_VALIDATION_STATUS');
-  if (!isValidPeriod(record.period)) errors.push('INVALID_PERIOD');
+  if (record.period !== null && !isValidPeriod(record.period)) errors.push('INVALID_PERIOD');
+  if (!Number.isInteger(record.revision) || record.revision < 0) errors.push('INVALID_REVISION');
+  if (record.householdId !== null && !nonempty(record.householdId)) errors.push('INVALID_HOUSEHOLD');
+  if (record.validationStatus === VALIDATION.CONFIRMED) {
+    if (!isValidPeriod(record.period)) errors.push('MISSING_CONFIRMED_PERIOD');
+    if (!nonempty(record.householdId)) errors.push('MISSING_CONFIRMED_HOUSEHOLD');
+  }
   if (record.actorId !== null && !IDENTITIES.some(identity => identity.id === record.actorId)) errors.push('INVALID_ACTOR');
 
   const source = record.provenance;
@@ -101,6 +109,8 @@ export function validateMovement(record) {
   if (record.description !== null && typeof record.description !== 'string') errors.push('INVALID_DESCRIPTION');
   if (record.validationStatus === VALIDATION.CONFIRMED) {
     if (record.amount === null || record.currency === null) errors.push('UNRESOLVED_MONEY');
+    if (typeof record.amount === 'string' && normalizeAmount(record.amount) !== null
+      && hasFractionalCent(normalizeAmount(record.amount))) errors.push('ROUNDING_POLICY_PENDING');
     if (record.kind === 'deposit' && record.contributorId === null) errors.push('MISSING_CONTRIBUTOR');
     if (record.kind === 'withdrawal' && record.effectiveDate === null) errors.push('MISSING_WITHDRAWAL_DATE');
   }

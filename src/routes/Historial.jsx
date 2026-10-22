@@ -1,93 +1,27 @@
-import { useStore } from '../store/useStore';
-import { Calendar, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
-
-const nombresMeses = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+import { useStore } from '../store/useStore.js';
+import { formatAmount, formatPeriod } from '../presentation/format.js';
+import DistributionDetails from '../components/DistributionDetails.jsx';
+import StatusNotice from '../components/StatusNotice.jsx';
 
 export default function Historial() {
-  const ingresos = useStore(state => state.ingresosMensuales);
-  const [expandedId, setExpandedId] = useState(null);
-
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
+  const simulations = useStore(state => state.simulations);
   return (
-    <div className="animate-in fade-in duration-500 pb-10">
-      <header className="mb-6 mt-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-texto">Historial</h1>
-          <p className="text-texto-light text-sm font-semibold">Tus registros pasados</p>
+    <div className="pb-10">
+      <header className="my-6"><h1 className="text-2xl font-bold">Historial y simulaciones</h1></header>
+      <StatusNotice title="Historial real aún no importado"><p>La plantilla original contiene importes simulados. Los registros reales se incorporarán cuando recibamos y validemos el Excel actualizado de Fiorella.</p></StatusNotice>
+      <h2 className="font-bold text-lg mb-2">Simulaciones de esta sesión</h2>
+      <p className="text-sm mb-5">Son ejemplos independientes. No representan ingresos ni ahorros reales y se pierden al recargar.</p>
+      {simulations.length === 0 ? <p className="text-sm bg-white p-5 rounded-[24px] shadow-soft">Todavía no guardaste simulaciones en esta sesión.</p> : (
+        <div className="space-y-4">
+          {simulations.map(simulation => (
+            <details key={simulation.id} className="bg-white p-5 rounded-[24px] shadow-soft">
+              <summary className="cursor-pointer font-bold"><span className="capitalize">{formatPeriod(simulation.period)}</span> · {formatAmount(simulation.distribution.income)}<span className="block text-sm font-normal mt-1">Simulación · Ver distribución</span></summary>
+              <div className="mt-4"><DistributionDetails distribution={simulation.distribution} /></div>
+              <p className="text-sm mt-3">Importes exactos, sin redondear.{simulation.requiresRoundingDecision && ' Contiene fracciones de céntimo pendientes de criterio monetario.'}</p>
+            </details>
+          ))}
         </div>
-        <div className="bg-white px-4 py-2 rounded-xl shadow-soft font-bold text-texto flex items-center gap-2">
-          <Calendar size={18} /> 2026
-        </div>
-      </header>
-
-      <div className="space-y-4">
-        {ingresos.length === 0 ? (
-          <p className="text-center text-texto-light mt-10 font-medium">No hay registros aún.</p>
-        ) : (
-          ingresos.map((ingreso) => (
-            <div key={ingreso.id} className="bg-white rounded-[24px] shadow-soft overflow-hidden border border-transparent hover:border-secundario transition-colors">
-              <div 
-                onClick={() => toggleExpand(ingreso.id)}
-                className="p-5 flex justify-between items-center cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="bg-secundario/30 w-14 h-14 rounded-[18px] flex flex-col items-center justify-center text-texto">
-                    <span className="text-sm font-bold leading-none">{nombresMeses[ingreso.mes]}</span>
-                    <span className="text-[10px] font-bold opacity-70 mt-1">{ingreso.año}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xl text-texto leading-none mb-1.5">S/ {ingreso.monto_ingresado.toLocaleString('es-PE')}</p>
-                    <p className="text-xs font-bold text-green-800 bg-exito/50 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
-                      Pareja S/ {ingreso.ahorro_pareja.toLocaleString('es-PE')} 💚
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-fondo p-2 rounded-full">
-                   <ChevronDown size={20} strokeWidth={3} className={`text-texto-light transition-transform ${expandedId === ingreso.id ? 'rotate-180' : ''}`} />
-                </div>
-              </div>
-
-              {/* Detalle Expandible */}
-              {expandedId === ingreso.id && (
-                <div className="px-5 pb-6 pt-3 border-t border-fondo bg-fondo/30 text-sm animate-in slide-in-from-top-2">
-                  <div className="space-y-3 mt-1">
-                    <div className="flex justify-between text-texto bg-principal/20 p-2.5 rounded-xl font-bold">
-                      <span>🌸 Gasto Fijo</span>
-                      <span>S/ {ingreso.snapshot.gfFinal.toLocaleString('es-PE')}</span>
-                    </div>
-                    
-                    <div className="bg-acento/10 p-2.5 rounded-xl border border-acento/20">
-                      <div className="flex justify-between text-texto font-bold mb-2">
-                        <span>🍑 Variables</span>
-                        <span>S/ {ingreso.snapshot.gv.total.toLocaleString('es-PE')}</span>
-                      </div>
-                      <div className="pl-3 space-y-1.5 text-xs font-semibold text-texto-light border-l-2 border-acento ml-1">
-                         <div className="flex justify-between"><span>Salud</span><span>S/ {ingreso.snapshot.gv.salud?.toLocaleString('es-PE')}</span></div>
-                         <div className="flex justify-between"><span>Gustos</span><span>S/ {ingreso.snapshot.gv.gustos?.toLocaleString('es-PE')}</span></div>
-                         <div className="flex justify-between"><span>Ropa</span><span>S/ {ingreso.snapshot.gv.ropa?.toLocaleString('es-PE')}</span></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-exito/10 p-2.5 rounded-xl border border-exito/20">
-                       <div className="flex justify-between text-texto font-bold mb-2">
-                          <span>💚 Ahorro Total</span>
-                          <span>S/ {ingreso.snapshot.ahorro.total.toLocaleString('es-PE')}</span>
-                       </div>
-                       <div className="pl-3 space-y-1.5 text-xs font-semibold text-texto-light border-l-2 border-exito ml-1">
-                         <div className="flex justify-between"><span>Personal</span><span>S/ {ingreso.snapshot.ahorro.personal.toLocaleString('es-PE')}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+      )}
     </div>
   );
 }

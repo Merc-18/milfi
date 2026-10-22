@@ -12,6 +12,9 @@ export function prepareSimulation({ id, period, income, fixedExpense, createdAt 
     ok: true,
     value: {
       id,
+      schemaVersion: 1,
+      householdId: null,
+      revision: 0,
       moduleId: MODULES.FIORELLA,
       origin: ORIGINS.SIMULATED,
       // A pending simulation cannot be mistaken for a confirmed financial record.
