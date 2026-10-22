@@ -2,6 +2,7 @@ import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Home, Flower2, Users } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import AuthGate from '../auth/AccessGuards.jsx';
+import DataSync from '../auth/DataSync.jsx';
 
 export default function Layout() {
   const { pathname } = useLocation();
@@ -27,6 +28,7 @@ export default function Layout() {
             ].map(([to, label]) => <NavLink key={to} to={to} end className={({ isActive }) => `px-3 py-3 min-h-11 rounded-xl ${isActive ? 'bg-principal font-bold' : 'bg-white'}`}>{label}</NavLink>)}
           </nav>
         )}
+        <DataSync />
         <AuthGate><Outlet /></AuthGate>
       </main>
 

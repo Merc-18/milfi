@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { sessionResultMessage } from '../presentation/fiorellaSession.js';
+
+const persistenceCodes = new Set(['STALE_REVISION', 'DUPLICATE', 'FORBIDDEN', 'CONSTRAINT_VIOLATION', 'SESSION_EXPIRED', 'NOT_FOUND_OR_FORBIDDEN', 'NOT_CONNECTED', 'PERSISTENCE_ERROR']);
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
@@ -48,12 +51,16 @@ function GoalForm({ record, onDone, onCancel }) {
   const [months, setMonths] = useState(record?.months ?? '');
   const [error, setError] = useState('');
   const estimate = estimateSavingsGoal({ target, months });
-  const submit = event => {
+  const [saving, setSaving] = useState(false);
+  const persisted = useStore(state => !!state.remote);
+  const submit = async event => {
     event.preventDefault();
-    const result = save({ id: base?.id ?? crypto.randomUUID(), expectedRevision: base?.revision ?? 0,
+    setSaving(true);
+    const result = await save({ id: base?.id ?? crypto.randomUUID(), expectedRevision: base?.revision ?? 0,
       title, target, months, occurredAt: new Date().toISOString() });
-    if (result.ok) onDone(result.unchanged ? 'La meta no cambió.' : 'Meta hipotética registrada solo en esta sesión. Se pierde al recargar.');
-    else setError(messages[result.errors?.[0]] ?? 'Revisa nombre, monto, meses y revisión de la meta. No se modificó el plan.');
+    setSaving(false);
+    if (result.ok) onDone(result.unchanged ? 'La meta no cambió.' : persisted ? 'Meta hipotética guardada en MilFi. Sigue siendo una planificación, no dinero confirmado.' : 'Meta hipotética registrada solo en esta sesión. Se pierde al recargar.');
+    else setError(messages[result.errors?.[0]] ?? (persistenceCodes.has(result.errors?.[0]) ? sessionResultMessage(result, persisted) : 'Revisa nombre, monto, meses y revisión de la meta. No se modificó el plan.'));
   };
   return <form aria-label="Meta de ahorro hipotética" onSubmit={submit} className={`${cardClass} space-y-4`}>
     <h2 className="font-bold text-xl">{record ? 'Editar meta hipotética' : 'Planificar una meta de pareja'}</h2>
@@ -61,7 +68,7 @@ function GoalForm({ record, onDone, onCancel }) {
     <MoneyInput id="goal-target" label="Monto objetivo hipotético (S/)" value={target} onChange={setTarget} />
     <div><label htmlFor="goal-months" className="block text-sm font-bold mb-2">Meses disponibles que tú defines</label><input id="goal-months" type="text" inputMode="numeric" maxLength={16} className={fieldClass} value={months} onChange={event => setMonths(event.target.value)} placeholder="Sin definir" /></div>
     <GoalEstimate estimate={estimate} />
-    <button type="submit" className={buttonClass} disabled={estimate.status !== 'estimated'}>{record ? 'Actualizar meta' : 'Registrar meta'} · sesión</button>
+    <button type="submit" className={buttonClass} disabled={saving || estimate.status !== 'estimated'}>{saving ? 'Guardando…' : `${record ? 'Actualizar meta' : persisted ? 'Guardar meta' : 'Registrar meta'}${persisted ? '' : ' · sesión'}`}</button>
     {record && <button type="button" className="block underline" onClick={onCancel}>Cancelar edición de meta</button>}
     {error && <p role="alert" className="text-sm">{error}</p>}
   </form>;

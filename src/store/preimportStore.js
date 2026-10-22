@@ -5,7 +5,9 @@ import { prepareFieldResolution, preparePreimportDecision, readControlWorkbook }
 // Reloading discards every file, capture, review and decision.
 export function createPreimportStore(reader = readControlWorkbook) {
   return create((set, get) => ({
-    batches: [], records: [], context: { workbooks: new Map() },
+    batches: [], records: [], context: { workbooks: new Map() }, imported: {},
+    reset: () => set({ batches: [], records: [], context: { workbooks: new Map() }, imported: {} }),
+    markImported: (fingerprint, result) => set(state => ({ imported: { ...state.imported, [fingerprint]: result } })),
     loadWorkbook: async (bytes, fileName) => {
       const result = await reader(bytes);
       if (!result.ok) return result;

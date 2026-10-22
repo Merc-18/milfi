@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import ControlLedgerView from './ControlLedgerView.jsx';
+import { useLedgerStore } from '../store/ledgerStore.js';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
@@ -13,7 +15,13 @@ import { formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass,
   controlMoney, controlExplanation, kindName, personName, purposeName, statusName } from '../presentation/control.js';
 
+// Persisted ledger while an authorized session is connected; session demo otherwise.
 export default function ControlFinanzas() {
+  const persisted = useLedgerStore(state => !!state.persistence);
+  return persisted ? <ControlLedgerView /> : <ControlDemoView />;
+}
+
+function ControlDemoView() {
   const state = useControlStore();
   const manage = canManage(useModuleAccess('control-mf'));
   const [editing, setEditing] = useState(null);

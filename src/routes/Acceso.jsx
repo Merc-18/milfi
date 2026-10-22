@@ -18,6 +18,28 @@ const errors = {
 };
 const message = code => errors[code] ?? 'No se pudo completar la operación de acceso.';
 const levels = { manage: 'administra', read: 'consulta', none: 'sin acceso' };
+const passwordErrors = { WEAK_PASSWORD: 'Usa al menos 12 caracteres y una contraseña que no hayas usado antes.', SAME_PASSWORD: 'La nueva contraseña debe ser distinta de la actual.' };
+
+function ChangePassword() {
+  const [password, setPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [result, setResult] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const submit = async event => {
+    event.preventDefault();
+    if (password !== confirmation) { setResult({ ok: false, code: 'MISMATCH' }); return; }
+    setSaving(true);
+    const outcome = await useSessionStore.getState().changePassword(password);
+    setSaving(false); setPassword(''); setConfirmation(''); setResult(outcome);
+  };
+  return <form aria-label="Cambiar contraseña" onSubmit={submit} className="space-y-3 border-t border-secundario pt-4">
+    <h3 className="font-bold">Cambiar contraseña</h3>
+    <div><label htmlFor="new-password" className="block text-sm font-bold mb-2">Nueva contraseña</label><input id="new-password" type="password" autoComplete="new-password" minLength={12} required className={fieldClass} value={password} onChange={event => setPassword(event.target.value)} /></div>
+    <div><label htmlFor="new-password-confirm" className="block text-sm font-bold mb-2">Repite la nueva contraseña</label><input id="new-password-confirm" type="password" autoComplete="new-password" minLength={12} required className={fieldClass} value={confirmation} onChange={event => setConfirmation(event.target.value)} /></div>
+    {result && <p role={result.ok ? 'status' : 'alert'} className="text-sm">{result.ok ? 'Contraseña actualizada.' : result.code === 'MISMATCH' ? 'Las contraseñas no coinciden.' : passwordErrors[result.code] ?? message(result.code)}</p>}
+    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : 'Cambiar contraseña'}</button>
+  </form>;
+}
 
 export default function Acceso() {
   const { state } = useLocation();
@@ -53,6 +75,7 @@ export default function Acceso() {
       {session.status === 'no-access' ? <p className="text-sm">Tu usuario no tiene permisos asignados en MilFi.</p>
         : <ul className="text-sm"><li>Finanzas de Fiorella: {levels[session.access.fiorella]}</li><li>Control Finanzas M&F: {levels[session.access['control-mf']]}</li></ul>}
       <button type="button" className={buttonClass} onClick={() => useSessionStore.getState().signOut()}>Cerrar sesión</button>
+      {session.status === 'ready' && <ChangePassword />}
     </section>}
     {session.status === 'error' && <p role="alert" className="text-sm rounded-xl bg-amber-50 p-3">{message(session.error)}</p>}
   </div>;

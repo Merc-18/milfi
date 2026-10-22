@@ -2,27 +2,32 @@ import { create } from 'zustand';
 import { accessFromPermissions } from '../domain/access.js';
 import { readSupabaseConfig } from '../infrastructure/supabase/config.js';
 import { createBrowserAuthGateway } from '../infrastructure/supabase/authGateway.js';
+import { createMilfiPersistence } from '../application/persistence.js';
 
 // status: demo | config-error | initializing | signed-out | expired | signing-in
 //         | loading-access | ready | no-access | error
 // "demo" means Supabase is not configured: the app runs without authentication,
 // with session-only invented data, and says so. It is never presented as secure.
-const signedOutState = { user: null, profile: null, access: null };
+// Signing out or expiring always drops the persistence handle (and so the loaded data).
+const signedOutState = { user: null, profile: null, access: null, persistence: null };
 
 export function createSessionStore({ config, connect = createBrowserAuthGateway } = {}) {
   const settings = config ?? readSupabaseConfig(import.meta.env ?? {});
   return create((set, get) => {
     let gateway = null;
+    let client = null;
     let unsubscribe = null;
     let signingOut = false;
 
     const loadAccess = async user => {
       set({ status: 'loading-access', user, error: null });
       const result = await gateway.loadAccess(user.id);
-      if (!result.ok) return set({ status: 'error', error: result.code, profile: null, access: null });
+      if (!result.ok) return set({ status: 'error', error: result.code, profile: null, access: null, persistence: null });
       const access = accessFromPermissions(result.permissions);
       const any = Object.values(access).some(level => level !== 'none');
-      set({ status: result.profile && any ? 'ready' : 'no-access', profile: result.profile, access });
+      const ready = !!result.profile && any;
+      set({ status: ready ? 'ready' : 'no-access', profile: result.profile, access,
+        persistence: ready && client ? createMilfiPersistence(client, { householdId: result.profile.household_id }) : null });
     };
 
     return {
@@ -33,7 +38,7 @@ export function createSessionStore({ config, connect = createBrowserAuthGateway 
       async start() {
         if (settings.status !== 'configured' || gateway) return;
         try {
-          ({ gateway } = await connect(settings));
+          ({ gateway, client = null } = await connect(settings));
         } catch {
           return set({ status: 'error', error: 'AUTH_CLIENT_UNAVAILABLE' });
         }
@@ -65,6 +70,11 @@ export function createSessionStore({ config, connect = createBrowserAuthGateway 
         if (!result.ok) signingOut = false;
         set({ ...signedOutState, status: 'signed-out', error: result.ok ? null : result.code });
         return result;
+      },
+      async changePassword(password) {
+        if (!gateway || get().status !== 'ready') return { ok: false, code: 'AUTH_NOT_CONFIGURED' };
+        if (typeof password !== 'string' || password.length < 12) return { ok: false, code: 'WEAK_PASSWORD' };
+        return gateway.changePassword(password);
       },
       stop() { unsubscribe?.(); unsubscribe = null; },
     };

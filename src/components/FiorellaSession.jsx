@@ -9,6 +9,10 @@ export const buttonClass = 'bg-texto text-white font-bold px-4 py-3 rounded-xl d
 export const cardClass = 'bg-white p-4 rounded-[24px] shadow-soft min-w-0';
 
 export function SessionNotice() {
+  const remote = useStore(state => state.remote ? state.remoteStatus : null);
+  const error = useStore(state => state.remoteError);
+  if (remote === 'error') return <StatusNotice title="No se pudieron cargar los datos guardados"><p role="alert">MilFi no pudo leer la información ({error}). No se muestran datos incompletos como si fueran definitivos. Recarga o vuelve a iniciar sesión.</p></StatusNotice>;
+  if (remote) return <StatusNotice title="Datos guardados en MilFi"><p>Los registros se guardan en la base de datos de MilFi y se ven al volver a entrar o desde otro dispositivo.{remote === 'loading' ? ' Cargando…' : ''} El historial anterior en Excel aún no se ha importado.</p></StatusNotice>;
   return <StatusNotice title="Demostración de esta sesión"><p>Estos registros son ejemplos, no información financiera confirmada. Solo permanecen en memoria y se pierden al recargar. Historial real aún no importado.</p></StatusNotice>;
 }
 

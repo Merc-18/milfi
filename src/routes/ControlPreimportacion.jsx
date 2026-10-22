@@ -6,6 +6,8 @@ import { canManage } from '../domain/access.js';
 import StatusNotice from '../components/StatusNotice.jsx';
 import { PreimportDecisionForm, PreimportResolutionForm } from '../components/PreimportForms.jsx';
 import { usePreimportStore } from '../store/preimportStore.js';
+import { useLedgerStore } from '../store/ledgerStore.js';
+import { controlExplanation } from '../presentation/control.js';
 import { inspectPreimport, summarizePreimport } from '../domain/controlPreimport.js';
 import { evidenceBinding } from '../domain/excelEvidence.js';
 import { formatPeriod } from '../presentation/format.js';
@@ -89,7 +91,10 @@ export default function ControlPreimportacion() {
 }
 
 function PreimportWorkspace() {
-  const { batches, records, context, loadWorkbook, discardWorkbook, resolveField, decide } = usePreimportStore();
+  const { batches, records, context, loadWorkbook, discardWorkbook, resolveField, decide, imported } = usePreimportStore();
+  const persisted = useLedgerStore(state => !!state.persistence);
+  const [confirming, setConfirming] = useState(null);
+  const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fileError, setFileError] = useState('');
   const [notice, setNotice] = useState('');
@@ -116,7 +121,7 @@ function PreimportWorkspace() {
   };
   return <div className="pb-10 space-y-5 [overflow-wrap:anywhere]">
     <header className="my-6"><h1 className="text-2xl font-bold mb-2">Preimportación de Control</h1><p className="text-sm">Control Finanzas M&F · Revisión previa de un Excel</p></header>
-    <StatusNotice title="Procesamiento local y temporal"><p>El archivo se lee en este navegador. No se sube a ningún servidor ni se guarda: al recargar desaparecen el archivo, los movimientos y las revisiones. Nada se escribe en el historial real ni se confirma dinero. No hay autenticación: los responsables se declaran.</p></StatusNotice>
+    <StatusNotice title="Procesamiento local y temporal"><p>El archivo se lee en este navegador. No se sube a ningún servidor ni se guarda: al recargar desaparecen el archivo, los movimientos y las revisiones. {persisted ? 'Solo se guardan en el historial de Control los movimientos que prepares y confirmes explícitamente, como reales pendientes; nunca se confirma dinero.' : 'Nada se escribe en el historial real ni se confirma dinero.'} No hay autenticación: los responsables se declaran.</p></StatusNotice>
     <Link to="/control" className="underline text-sm font-bold">Volver a Control Finanzas M&F</Link>
     <section className={cardClass}>
       <label htmlFor="preimport-file" className="block font-bold">1. Selecciona el Excel de Control (.xlsx)</label>
@@ -146,6 +151,25 @@ function PreimportWorkspace() {
               {kindName(group.kind)} · {purposeName(group.purpose)}{group.kind === 'deposit' ? ` · ${personName(group.contributorId)}` : ''}: <strong>{controlMoney(group.total, group.currency)}</strong> ({group.count}) · no confirmado
             </li>)}</ul>}
           <p className="text-xs mt-2">Las monedas no se suman entre sí. No se calcula saldo.</p></div>
+        {persisted && !imported[batch.fingerprint] && summary.prepared > 0 && <div className="space-y-2" data-testid="preimport-save">
+          {confirming !== batch.fingerprint
+            ? <button type="button" className={buttonClass} onClick={() => setConfirming(batch.fingerprint)}>Guardar {summary.prepared} preparado(s) en el historial de Control</button>
+            : <>
+              <p className="text-sm font-bold">Se guardarán {summary.prepared} movimiento(s) reales pendientes, con su procedencia y revisiones. Los pendientes y rechazados no se guardan. ¿Confirmas?</p>
+              <div className="flex flex-wrap gap-3">
+                <button type="button" className={buttonClass} disabled={importing} onClick={async () => {
+                  setImporting(true);
+                  const prepared = entries.filter(entry => entry.status === 'prepared' && entry.record.provenance.sourceFingerprint === batch.fingerprint).map(entry => entry.record);
+                  const result = await useLedgerStore.getState().importPrepared(batch, prepared);
+                  setImporting(false); setConfirming(null);
+                  if (result.ok) { usePreimportStore.getState().markImported(batch.fingerprint, result.value); setNotice(`Se guardaron ${result.value.movementIds.length} movimiento(s) en el historial de Control.`); }
+                  else setNotice(controlExplanation(result.errors[0]));
+                }}>{importing ? 'Guardando…' : 'Confirmar y guardar'}</button>
+                <button type="button" className={buttonClass} onClick={() => setConfirming(null)}>Cancelar</button>
+              </div>
+            </>}
+        </div>}
+        {imported[batch.fingerprint] && <p className="text-sm font-bold" role="status">Guardado en el historial de Control: {imported[batch.fingerprint].movementIds.length} movimiento(s). Revísalos en Control Finanzas M&F.</p>}
         <button type="button" className={buttonClass} onClick={() => { discardWorkbook(batch.fingerprint); setActive(null); setNotice('Archivo descartado de la sesión.'); }}>Descartar este archivo de la sesión</button>
       </section>;
     })}

@@ -25,6 +25,10 @@ export function createAuthGateway(client) {
       const { data, error } = await client.auth.signInWithPassword({ email, password });
       return error ? { ok: false, code: authErrorCode(error) } : { ok: true, user: user(data.session) };
     },
+    async changePassword(password) {
+      const { error } = await client.auth.updateUser({ password });
+      return error ? { ok: false, code: error.code === 'weak_password' ? 'WEAK_PASSWORD' : error.code === 'same_password' ? 'SAME_PASSWORD' : authErrorCode(error) } : { ok: true };
+    },
     async signOut() {
       const { error } = await client.auth.signOut();
       return error ? { ok: false, code: authErrorCode(error) } : { ok: true };

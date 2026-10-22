@@ -1,4 +1,4 @@
-import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
+import { sessionCommand, sessionResultMessage, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
@@ -15,18 +15,22 @@ function BudgetRow({ category, record, period }) {
   const [budget, setBudget] = useState(record?.budgetAmount ?? '');
   const [actual, setActual] = useState(record?.actualAmount ?? '');
   const [feedback, setFeedback] = useState(null);
-  const submit = event => {
+  const [saving, setSaving] = useState(false);
+  const persisted = usePersisted();
+  const submit = async event => {
     event.preventDefault();
-    const result = save(sessionCommand('fixed-budget', period, base, { categoryId: category.id, budgetAmount: budget, actualAmount: actual }));
+    setSaving(true);
+    const result = await save(sessionCommand('fixed-budget', period, base, { categoryId: category.id, budgetAmount: budget, actualAmount: actual }));
     if (result.ok) setBase(result.value);
-    setFeedback({ ok: result.ok, text: sessionResultMessage(result) });
+    setSaving(false);
+    setFeedback({ ok: result.ok, text: sessionResultMessage(result, persisted) });
   };
   return <form onSubmit={submit} className="border-t border-secundario py-4 space-y-3" aria-label={`Presupuesto ${category.id}`}>
     <h3 className="font-bold">{category.name}</h3>
     <MoneyInput id={`budget-${category.id}`} label="Presupuesto mensual (S/)" value={budget} onChange={setBudget} />
     <MoneyInput id={`actual-${category.id}`} label="Gasto registrado · demo (S/)" value={actual} onChange={setActual} />
     <p className="text-sm"><Comparison budget={record?.budgetAmount ?? null} spent={record?.actualAmount ?? null} /></p>
-    <button className={buttonClass} type="submit">{record ? 'Actualizar' : 'Registrar'} {category.name} · sesión</button>
+    <button className={buttonClass} type="submit" disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar' : persisted ? 'Guardar' : 'Registrar'} ${category.name}${persisted ? '' : ' · sesión'}`}</button>
     {feedback && <p role={feedback.ok ? 'status' : 'alert'} className="text-sm">{feedback.text}</p>}
   </form>;
 }

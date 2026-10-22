@@ -1,4 +1,4 @@
-import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
+import { sessionCommand, sessionResultMessage, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
@@ -17,12 +17,16 @@ function VariableForm({ period, record, onDone, onCancel }) {
   const [amount, setAmount] = useState(record?.amount ?? '');
   const [similar, setSimilar] = useState(false);
   const [error, setError] = useState('');
-  const submit = event => {
+  const [saving, setSaving] = useState(false);
+  const persisted = usePersisted();
+  const submit = async event => {
     event.preventDefault();
-    const result = save(sessionCommand('variable-expense', period, base, { effectiveDate: date, categoryId: category,
+    setSaving(true);
+    const result = await save(sessionCommand('variable-expense', period, base, { effectiveDate: date, categoryId: category,
       description, amount, allowSimilar: similar }));
-    if (result.ok) onDone(sessionResultMessage(result));
-    else setError(sessionResultMessage(result));
+    setSaving(false);
+    if (result.ok) onDone(sessionResultMessage(result, persisted));
+    else setError(sessionResultMessage(result, persisted));
   };
   return <form aria-label="Gasto variable de demostración" onSubmit={submit} className={`${cardClass} space-y-4`}>
     <h2 className="font-bold text-lg">{record ? 'Editar gasto GV' : 'Nuevo gasto GV'} · demo</h2>
@@ -32,7 +36,7 @@ function VariableForm({ period, record, onDone, onCancel }) {
     <MoneyInput id="gv-amount" label="Importe · demo (S/)" value={amount} onChange={setAmount} />
     <label htmlFor="gv-similar" className="flex gap-3 items-start text-sm"><input id="gv-similar" type="checkbox" className="mt-1 shrink-0" checked={similar} onChange={event => setSimilar(event.target.checked)} />Es otro gasto distinto aunque coincidan fecha, categoría, descripción e importe.</label>
     <p className="text-sm">Usa punto decimal. La fecha debe pertenecer al periodo seleccionado. Ningún gasto redistribuye fondos.</p>
-    <button type="submit" className={buttonClass}>{record ? 'Actualizar gasto' : 'Registrar gasto'} · sesión</button>
+    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar gasto' : persisted ? 'Guardar gasto' : 'Registrar gasto'}${persisted ? '' : ' · sesión'}`}</button>
     {record && <button type="button" className="block underline text-sm" onClick={onCancel}>Cancelar edición</button>}
     {error && <p role="alert" className="text-sm">{error}</p>}
   </form>;

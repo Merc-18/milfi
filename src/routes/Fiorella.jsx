@@ -1,4 +1,4 @@
-import { sessionCommand, sessionResultMessage, useFiorellaPeriod } from '../presentation/fiorellaSession.js';
+import { sessionCommand, sessionResultMessage, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useState } from 'react';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
@@ -15,18 +15,22 @@ function MonthlyForm({ period, record }) {
   const [income, setIncome] = useState(record?.income ?? '');
   const [fixed, setFixed] = useState(record?.appliedFixedExpense ?? '');
   const [feedback, setFeedback] = useState(null);
-  const submit = event => {
+  const [saving, setSaving] = useState(false);
+  const persisted = usePersisted();
+  const submit = async event => {
     event.preventDefault();
-    const result = save(sessionCommand('monthly-plan', period, base, { income, appliedFixedExpense: fixed }));
+    setSaving(true);
+    const result = await save(sessionCommand('monthly-plan', period, base, { income, appliedFixedExpense: fixed }));
+    setSaving(false);
     if (result.ok) setBase(result.value);
-    setFeedback({ ok: result.ok, text: sessionResultMessage(result) });
+    setFeedback({ ok: result.ok, text: sessionResultMessage(result, persisted) });
   };
   return <form aria-label="Datos mensuales de demostración" onSubmit={submit} className={`${cardClass} space-y-4`}>
     <h2 className="font-bold text-lg">Datos del mes · demostración</h2>
     <MoneyInput id="monthly-income" label="Ingreso del mes · demo (S/)" value={income} onChange={setIncome} />
     <MoneyInput id="monthly-fixed" label="GF aplicado al cálculo (S/) · Tope 1,500" value={fixed} onChange={setFixed} />
     <p className="text-sm">Usa punto decimal. Puedes registrar solo un campo y completar el otro después. El GF aplicado no se calcula a partir del presupuesto detallado ni del gasto registrado.</p>
-    <button type="submit" className={buttonClass}>Registrar datos del mes · sesión</button>
+    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : persisted ? 'Guardar datos del mes' : 'Registrar datos del mes · sesión'}</button>
     {feedback && <p className="text-sm" role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
   </form>;
 }
