@@ -5,6 +5,7 @@ import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
 import FiorellaNav from '../FiorellaNav.jsx';
 import DemoBadge from '../DemoBadge.jsx';
+import { BUILD_STAMP, versionLabel } from '../../presentation/version.js';
 import { useModuleAccess } from '../../presentation/moduleAccess.js';
 import { canManage } from '../../domain/access.js';
 
@@ -24,7 +25,12 @@ export default function Layout() {
     <div className="min-h-dvh w-full bg-fondo">
       <header className="sticky top-0 z-40 border-b border-secundario/70 bg-fondo/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 md:px-8">
-          <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11"><img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
+          <div className="flex min-w-0 flex-col">
+            <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11">
+              <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
+            <span className="-mt-1.5 text-[10px] leading-none tabular-nums text-texto-light" data-testid="build-stamp" title={versionLabel}
+              aria-label={versionLabel}>{BUILD_STAMP}</span>
+          </div>
           <nav aria-label="Módulos de MilFi" className="hidden md:flex items-center gap-1">
             {MODULES.map(item => <NavLink key={item.to} to={item.to} end={item.end}
               className={({ isActive }) => `flex items-center gap-2 rounded-xl px-4 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>

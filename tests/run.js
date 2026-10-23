@@ -21,3 +21,4 @@ import './status.test.js';
 import './variablePace.test.js';
 import './budgetCopy.test.js';
 import './goalPlan.test.js';
+import './buildStamp.test.js';

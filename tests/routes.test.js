@@ -41,6 +41,8 @@ test('module routes render with real-history notices and no simulated financial 
       assert.doesNotMatch(html, /Gustos|Ropa|Abril 2026/);
       // One demo explanation, in the header badge; no repeated notices or suffixes.
       assert.equal((html.match(/data-testid="demo-mode"/g) ?? []).length, 1, path);
+      // Build code in the header on every page, labelled with the commit.
+      assert.match(html, /data-testid="build-stamp" title="Versión (\d{14}) \(commit [^)]+\)" aria-label="Versión \1 \(commit [^)]+\)">\1<\/span>/, path);
       // Control's inner texts are revised in a later phase; only its demo notice goes now.
       if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
       assert.doesNotMatch(html, /Demostración temporal/, path);
