@@ -226,7 +226,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
       assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => ["Editar", "Eliminar"].includes(button.textContent))'), false);
       await mount('milton', '/control', '2031-01');
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === \"Registrar movimiento\").click()');
+      await browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Registrar movimiento').click()`);
       await browser.waitFor('!!document.getElementById("control-amount")');
       assert.deepEqual(browser.exceptions, []);
     });

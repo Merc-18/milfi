@@ -7,6 +7,7 @@ import PeriodPicker from '../components/PeriodPicker.jsx';
 import Sheet from '../components/ui/Sheet.jsx';
 import BalanceSteps from '../components/charts/BalanceSteps.jsx';
 import ControlOverview from '../components/control/ControlOverview.jsx';
+import ContributionHistory from '../components/control/ContributionHistory.jsx';
 import MonthlyTable from '../components/control/MonthlyTable.jsx';
 import MovementList from '../components/control/MovementList.jsx';
 import MovementDetail from '../components/control/MovementDetail.jsx';
@@ -18,7 +19,7 @@ import { canManage } from '../domain/access.js';
 import { inspectLedger } from '../domain/controlLedger.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
 import { periodKey } from '../domain/fiorellaSession.js';
-import { balanceSeries, monthlyRows, movementMonth, reviewQueue, reviewReasons, savingsBalance } from '../presentation/controlLedgerView.js';
+import { balanceSeries, contributionHistory, monthlyRows, movementMonth, reviewQueue, reviewReasons, savingsBalance } from '../presentation/controlLedgerView.js';
 import { withFixedCap } from '../presentation/fixedCap.js';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
@@ -47,7 +48,10 @@ export default function ControlFinanzas() {
   const plans = useMemo(() => new Map(fiorellaEvolution(withFixedCap(fiorella), persisted ? 'real' : 'simulated')
     .filter(row => row.couplePlanned != null).map(row => [row.key, { amount: row.couplePlanned, projected: row.projected }])), [fiorella, persisted]);
   const balance = savingsBalance(entries);
+  const usdBalance = savingsBalance(entries, 'USD');
   const series = balanceSeries(entries, period);
+  const usdSeries = balanceSeries(entries, period, 'USD');
+  const contributions = contributionHistory(entries);
   const rows = monthlyRows(entries, plans);
   const queue = reviewQueue(entries);
   const month = entries.filter(entry => { const at = movementMonth(entry.record); return at && periodKey(at) === input; });
@@ -72,13 +76,17 @@ export default function ControlFinanzas() {
     {!manage && <ReadOnlyNotice>Administra Milton.</ReadOnlyNotice>}
     {notice && <p role="status" className="text-sm font-bold rounded-xl bg-exito/60 px-3 py-2">{notice}</p>}
     <div className="grid gap-4 lg:grid-cols-3 items-start">
-      <ControlOverview balance={balance} onReview={toReview} />
+      <ControlOverview balance={balance} usdBalance={usdBalance} onReview={toReview} />
       <section className={`${cardClass} space-y-2 lg:col-span-2`} aria-labelledby="balance-chart-title" data-testid="balance-chart">
         <h2 id="balance-chart-title" className="font-bold">Ahorro acumulado</h2>
-        <BalanceSteps series={series} selected={input} label="Ahorro acumulado en soles" />
+        <div data-currency-chart="PEN"><h3 className="font-bold text-sm">PEN</h3>
+          <BalanceSteps series={series} selected={input} label="Ahorro acumulado en soles" /></div>
+        <div data-currency-chart="USD"><h3 className="font-bold text-sm">USD</h3>
+          <BalanceSteps series={usdSeries} selected={input} currency="USD" label="Ahorro acumulado en dólares" /></div>
       </section>
     </div>
     <MonthlyTable rows={rows} selected={input} />
+    <ContributionHistory groups={contributions} />
     <MovementList key={input} entries={month} onOpen={setOpened} />
     <ReviewQueue items={queue} manage={manage} onResolve={setResolving} />
     {manage && <Sheet open={form !== null} onClose={() => setForm(null)} title={editing ? 'Editar movimiento' : 'Registrar movimiento'}>

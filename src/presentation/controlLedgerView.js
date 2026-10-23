@@ -17,13 +17,13 @@ const signed = (plus, minus) => {
 };
 
 /**
- * Saldo de ahorro según lo registrado (PEN) = Σ savings deposits PEN − Σ withdrawals PEN,
- * reviewed only. Dollars withdrawn are reported apart, never subtracted.
+ * Savings balance of exactly one currency = savings deposits minus withdrawals.
+ * The default PEN result and legacy USD-withdrawn note remain compatible.
  */
-export function savingsBalance(entries) {
+export function savingsBalance(entries, currency = 'PEN') {
   const counted = entries.filter(counts).map(entry => entry.record);
-  const deposits = sum(counted.filter(record => isSavingsDeposit(record) && record.currency === 'PEN').map(record => record.amount));
-  const withdrawals = sum(counted.filter(record => record.kind === 'withdrawal' && record.currency === 'PEN').map(record => record.amount));
+  const deposits = sum(counted.filter(record => isSavingsDeposit(record) && record.currency === currency).map(record => record.amount));
+  const withdrawals = sum(counted.filter(record => record.kind === 'withdrawal' && record.currency === currency).map(record => record.amount));
   const usd = counted.filter(record => record.kind === 'withdrawal' && record.currency === 'USD').map(record => record.amount);
   return { ...signed(deposits, withdrawals), deposits, withdrawals, usdWithdrawn: usd.length ? sum(usd) : null,
     pending: entries.filter(entry => entry.status === 'pending').length };
@@ -41,14 +41,14 @@ export function previousPlanPeriod(receiptPeriod) {
 }
 
 /**
- * Monthly steps of the PEN savings balance, from the first counted movement to
+ * Monthly steps of one currency's savings balance, from its first counted movement to
  * the last one (or the selected month if later): each savings deposit raises it,
- * each PEN withdrawal lowers it. Withdrawals are listed as points; USD ones do
- * not move the balance.
+ * each withdrawal in that same currency lowers it. Other currencies cannot
+ * move this series. Withdrawals are also listed as points.
  */
-export function balanceSeries(entries, selected = null) {
+export function balanceSeries(entries, selected = null, currency = 'PEN') {
   const counted = entries.filter(counts).map(entry => entry.record).filter(record => movementMonth(record)
-    && (isSavingsDeposit(record) || record.kind === 'withdrawal'));
+    && record.currency === currency && (isSavingsDeposit(record) || record.kind === 'withdrawal'));
   if (!counted.length) return { steps: [], withdrawals: [], usdWithdrawals: [] };
   const keys = counted.map(record => keyOf(movementMonth(record))).sort();
   let current = movementMonth(counted.find(record => keyOf(movementMonth(record)) === keys[0]));
@@ -57,7 +57,7 @@ export function balanceSeries(entries, selected = null) {
   let plus = '0'; let minus = '0';
   for (let guard = 0; keyOf(current) <= last && guard < 1200; guard++, current = nextMonth(current)) {
     const key = keyOf(current);
-    const month = counted.filter(record => keyOf(movementMonth(record)) === key && record.currency === 'PEN');
+    const month = counted.filter(record => keyOf(movementMonth(record)) === key);
     const deposited = sum(month.filter(isSavingsDeposit).map(record => record.amount));
     const withdrawn = sum(month.filter(record => record.kind === 'withdrawal').map(record => record.amount));
     plus = addAmounts(plus, deposited); minus = addAmounts(minus, withdrawn);
@@ -66,8 +66,36 @@ export function balanceSeries(entries, selected = null) {
   const point = record => ({ id: record.id, key: keyOf(movementMonth(record)), date: record.effectiveDate, amount: record.amount,
     currency: record.currency, description: record.description });
   const withdrawals = counted.filter(record => record.kind === 'withdrawal');
-  return { steps, withdrawals: withdrawals.filter(record => record.currency === 'PEN').map(point),
-    usdWithdrawals: withdrawals.filter(record => record.currency === 'USD').map(point) };
+  return { steps, withdrawals: withdrawals.map(point), usdWithdrawals: currency === 'PEN'
+    ? entries.filter(counts).map(entry => entry.record).filter(record => record.kind === 'withdrawal' && record.currency === 'USD' && movementMonth(record)).map(point) : [] };
+}
+
+/** Gross contributions: withdrawals never erase who deposited money. Each
+ * running total belongs to exactly one person, currency and destination. */
+export function contributionHistory(entries) {
+  const groups = new Map();
+  for (const { record } of entries.filter(counts)) {
+    if (record.kind !== 'deposit' || !['milton', 'fiorella'].includes(record.contributorId)
+      || !record.currency || !movementMonth(record)) continue;
+    const key = [record.contributorId, record.currency, record.purpose].join(':');
+    if (!groups.has(key)) groups.set(key, { key, contributorId: record.contributorId, currency: record.currency,
+      purpose: record.purpose, total: '0', count: 0, months: new Map() });
+    const group = groups.get(key);
+    const period = movementMonth(record);
+    const monthKey = keyOf(period);
+    const month = group.months.get(monthKey) ?? { key: monthKey, period, amount: '0', count: 0 };
+    month.amount = addAmounts(month.amount, record.amount); month.count += 1;
+    group.months.set(monthKey, month);
+    group.total = addAmounts(group.total, record.amount); group.count += 1;
+  }
+  return [...groups.values()].sort((a, b) => a.key.localeCompare(b.key)).map(group => {
+    let cumulative = '0';
+    const months = [...group.months.values()].sort((a, b) => a.key.localeCompare(b.key)).map(month => {
+      cumulative = addAmounts(cumulative, month.amount);
+      return { ...month, cumulative };
+    }).reverse();
+    return { ...group, months };
+  });
 }
 
 /** Savings deposits assigned to a plan month (whenever they came in), PEN, counted only. */
