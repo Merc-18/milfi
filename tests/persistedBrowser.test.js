@@ -7,35 +7,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'vite';
 import { chromiumPath, openBrowser } from './helpers/chromium.js';
-import { as, createDatabase, seedSynthetic } from './helpers/pgHarness.js';
-import { createPgRestClient } from './helpers/pgRestClient.js';
-import { syntheticControlXlsx } from './helpers/xlsxBuilder.js';
 import { APPROVED_ACCESS } from '../src/domain/access.js';
-import { createMilfiPersistence } from '../src/application/persistence.js';
-import { readControlWorkbook } from '../src/application/controlPreimport.js';
-import { applyControlDecisions, fiorellaLoadPayload } from '../src/application/historicalLoad.js';
-import { recognizeFiorellaWorkbook } from '../src/domain/fiorellaWorkbook.js';
-import { readXlsxCapture } from '../src/infrastructure/xlsx/workbook.js';
-import { syntheticFiorellaXlsx } from './helpers/fiorellaFixture.js';
-
-// Saved-data screens in a real browser. Invented records go through the real
-// load RPC (PGlite) and the app adapters, then are served by a fake persistence.
-async function fixture() {
-  const db = await createDatabase();
-  const u = await seedSynthetic(db);
-  const { plan } = recognizeFiorellaWorkbook((await readXlsxCapture(syntheticFiorellaXlsx())).capture, { cutoff: '2031-02-20' });
-  assert.equal((await as(db, u.fiorella, 'select public.import_fiorella_history($1::jsonb)', [JSON.stringify(fiorellaLoadPayload(plan, u.household))])).ok, true);
-  const decided = applyControlDecisions(await readControlWorkbook(syntheticControlXlsx()), { reviewedBy: 'milton', resolutions: [
-    { field: 'currency', value: 'PEN', match: {}, reason: 'Decisión inventada', evidenceReference: 'Acta inventada' },
-    { field: 'contributorId', value: 'fiorella', match: { kind: 'deposit', header: 'Depósito Ahorros (Ella)' }, reason: 'Decisión inventada', evidenceReference: 'Acta inventada' }] }, '2031-03-01T12:00:00.000Z');
-  const persistence = createMilfiPersistence(createPgRestClient(db, u.fiorella), { householdId: u.household });
-  const milton = createMilfiPersistence(createPgRestClient(db, u.milton), { householdId: u.household });
-  assert.equal((await milton.importPrepared({ fingerprint: decided.batch.fingerprint, fileName: 'inventado.xlsx', sheets: decided.batch.sheets }, decided.records)).ok, true);
-  return { householdId: u.household, fiorella: await persistence.loadFiorella(), control: await persistence.loadControl() };
-}
+import { persistedFixture } from './helpers/persistedFixture.js';
 
 test('saved data: dashboards, filters and goals render without demo labels and respect module access', { timeout: 120000 }, async context => {
-  const data = await fixture();
+  const data = await persistedFixture();
   const executable = await chromiumPath();
   const profile = await mkdtemp(join(tmpdir(), 'milfi-persisted-test-'));
   const server = await createServer({ envDir: new URL('./fixtures/no-env/', import.meta.url).pathname, logLevel: 'error', server: { host: '127.0.0.1', port: 0, hmr: false } });
@@ -52,6 +28,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!!document.querySelector("h1") && !document.body.textContent.includes("Cargando")');
     };
     const text = () => browser.evaluate('document.body.textContent');
+    // Saved-data screens in a real browser, served by a fake persistence.
     // Optional screenshots of invented data only, for visual review.
     const capture = async name => {
       if (!process.env.MILFI_CAPTURE_DIR) return;
@@ -90,7 +67,10 @@ test('saved data: dashboards, filters and goals render without demo labels and r
 
     await context.test('Fiorella history and goals: all months filterable; saved goal keeps its attributes', async () => {
       await mount('fiorella', '/fiorella/historial', '2031-02');
-      await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 3');
+      // Opens on the selected month; every month is one filter away, paged.
+      await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1 && document.querySelector("[data-demo-period]").dataset.demoPeriod === "2031-02"');
+      await browser.evaluate('(() => { const select = document.getElementById("history-month"); select.value = "all"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      await browser.waitFor('document.querySelectorAll("[data-demo-period] article").length === 15 && document.body.textContent.includes("Ver más")');
       await browser.evaluate('(() => { const select = document.getElementById("history-kind"); select.value = "variable-expense"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
       await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1');
       await mount('fiorella', '/fiorella/simulador', '2031-02');

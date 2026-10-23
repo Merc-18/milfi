@@ -5,8 +5,9 @@ import { useSessionStore } from '../../store/sessionStore.js';
 import { canRead, moduleForPath } from '../../domain/access.js';
 import { useSessionView } from '../../presentation/moduleAccess.js';
 
+// Short, non-technical: permissions are enforced by the database (RLS) anyway.
 export function ReadOnlyNotice({ children }) {
-  return <StatusNotice title="Solo consulta"><p>{children} Los permisos se verifican en la base de datos; ocultar estos controles es solo una ayuda visual.</p></StatusNotice>;
+  return <p className="text-sm rounded-xl bg-secundario/40 px-3 py-2" role="note"><strong>Solo consulta.</strong> {children}</p>;
 }
 
 const busy = new Set(['initializing', 'signing-in', 'loading-access']);

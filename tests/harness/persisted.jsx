@@ -16,13 +16,13 @@ window.mountMilfi = async ({ fixture, identity, access, path, fiorellaPeriod, co
   const persistence = { householdId: fixture.householdId,
     loadFiorella: async () => structuredClone(fixture.fiorella), loadFiorellaHistory: async () => ({ ok: true, events: [] }),
     loadControl: async () => structuredClone(fixture.control), loadControlHistory: async () => ({ ok: true, events: [] }) };
+  useStore.getState().selectFiorellaPeriod(fiorellaPeriod);
+  useControlStore.getState().selectPeriod(controlPeriod);
   root = createRoot(document.getElementById('root'));
   root.render(<SessionViewContext.Provider value={{ mode: 'auth', status: 'ready', access }}>
     <MemoryRouter initialEntries={[path]}><AppRoutes /></MemoryRouter></SessionViewContext.Provider>);
   // After the first render: the layout's sync clears stores while no real session exists.
   await new Promise(resolve => setTimeout(resolve, 50));
-  useStore.getState().selectFiorellaPeriod(fiorellaPeriod);
-  useControlStore.getState().selectPeriod(controlPeriod);
   await useStore.getState().connectRemote(persistence);
   await useLedgerStore.getState().connect(persistence, identity);
   return true;

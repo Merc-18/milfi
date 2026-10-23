@@ -5,89 +5,111 @@ import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
-import { formatAmount } from '../presentation/format.js';
-import { buttonClass, cardClass, Comparison, fieldClass, Help, MoneyInput, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
+import { formatAmount, formatPeriod } from '../presentation/format.js';
+import { buttonClass, cardClass, Comparison, fieldClass, Help, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
 
-function VariableForm({ period, record, onDone, onCancel, suggestions }) {
+const PAGE = 15;
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+const periodOfDate = date => /^\d{4}-\d{2}-\d{2}$/.test(date) ? { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) } : null;
+const label = (id, text) => <label htmlFor={id} className="block font-bold text-sm mb-1">{text}</label>;
+
+function VariableForm({ input, period, record, onDone, onCancel, suggestions }) {
   const save = useStore(state => state.saveFiorellaDemo);
+  const select = useStore(state => state.selectFiorellaPeriod);
   const [base] = useState(record);
-  const [date, setDate] = useState(record?.effectiveDate ?? '');
+  const [date, setDate] = useState(record?.effectiveDate ?? (today().startsWith(input) ? today() : ''));
   const [category, setCategory] = useState(record?.categoryId ?? 'salud');
   const [description, setDescription] = useState(record?.description ?? '');
   const [amount, setAmount] = useState(record?.amount ?? '');
   const [subcategory, setSubcategory] = useState(record?.subcategory ?? '');
   const [notes, setNotes] = useState(record?.notes ?? '');
-  const demo = useDemoLabel();
   const [similar, setSimilar] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const persisted = usePersisted();
+  const demo = useDemoLabel();
   const submit = async event => {
     event.preventDefault();
+    // A new expense belongs to the month of its own date; an edit keeps its month.
+    const target = record ? period : periodOfDate(date) ?? period;
     setSaving(true);
-    const result = await save(sessionCommand('variable-expense', period, base, { effectiveDate: date, categoryId: category,
+    const result = await save(sessionCommand('variable-expense', target, base, { effectiveDate: date, categoryId: category,
       description, amount, subcategory, notes, allowSimilar: similar }));
     setSaving(false);
-    if (result.ok) onDone(sessionResultMessage(result, persisted));
-    else setError(sessionResultMessage(result, persisted));
+    if (!result.ok) { setError(sessionResultMessage(result, persisted)); return; }
+    const moved = `${target.year}-${String(target.month).padStart(2, '0')}` !== input;
+    onDone(`${record ? 'Gasto actualizado' : 'Gasto guardado'}${moved ? ` en ${formatPeriod(target)}` : ''}. ${sessionResultMessage(result, persisted)}`);
+    if (moved) select(`${target.year}-${String(target.month).padStart(2, '0')}`);
   };
-  return <form aria-label={`Gasto variable${demo ? ' de demostración' : ''}`} onSubmit={submit} className={`${cardClass} space-y-4`}>
-    <h2 className="font-bold text-lg">{record ? 'Editar gasto GV' : 'Nuevo gasto GV'}{demo}</h2>
-    <div><label htmlFor="gv-date" className="block font-bold text-sm mb-1">Fecha</label><input id="gv-date" type="date" min="0001-01-01" max="9999-12-31" className={fieldClass} value={date} onChange={event => setDate(event.target.value)} required /></div>
-    <div><label htmlFor="gv-category" className="block font-bold text-sm mb-1">Categoría</label><select id="gv-category" className={fieldClass} value={category} onChange={event => setCategory(event.target.value)}>{FINANCIAL_RULES.variableCategories.map(item => <option key={item.id} value={item.id}>{item.name} · {item.percentage}%</option>)}</select></div>
-    <div><label htmlFor="gv-subcategory" className="block font-bold text-sm mb-1">Subcategoría (opcional)</label><input id="gv-subcategory" className={fieldClass} maxLength={80} list="gv-subcategories" value={subcategory} onChange={event => setSubcategory(event.target.value)} />
-      <datalist id="gv-subcategories">{suggestions.map(item => <option key={item} value={item} />)}</datalist></div>
-    <div><label htmlFor="gv-description" className="block font-bold text-sm mb-1">Descripción</label><input id="gv-description" className={fieldClass} maxLength={300} value={description} onChange={event => setDescription(event.target.value)} required /></div>
-    <MoneyInput id="gv-amount" label={`Importe${demo} (S/)`} value={amount} onChange={setAmount} />
-    <div><label htmlFor="gv-notes" className="block font-bold text-sm mb-1">Notas (opcional)</label><input id="gv-notes" className={fieldClass} maxLength={500} value={notes} onChange={event => setNotes(event.target.value)} /></div>
-    <label htmlFor="gv-similar" className="flex gap-3 items-start text-sm"><input id="gv-similar" type="checkbox" className="mt-1 shrink-0" checked={similar} onChange={event => setSimilar(event.target.checked)} />Es otro gasto distinto aunque coincidan fecha, categoría, descripción e importe.</label>
-    <Help><p>Usa punto decimal. La fecha debe pertenecer al periodo seleccionado. Ningún gasto redistribuye fondos.</p></Help>
-    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar gasto' : persisted ? 'Guardar gasto' : 'Registrar gasto'}${persisted ? '' : ' · sesión'}`}</button>
-    {record && <button type="button" className="block underline text-sm" onClick={onCancel}>Cancelar edición</button>}
-    {error && <p role="alert" className="text-sm">{error}</p>}
+  return <form aria-label={`Gasto variable${demo ? ' de demostración' : ''}`} onSubmit={submit} className={`${cardClass} space-y-3`}>
+    <h2 className="font-bold text-lg">{record ? 'Editar gasto' : 'Registrar gasto'}{demo}</h2>
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div>{label('gv-date', 'Fecha')}<input id="gv-date" type="date" min="0001-01-01" max="9999-12-31" className={fieldClass} value={date} onChange={event => setDate(event.target.value)} required /></div>
+      <MoneyInput id="gv-amount" label={`Importe${demo} (S/)`} value={amount} onChange={setAmount} />
+      <div>{label('gv-category', 'Categoría')}<select id="gv-category" className={fieldClass} value={category} onChange={event => setCategory(event.target.value)}>{FINANCIAL_RULES.variableCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
+      <div>{label('gv-subcategory', 'Subcategoría')}<input id="gv-subcategory" className={fieldClass} maxLength={80} list="gv-subcategories" value={subcategory} onChange={event => setSubcategory(event.target.value)} placeholder="Opcional" />
+        <datalist id="gv-subcategories">{suggestions.map(item => <option key={item} value={item} />)}</datalist></div>
+      <div className="col-span-2">{label('gv-description', 'Descripción')}<input id="gv-description" className={fieldClass} maxLength={300} value={description} onChange={event => setDescription(event.target.value)} required /></div>
+      <div className="col-span-2">{label('gv-notes', 'Notas')}<input id="gv-notes" className={fieldClass} maxLength={500} value={notes} onChange={event => setNotes(event.target.value)} placeholder="Opcional" /></div>
+    </div>
+    <label htmlFor="gv-similar" className="flex gap-3 items-start text-xs"><input id="gv-similar" type="checkbox" className="mt-1 shrink-0" checked={similar} onChange={event => setSimilar(event.target.checked)} />Es otro gasto aunque coincidan fecha, categoría, descripción e importe.</label>
+    <div className="flex flex-wrap items-center gap-3">
+      <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar gasto' : persisted ? 'Guardar gasto' : 'Registrar gasto'}${persisted ? '' : ' · sesión'}`}</button>
+      {record && <button type="button" className="underline text-sm min-h-11" onClick={onCancel}>Cancelar edición</button>}
+    </div>
+    {error && <p role="alert" className="text-sm rounded-xl bg-rose-50 px-3 py-2">{error}</p>}
+    <Help><p>Usa punto decimal. El gasto se guarda en el mes de su fecha. Ningún gasto redistribuye fondos.</p></Help>
   </form>;
 }
 
-function VariableWorkspace({ period, summary, manage }) {
+function VariableWorkspace({ input, period, summary, manage, onFeedback }) {
   const records = useStore(state => state.fiorellaDemoRecords);
   const persisted = usePersisted();
   const demo = useDemoLabel();
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
+  const [shown, setShown] = useState(PAGE);
+  const [editing, setEditing] = useState(null);
+  const [generation, setGeneration] = useState(0);
   const suggestions = useMemo(() => [...new Set(records.filter(record => record.kind === 'variable-expense' && record.subcategory).map(record => record.subcategory))].sort(), [records]);
   const text = search.trim().toLocaleLowerCase('es');
   const visible = summary.variable.filter(record => (category === 'all' || record.categoryId === category)
-    && (!text || [record.description, record.subcategory, record.notes].some(value => value?.toLocaleLowerCase('es').includes(text))));
-  const [editing, setEditing] = useState(null);
-  const [generation, setGeneration] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  const done = message => { setFeedback(message); setEditing(null); setGeneration(value => value + 1); };
+    && (!text || [record.description, record.subcategory, record.notes].some(value => value?.toLocaleLowerCase('es').includes(text))))
+    .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate) || a.id.localeCompare(b.id));
+  const done = message => { onFeedback(message); setEditing(null); setGeneration(value => value + 1); };
   return <>
-    {summary.categories.map(category => <section key={category.id} className={`${cardClass} text-sm space-y-2`}>
-      <h2 className="font-bold text-lg">{category.name} · {category.percentage}% GV</h2>
-      <p>Asignado: {category.allocation === null ? 'Sin distribución' : <span className="break-all">{formatAmount(category.allocation)}</span>}</p>
-      <p>{persisted ? 'Anotado' : 'Acumulado de la sesión'}: {category.executed.amount === null ? 'Sin gastos registrados' : <span className="break-all">{formatAmount(category.executed.amount)}</span>}</p>
-      <Progress value={category.executed.amount ?? '0'} limit={category.allocation} label={`${category.name}: gasto frente a lo asignado`} />
-      <p><Comparison budget={category.allocation} spent={category.executed.amount} /></p>
-    </section>)}
-    {summary.requiresRoundingDecision && <p className="text-sm">Importes exactos con fracciones de céntimo; redondeo monetario pendiente.</p>}
-    {feedback && <p role="status" className="text-sm">{feedback}</p>}
-    {manage ? <VariableForm key={`${editing ?? 'new'}:${generation}`} suggestions={suggestions} period={period} record={summary.variable.find(record => record.id === editing)} onDone={done} onCancel={() => done('Edición cancelada.')} /> : <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
-    <section className="space-y-3"><h2 className="font-bold text-lg">Gastos del periodo{demo}</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="gv-filter-category" className="block font-bold text-xs mb-1">Categoría</label><select id="gv-filter-category" className={fieldClass} value={category} onChange={event => setCategory(event.target.value)}>
+    {manage ? <VariableForm key={`${editing ?? 'new'}:${generation}`} input={input} suggestions={suggestions} period={period} record={summary.variable.find(record => record.id === editing)} onDone={done} onCancel={() => done('Edición cancelada.')} />
+      : <ReadOnlyNotice>Administra Fiorella.</ReadOnlyNotice>}
+    <div className="grid gap-3 sm:grid-cols-2">
+      {summary.categories.map(item => <section key={item.id} className={`${cardClass} text-sm space-y-1`}>
+        <p className="flex flex-wrap justify-between gap-2"><span className="font-bold">{item.name}</span>
+          <span>{item.executed.amount === null ? 'S/ 0' : formatAmount(item.executed.amount)} de {item.allocation === null ? '—' : formatAmount(item.allocation)}</span></p>
+        <Progress value={item.executed.amount ?? '0'} limit={item.allocation} label={`${item.name}: gasto frente a lo asignado`} />
+        <p className="text-xs"><span className="sr-only">{persisted ? 'Anotado' : 'Acumulado de la sesión'}: </span><Comparison budget={item.allocation} spent={item.executed.amount} /></p>
+      </section>)}
+    </div>
+    {summary.requiresRoundingDecision && <p className="text-sm">Importes con fracciones de céntimo; redondeo pendiente.</p>}
+    <section className="space-y-3">
+      <h2 className="font-bold text-lg">Gastos de {formatPeriod(period)}{demo}</h2>
+      <div className="grid grid-cols-2 gap-3 sm:max-w-xl">
+        <div><label htmlFor="gv-filter-category" className="block font-bold text-xs mb-1">Categoría</label><select id="gv-filter-category" className={fieldClass} value={category} onChange={event => { setCategory(event.target.value); setShown(PAGE); }}>
           <option value="all">Todas</option>{FINANCIAL_RULES.variableCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
-        <div><label htmlFor="gv-filter-text" className="block font-bold text-xs mb-1">Buscar</label><input id="gv-filter-text" type="search" className={fieldClass} value={search} onChange={event => setSearch(event.target.value)} /></div>
+        <div><label htmlFor="gv-filter-text" className="block font-bold text-xs mb-1">Buscar</label><input id="gv-filter-text" type="search" className={fieldClass} value={search} onChange={event => { setSearch(event.target.value); setShown(PAGE); }} /></div>
       </div>
       {!summary.variable.length && <p className={cardClass}>Sin gastos registrados en este periodo.</p>}
       {!!summary.variable.length && !visible.length && <p className={cardClass}>Ningún gasto coincide con el filtro.</p>}
-      {[...visible].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate) || a.id.localeCompare(b.id)).map(record => <article key={record.id} className={`${cardClass} text-sm space-y-1`}>
-        <p className="flex flex-wrap justify-between gap-2"><span className="font-bold">{record.effectiveDate} · {record.categoryId === 'salud' ? 'Salud' : 'Ocio'}{record.subcategory ? ` / ${record.subcategory}` : ''}</span><span className="font-bold break-all">{formatAmount(record.amount)}</span></p>
-        <p className="break-words">{record.description}</p>
-        {record.notes && <p className="break-words text-texto-light">{record.notes}</p>}
-        <p className="text-xs">{persisted ? (record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi') : 'Demostración'} · Revisión {record.revision}</p>
-        {manage && <button type="button" className="underline font-bold" onClick={() => { setEditing(record.id); setFeedback(''); }}>Editar {record.description}</button>}
-      </article>)}
+      <div className="grid gap-2 lg:grid-cols-2">
+        {visible.slice(0, shown).map(record => <article key={record.id} className={`${cardClass} text-sm space-y-1`}>
+          <p className="flex flex-wrap justify-between gap-2"><span className="font-bold">{record.effectiveDate} · {record.categoryId === 'salud' ? 'Salud' : 'Ocio'}{record.subcategory ? ` / ${record.subcategory}` : ''}</span><span className="font-bold break-all">{formatAmount(record.amount)}</span></p>
+          <p className="break-words">{record.description}</p>
+          {record.notes && <p className="break-words text-texto-light">{record.notes}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-texto-light">{persisted ? (record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi') : 'Demostración'} · Revisión {record.revision}</p>
+            {manage && <button type="button" className="underline font-bold min-h-11" onClick={() => { setEditing(record.id); onFeedback(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar<span className="sr-only"> {record.description}</span></button>}
+          </div>
+        </article>)}
+      </div>
+      {visible.length > shown && <button type="button" className={`${buttonClass} w-full sm:w-auto`} onClick={() => setShown(value => value + PAGE)}>Ver más ({visible.length - shown} restantes)</button>}
     </section>
   </>;
 }
@@ -95,9 +117,11 @@ function VariableWorkspace({ period, summary, manage }) {
 export default function GastosGV() {
   const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary } = useFiorellaPeriod();
-  const persisted = usePersisted();
-  return <div className="pb-10 space-y-5"><header className="my-6"><h1 className="text-2xl font-bold">Seguimiento GV</h1><p className="text-sm mt-2">Salud y Ocio{persisted ? '' : ' · registros de demostración'}</p></header>
-    <SessionNotice /><PeriodPicker />
-    <VariableWorkspace key={input} period={period} summary={summary} manage={manage} />
+  const [feedback, setFeedback] = useState('');
+  return <div className="pb-10 space-y-4">
+    <PageHeader title="Gastos GV" subtitle="Salud y Ocio"><PeriodPicker /></PageHeader>
+    <SessionNotice />
+    {feedback && <p role="status" className="text-sm font-bold rounded-xl bg-exito/60 px-3 py-2">{feedback}</p>}
+    <VariableWorkspace key={input} input={input} period={period} summary={summary} manage={manage} onFeedback={setFeedback} />
   </div>;
 }
