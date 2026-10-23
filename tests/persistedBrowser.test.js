@@ -23,8 +23,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await browser.page('Page.navigate', { url: `${origin}/tests/harness/persisted.html` });
     await browser.waitFor('typeof window.mountMilfi === "function"');
-    const mount = async (identity, path, period) => {
-      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: APPROVED_ACCESS[identity], path, period })})`);
+    const mount = async (identity, path, period, fixture = data) => {
+      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture, identity, access: APPROVED_ACCESS[identity], path, period })})`);
       await browser.waitFor('!!document.querySelector("h1") && !document.body.textContent.includes("Cargando")');
     };
     const text = () => browser.evaluate('document.body.textContent');
@@ -119,10 +119,22 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('document.querySelectorAll("[data-demo-period] article").length === 15 && document.body.textContent.includes("Ver más")');
       await browser.evaluate('(() => { const select = document.getElementById("history-kind"); select.value = "variable-expense"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
       await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1');
-      await mount('fiorella', '/fiorella/simulador', '2031-02');
-      await browser.waitFor('!!document.querySelector("[data-testid=saved-goals]")');
-      const goals = await browser.evaluate('document.querySelector("[data-testid=saved-goals]").textContent');
-      assert.ok(goals.includes('Meta inventada') && goals.includes('Jun 2031') && goals.includes('S/ 300.00') && goals.includes('Notas de prueba'));
+      // Workbook goals in Metas: one list, read-only, finished ones folded; deadline and notes in the detail.
+      const finished = structuredClone(data);
+      finished.fiorella.goals.push({ ...structuredClone(data.fiorella.goals[0]), id: crypto.randomUUID(), title: 'Meta lograda inventada', status: 'achieved' });
+      await mount('fiorella', '/fiorella/metas', '2031-02', finished);
+      await browser.waitFor('!!document.querySelector("[data-testid=goal-list] [data-goal-id]")');
+      const goals = await browser.evaluate('document.querySelector("[data-testid=goal-list]").textContent');
+      assert.ok(goals.includes('Meta inventada') && goals.includes('S/ 900.00') && goals.includes('Necesitas S/ 300.00 al mes'), goals);
+      assert.doesNotMatch(goals, /Del Excel|Activa|Lograda inventada/);
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=finished-goals]").textContent')).includes('Meta lograda inventada'));
+      assert.equal(await browser.evaluate('document.querySelector("[data-testid=finished-goals]").open'), false);
+      await browser.evaluate('document.querySelector("[data-testid=goal-list] [data-goal-id] button").click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
+      const detail = await browser.evaluate('document.querySelector("dialog[open]").textContent');
+      assert.ok(detail.includes('Fecha límite: Jun 2031') && detail.includes('Notas de prueba') && detail.includes('Del Excel de Fiorella'), detail);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => button.textContent === "Editar")'), false);
+      assert.equal(await fits(), true);
     });
 
     await context.test('Control: separate operations, pending outside totals, filters; Fiorella only reads', async () => {
@@ -151,6 +163,12 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await mount('milton', '/fiorella/gastos?tipo=fijos', '2031-02');
       await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
       assert.ok(await browser.evaluate('!document.querySelector("[data-budget-id] button") && !document.body.textContent.includes("Copiar presupuestos")'));
+      await mount('milton', '/fiorella/metas', '2031-02');
+      await browser.waitFor('!!document.querySelector("[data-goal-id]")');
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => ["Nueva meta", "Editar", "Eliminar"].includes(button.textContent))'), false);
+      await browser.evaluate('document.querySelector("[data-goal-id] button").click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => ["Editar", "Eliminar"].includes(button.textContent))'), false);
       await mount('milton', '/control', '2031-01');
       await browser.waitFor('!!document.getElementById("control-amount")');
       assert.deepEqual(browser.exceptions, []);

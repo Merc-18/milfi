@@ -7,6 +7,11 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { preview } from 'vite';
 import { chromiumPath, openBrowser } from './helpers/chromium.js';
+import { addMonths } from '../src/presentation/goalPlan.js';
+import { currentPeriodInput, formatPeriod, parsePeriodInput } from '../src/presentation/format.js';
+
+// Goals start in the current month (Lima): the M-th contribution falls in current + M − 1.
+const arrival = months => formatPeriod(addMonths(parsePeriodInput(currentPeriodInput()), months - 1));
 
 test('browser regression: redirects, simulation history and financial isolation', { timeout: 90000 }, async context => {
   const executable = await chromiumPath();
@@ -25,8 +30,6 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate(`document.querySelector('a[href="${path}"]').click()`);
       await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
-    // Calculadora and Presupuestos left the tab bar: they open from Metas and Gastos.
-    const openCalculator = async () => { await clickLink('/fiorella/simulador', 'Simulador y metas'); await clickLink('/fiorella/calculadora', 'Simular distribución'); };
     // Budgets are the fixed view of Gastos.
     const openBudgets = async () => {
       await clickLink('/fiorella/gastos', 'Gastos');
@@ -43,68 +46,6 @@ test('browser regression: redirects, simulation history and financial isolation'
       }
       await browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     };
-
-    await context.test('legacy routes redirect with replacement rather than trapping Back', async () => {
-      const aliases = [
-        ['/calculadora', '/fiorella/calculadora', 'Simular distribución'],
-        ['/historial', '/fiorella/historial', 'Historial'],
-        ['/configuracion', '/fiorella/configuracion', 'Configuración oficial'],
-        ['/fondo-comun', '/control', 'Control Finanzas M&F'],
-        // Presupuestos is now the fixed view of Gastos.
-        ['/fiorella/presupuestos', '/fiorella/gastos?tipo=fijos', 'Gastos'],
-      ];
-      for (const [oldPath, target, heading] of aliases) {
-        await navigate('/', 'MilFi');
-        await browser.page('Page.navigate', { url: origin + oldPath });
-        await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(target)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
-        await browser.evaluate('history.back()');
-        await browser.waitFor('location.pathname === "/" && document.querySelector("h1")?.textContent.includes("MilFi")');
-      }
-    });
-
-    await context.test('saving two scenarios preserves both across in-app navigation without creating a Control balance', async () => {
-      await navigate('/fiorella/calculadora', 'Simular distribución');
-      for (const income of ['4000.01', '5000']) {
-        await fill('simulation-period', '2032-05');
-        await fill('simulation-income', income);
-        await browser.waitFor('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))');
-        if (income === '4000.01') assert.ok(await browser.evaluate('document.body.textContent.includes("600.0024")'));
-        await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Guardar simulación")).click()');
-        await browser.waitFor('location.pathname === "/fiorella/historial" && !!document.querySelector("details")');
-        await clickLink('/control', 'Control Finanzas M&F');
-        const control = await browser.evaluate('document.body.textContent');
-        assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
-        assert.ok(control.includes('no hay un saldo confirmado'));
-        await clickLink('/fiorella', 'Resumen');
-        await clickLink('/fiorella/historial', 'Historial');
-        if (income === '4000.01') await openCalculator();
-      }
-      assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 2);
-      await browser.evaluate('document.querySelector("summary").click()');
-      assert.equal(await browser.evaluate('document.querySelector("details").open'), true);
-    });
-
-    await context.test('deficit and zero-surplus operations stay blocked with no extra history', async () => {
-      await openCalculator();
-      for (const income of ['1000', '1500']) {
-        await fill('simulation-income', income);
-        await browser.waitFor('document.body.textContent.includes("Tratamiento pendiente de aprobación")');
-        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))'), false);
-      }
-      await clickLink('/fiorella/historial', 'Historial');
-      assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 2);
-    });
-
-    await context.test('reload clears only session scenarios and still reports real history as not imported', async () => {
-      await browser.page('Page.reload');
-      await browser.waitFor('document.body?.textContent.includes("Todavía no guardaste simulaciones")');
-      assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 0);
-      // The demo is explained once, by the header badge.
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
-      await clickLink('/control', 'Control Finanzas M&F');
-      assert.ok(await browser.evaluate('document.body.textContent.includes("no hay un saldo confirmado")'));
-      assert.deepEqual(browser.exceptions, []);
-    });
 
     const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase3-2-capturas');
     const capture = async name => {
@@ -125,6 +66,81 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('!document.querySelector("dialog[open]")');
     };
     const testText = id => browser.evaluate(`document.querySelector("[data-testid=${id}]").textContent`);
+
+    await context.test('legacy routes redirect with replacement rather than trapping Back', async () => {
+      const aliases = [
+        // Simulador and Calculadora are the Metas page; the calculator opens its "¿y si…?".
+        ['/calculadora', '/fiorella/metas?simular', 'Metas'],
+        ['/fiorella/simulador', '/fiorella/metas', 'Metas'],
+        ['/fiorella/calculadora', '/fiorella/metas?simular', 'Metas'],
+        ['/historial', '/fiorella/historial', 'Historial'],
+        ['/configuracion', '/fiorella/configuracion', 'Configuración oficial'],
+        ['/fondo-comun', '/control', 'Control Finanzas M&F'],
+        // Presupuestos is now the fixed view of Gastos.
+        ['/fiorella/presupuestos', '/fiorella/gastos?tipo=fijos', 'Gastos'],
+      ];
+      for (const [oldPath, target, heading] of aliases) {
+        await navigate('/', 'MilFi');
+        await browser.page('Page.navigate', { url: origin + oldPath });
+        await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(target)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+        await browser.evaluate('history.back()');
+        await browser.waitFor('location.pathname === "/" && document.querySelector("h1")?.textContent.includes("MilFi")');
+      }
+    });
+
+    // Topmost open sheet (a sheet can open another one inside it).
+    const topSheet = () => "Array.from(document.querySelectorAll('dialog[open]')).at(-1)";
+    const closeTop = async () => {
+      const before = await browser.evaluate('document.querySelectorAll("dialog[open]").length');
+      await browser.evaluate(`${topSheet()}.querySelector('button[aria-label=Cerrar]').click()`);
+      await browser.waitFor(`document.querySelectorAll("dialog[open]").length === ${before - 1}`);
+    };
+
+    await context.test('the "¿y si…?" previews a distribution without saving anything or touching Control', async () => {
+      await browser.page('Page.navigate', { url: origin + '/fiorella/calculadora' });
+      await browser.waitFor('location.pathname + location.search === "/fiorella/metas?simular" && !!document.querySelector("dialog[open] [data-testid=page-whatif-panel]")');
+      await fill('page-whatif-income', '4000.01');
+      await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("Ahorro de pareja: S/ 600.0024 al mes")');
+      await browser.evaluate(`Array.from(${topSheet()}.querySelectorAll("button")).find(button => button.textContent === "Ver reparto completo").click()`);
+      await browser.waitFor(`${topSheet()}.textContent.includes("1,000.004") && ${topSheet()}.textContent.includes("600.0024")`);
+      await closeTop(); await closeTop();
+      assert.equal(await browser.evaluate('location.search'), '');
+      await clickLink('/fiorella/historial', 'Historial');
+      assert.ok((await visibleText()).includes('Todavía no hay registros.'));
+      assert.doesNotMatch(await visibleText(), /Simulaciones de esta sesión|4,000\.01|600\.0024/);
+      await clickLink('/control', 'Control Finanzas M&F');
+      const control = await browser.evaluate('document.body.textContent');
+      assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
+      assert.ok(control.includes('no hay un saldo confirmado'));
+    });
+
+    await context.test('the "¿y si…?" explains deficit, zero surplus and the GF cap without a split', async () => {
+      await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/metas', 'Metas');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("Registra el ingreso del mes para estimar tus metas")'));
+      await capture('22-metas-vacio-movil.png');
+      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "¿Y si…?").click()');
+      await browser.waitFor('location.search.startsWith("?simular") && !!document.getElementById("page-whatif-income")');
+      const result = () => browser.evaluate('document.querySelector("[data-testid=page-whatif-result]").textContent');
+      await fill('page-whatif-income', '1000');
+      await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("El ingreso es menor que el gasto fijo")');
+      await fill('page-whatif-income', '1500');
+      await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("El sobrante es cero")');
+      await fill('page-whatif-income', '4000'); await fill('page-whatif-fixed', '1600');
+      await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("tope oficial de S/ 1,500")');
+      assert.doesNotMatch(await result(), /Ahorro de pareja|Ver reparto completo/);
+      await closeTop();
+    });
+
+    await context.test('reload keeps the demo explained once and still reports real history as not imported', async () => {
+      await browser.page('Page.reload');
+      await browser.waitFor('document.body?.textContent.includes("Aún no tienes metas.")');
+      // The demo is explained once, by the header badge.
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
+      await clickLink('/control', 'Control Finanzas M&F');
+      assert.ok(await browser.evaluate('document.body.textContent.includes("no hay un saldo confirmado")'));
+      assert.deepEqual(browser.exceptions, []);
+    });
+
 
     await context.test('Fiorella monthly demo separates applied GF, detailed budgets and recorded actuals across periods', async () => {
       await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
@@ -369,72 +385,95 @@ test('browser regression: redirects, simulation history and financial isolation'
       await capture('08-gf-incompleto-movil.png');
     });
 
-    await context.test('scenario alternatives compare exact distributions without duplicating a projection period', async () => {
-      await clickLink('/fiorella/simulador', 'Simulador y metas');
-      const saveScenario = async (period, income) => {
-        await fill('simulation-period', period); await fill('simulation-income', income);
-        await browser.waitFor('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación") && !button.disabled)');
-        await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Guardar simulación")).click()');
+    await context.test('goals: months prefilled from the plan, preview, arrival from the current month and on-time state', async () => {
+      // Without a distribution the page asks for the month's income, right there.
+      await clickLink('/fiorella/metas', 'Metas');
+      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Registra el ingreso del mes").click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] #monthly-income")');
+      await fill('monthly-income', '5432.01'); await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
+      await closeTop();
+      // Capacity = 24 % of 3,932.01 from the selected month (January 2040).
+      const capacity = await testText('goal-capacity');
+      assert.ok(capacity.includes('S/ 943.6824') && capacity.includes('enero de 2040'), capacity);
+      const newGoal = async (title, target, months) => {
+        await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Nueva meta").click()');
+        await browser.waitFor('!!document.querySelector("dialog[open] #goal-title") && document.activeElement?.id === "goal-title"');
+        await fill('goal-title', title); await fill('goal-target', target);
+        if (months) await fill('goal-months', months);
       };
-      await saveScenario('2040-01', '4000'); await saveScenario('2040-02', '4000'); await saveScenario('2040-01', '5000');
-      await browser.waitFor('document.querySelectorAll("#scenario-a option").length === 4');
-      const choose = async (id, index) => browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); input.value = input.options[${index}].value; input.dispatchEvent(new Event('change', {bubbles:true})); })()`);
-      await choose('scenario-a', 3); await choose('scenario-b', 1);
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=scenario-comparison]").textContent.includes("+S/ 240.00")'));
-      await browser.evaluate('document.querySelectorAll("input[type=checkbox]")[0].click(); document.querySelectorAll("input[type=checkbox]")[2].click()');
-      await browser.waitFor('document.body.textContent.includes("Elige solo una por mes")');
-      assert.equal(await browser.evaluate('document.querySelector("[data-testid=projection]")'), null);
-      await browser.evaluate('document.querySelectorAll("input[type=checkbox]")[0].click(); document.querySelectorAll("input[type=checkbox]")[1].click()');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=projection]").textContent.includes("S/ 1,200.00")'));
-      await browser.evaluate('document.querySelector("[data-testid=scenario-comparison]").scrollIntoView({block:"start"})');
-      await capture('09-comparacion-movil.png');
-      await fill('simulation-income', '1000');
-      await browser.waitFor('document.body.textContent.includes("Tratamiento pendiente de aprobación")');
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))'), false);
-      await fill('simulation-income', '4000');
+      await newGoal('Viaje inventado', '1200');
+      // Months start as M = ⌈1200 / 943.6824⌉ = 2 until the person types a value.
+      assert.equal(await browser.evaluate('document.getElementById("goal-months").value'), '2');
+      assert.ok((await browser.evaluate('document.getElementById("goal-months-help").textContent')).includes('Con tu plan, unos 2 meses'));
+      assert.equal(await testText('goal-preview'), 'Necesitas S/ 600.00 al mes; llegas en unos 2 meses');
+      await capture('23-meta-formulario-movil.png');
+      await fill('goal-months', '6'); await fill('goal-target', '1300');
+      assert.equal(await browser.evaluate('document.getElementById("goal-months").value'), '6', 'a typed value is kept');
+      await fill('goal-target', '1200');
+      assert.ok((await testText('goal-preview')).startsWith('Necesitas S/ 200.00 al mes'));
+      await submitForm('Meta de ahorro');
+      await browser.waitFor('document.querySelectorAll("[data-goal-id]").length === 1 && !document.querySelector("dialog[open]")');
+      await newGoal('Auto inventado', '20000', '12');
+      // N = 20000 / 12 = 1,666.666… → shown as S/ 1,666.67; shortfall 722.98426… → S/ 722.99.
+      assert.ok((await testText('goal-preview')).startsWith('Necesitas S/ 1,666.67 al mes; llegas en unos 22 meses'));
+      await submitForm('Meta de ahorro');
+      await browser.waitFor('document.querySelectorAll("[data-goal-id]").length === 2 && !document.querySelector("dialog[open]")');
+      const card = title => browser.evaluate(`Array.from(document.querySelectorAll("[data-goal-id]")).find(item => item.textContent.includes(${JSON.stringify(title)})).textContent`);
+      const trip = await card('Viaje inventado');
+      assert.ok(trip.includes('Vas a tiempo') && trip.includes(`Llegas en unos 2 meses (${arrival(2)})`) && trip.includes('Necesitas S/ 200.00 al mes'), trip);
+      const car = await card('Auto inventado');
+      assert.ok(car.includes('Te faltan S/ 722.99 al mes') && car.includes(`Llegas en unos 22 meses (${arrival(22)})`), car);
+      assert.doesNotMatch(await visibleText(), /\d+ \/ \d+ \(fracción|hipotétic|no acredita|Revisión/i);
     });
 
-    await context.test('goals use exact Excel-backed ratios, preserve revisions and exclude personal capacity', async () => {
-      await fill('goal-title', 'Objetivo inventado de prueba'); await fill('goal-target', '1200'); await fill('goal-months', '2');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("S/ 600.00")'));
-      await submitForm('Meta de ahorro hipotética');
-      await browser.waitFor('document.querySelectorAll("[data-goal-id]").length === 1');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("coincide matemáticamente")'));
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("S/ 1,800.00")'));
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.startsWith("Editar meta")).click()');
-      await fill('goal-target', '1300'); await submitForm('Meta de ahorro hipotética');
-      await browser.waitFor('document.querySelector("[data-goal-id]").textContent.includes("Revisión 2")');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("Faltaría S/ 100.00")'));
-      await fill('goal-title', 'Fracción sintética'); await fill('goal-target', '1'); await fill('goal-months', '3');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("1 / 3 (fracción exacta)")'));
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-estimate]").textContent.includes("redondeo monetario pendiente")'));
-      await fill('goal-months', '0');
-      assert.equal(await browser.evaluate('document.getElementById("goal-title").form.querySelector("button[type=submit]").disabled'), true);
-      await fill('goal-months', '3');
-      await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
-      await capture('10-meta-fraccion-movil.png');
+    await context.test('goal detail draws its path and the "¿y si…?" changes the arrival without saving', async () => {
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Auto inventado")).click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail] svg[role=img]")');
+      const reading = await testText('goal-reading');
+      assert.ok(reading.includes(`Llegas en unos 22 meses (${arrival(22)})`) && reading.includes('te faltan S/ 722.99 al mes'), reading);
+      assert.ok(reading.includes('necesitarías un ingreso de S/ 8,444.45'), reading);
+      assert.equal((reading.match(/Estimación lineal/g) ?? []).length, 1);
+      await capture('24-meta-detalle-movil.png');
+      await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-detail] details summary").click()');
+      await fill('goal-whatif-income', '10000');
+      // C' = 24 % of 8,500 = 2,040; M' = ⌈20000 / 2040⌉ = 10.
+      await browser.waitFor('document.querySelector("[data-testid=goal-whatif-result]").textContent.includes("Ahorro de pareja: S/ 2,040.00 al mes (antes S/ 943.6824)")');
+      assert.ok((await testText('goal-whatif-result')).includes(`Llegarías en unos 10 meses (${arrival(10)})`));
+      assert.equal(await browser.evaluate('document.querySelectorAll("dialog[open] [data-testid=goal-detail] svg polyline").length'), 2);
+      await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-whatif-panel]").scrollIntoView({block:"center"})');
+      await capture('25-meta-y-si-movil.png');
+      await closeTop();
+      // Nothing was saved: the card keeps its estimate and Historial has the same records.
+      assert.ok((await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id]")).find(item => item.textContent.includes("Auto")).textContent')).includes('22 meses'));
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Viaje inventado")).click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
+      assert.ok((await browser.evaluate(`${topSheet()}.textContent`)).includes('Revisión 1.'));
+      await browser.evaluate(`Array.from(${topSheet()}.querySelectorAll("button")).find(button => button.textContent === "Editar").click()`);
+      await browser.waitFor('document.getElementById("goal-months")?.value === "6" && document.getElementById("goal-target").value === "1200"');
+      await fill('goal-target', '1300'); await submitForm('Meta de ahorro');
+      await browser.waitFor('!document.querySelector("dialog[open]") && document.querySelector("[role=status]")?.textContent === "Meta actualizada."');
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Viaje inventado")).click()');
+      await browser.waitFor(`${topSheet()}?.textContent.includes("Revisión 2.") && ${topSheet()}.textContent.includes("S/ 1,300.00")`);
+      await closeTop();
     });
 
-    await context.test('planning fits phone and desktop, leaves demo GF untouched and resets on reload', async () => {
-      for (const width of [320, 390, 768, 1280]) {
+    await context.test('Metas fits phone and desktop, leaves demo GF untouched and resets goals on reload', async () => {
+      for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
-        const sizes = await browser.evaluate('({width:innerWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
+        const sizes = await browser.evaluate('({width:document.documentElement.clientWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
         assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
         assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
       }
-      await browser.evaluate('document.querySelector("[data-testid=projection]").scrollIntoView({block:"start"})');
-      await capture('11-proyeccion-escritorio.png');
       await openBudgets();
       await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '80');
       assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');
       await clickLink('/control', 'Control Finanzas');
-      assert.doesNotMatch(await visibleText(), /S\/\s*\d|Objetivo inventado|Fracción sintética/);
-      await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/simulador', 'Simulador y metas');
-      assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 1);
+      assert.doesNotMatch(await visibleText(), /S\/\s*\d|Viaje inventado|Auto inventado/);
+      await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/metas', 'Metas');
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 2);
       await browser.page('Page.reload');
-      await browser.waitFor('document.body?.textContent.includes("Todavía no registraste metas hipotéticas")');
-      assert.equal(await browser.evaluate('document.querySelectorAll("#scenario-a option").length'), 1);
+      await browser.waitFor('document.body?.textContent.includes("Aún no tienes metas.")');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 0);
       assert.deepEqual(browser.exceptions, []);
     });
