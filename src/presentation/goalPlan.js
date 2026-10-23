@@ -1,4 +1,5 @@
 import { compareAmounts, normalizeAmount } from '../domain/amounts.js';
+import { calculateDistribution } from '../domain/distribution.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
 import { estimateSavingsGoal } from '../domain/savingsPlanning.js';
 import { periodKey } from '../domain/fiorellaSession.js';
@@ -63,4 +64,10 @@ export function goalPlan(goal, capacity, current) {
   const onTime = cN * d >= n * cD;
   return { ...base, status: onTime ? 'ok' : 'aviso', months, arrival: addMonths(current, months - 1),
     shortfall: onTime ? null : ceilCents(n * cD - cN * d, d * cD) };
+}
+
+/** The "¿y si…?" capacity C' for an income and applied GF; nothing is saved. */
+export function whatIfCapacity(values) {
+  const calculation = calculateDistribution({ income: values.income, fixedExpense: values.fixed });
+  return { calculation, capacity: calculation.status === 'calculated' ? calculation.distribution.savings.couple : null };
 }

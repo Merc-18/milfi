@@ -161,7 +161,7 @@ export default function Fiorella() {
         <StatLink to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
           detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${expenses.variable.count} gasto(s)` : 'Sin asignación del mes'}
           badges={[usageBadge(variableSpent, distribution?.variable.total ?? null)].filter(Boolean)} />
-        <StatLink to="/fiorella/simulador" testId="savings-tracking" title="Ahorro de pareja"
+        <StatLink to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
           value={deposited == null ? 'Sin depósitos' : controlMoney(deposited, 'PEN')}
           detail={[distribution && `de ${formatAmount(distribution.savings.couple)} planificado`,
             ...otherDeposits.map(group => `también ${controlMoney(group.total, group.currency)}`),

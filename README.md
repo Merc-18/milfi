@@ -76,14 +76,15 @@ No sustituye la verificación visual completa en dispositivos.
     `?nuevo` abre el formulario de gasto.
   - `?tipo=fijos`: GF reservado, presupuesto detallado y gastado, gráfico por grupo y edición por subcategoría,
     con copia de presupuestos del mes anterior.
-- `/fiorella/simulador` (pestaña Metas): alternativas, proyección y metas de pareja; enlaza a `/fiorella/calculadora`.
-- `/fiorella/historial` (pestaña Historial): registros por mes, evolución mensual y simulaciones de la sesión.
+- `/fiorella/metas` (pestaña Metas): cuándo llegas a cada meta con tu plan, su camino y un «¿y si…?» sin guardar;
+  `?simular` lo abre directo.
+- `/fiorella/historial` (pestaña Historial): registros por mes y evolución mensual.
 - `/fiorella/configuracion`: reglas oficiales; también se abren desde el botón de información de las pestañas.
 - `/control`: dashboard, movimientos y revisiones; sin saldo bancario.
 - `/acceso`: inicio y cierre de sesión con Supabase Auth, o aviso de modo demostración si no está configurado.
 
 El mes elegido es el mismo en Fiorella y Control. Las rutas anteriores
-`/fiorella/presupuestos`, `/calculadora`, `/historial`, `/configuracion` y
+`/fiorella/presupuestos`, `/fiorella/simulador`, `/fiorella/calculadora`, `/calculadora`, `/historial`, `/configuracion` y
 `/fondo-comun` redirigen a sus equivalentes; `/control/preimportacion` ya no existe.
 Las rutas desconocidas muestran una página de recuperación. El futuro hosting
 deberá resolver rutas SPA a `index.html`.

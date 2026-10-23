@@ -6,7 +6,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 // Accessible modal sheet on the native <dialog>: showModal() makes the rest of
 // the page inert, Tab cycles inside, Esc and the close button close it, and
 // focus returns to the control that opened it. No entrance animation.
-export default function Sheet({ open, onClose, title, children }) {
+export default function Sheet({ open, onClose, title, wide = false, children }) {
   const dialog = useRef(null);
   const opener = useRef(null);
   const titleId = useId();
@@ -37,7 +37,8 @@ export default function Sheet({ open, onClose, title, children }) {
   };
   return <dialog ref={dialog} aria-labelledby={titleId} onCancel={cancel} onKeyDown={trap}
     onClick={event => { if (event.target === dialog.current) onClose(); }}
-    className="mt-auto mb-0 w-full max-w-full max-h-[90dvh] rounded-t-[28px] bg-fondo p-0 text-texto shadow-soft backdrop:bg-texto/40 sm:m-auto sm:max-w-lg sm:rounded-[24px]">
+    className={`mt-auto mb-0 w-full max-w-full max-h-[90dvh] rounded-t-[28px] bg-fondo p-0 text-texto shadow-soft backdrop:bg-texto/40
+      sm:m-auto sm:rounded-[24px] ${wide ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}>
     {open && <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 id={titleId} className="text-lg font-bold">{title}</h2>

@@ -21,13 +21,13 @@ test('module routes render with real-history notices and no simulated financial 
     const expectations = [
       ['/', 'Finanzas de Fiorella'],
       ['/fiorella', 'Registra el ingreso del mes'],
-      ['/fiorella/calculadora', 'Solo simulación'],
       ['/fiorella/historial', 'Todavía no hay registros.'],
       ['/fiorella/configuracion', 'Configuración oficial'],
       // Presupuestos is the fixed view of Gastos (its redirect is checked in Chromium).
       ['/fiorella/gastos?tipo=fijos', 'Reservado (GF aplicado)'],
       ['/fiorella/gastos', 'Ritmo del mes'],
-      ['/fiorella/simulador', 'Escenarios hipotéticos'],
+      // Simulador and Calculadora redirect here (checked in Chromium).
+      ['/fiorella/metas', 'Registra el ingreso del mes para estimar tus metas'],
       ['/control', 'Historial real pendiente de importación'],
       // No Excel upload screen for end users: the history is loaded once, administratively.
       ['/control/preimportacion', 'Página no encontrada'],
@@ -61,7 +61,7 @@ test('module routes render with real-history notices and no simulated financial 
     const tabs = fiorellaTabs(renderPath('/fiorella'));
     assert.deepEqual([...tabs.matchAll(/>([^<]+)<\/a>/g)].map(match => match[1]), ['Resumen', 'Gastos', 'Metas', 'Historial']);
     for (const [path, tab] of [['/fiorella', '/fiorella'], ['/fiorella/gastos', '/fiorella/gastos'], ['/fiorella/gastos?tipo=fijos', '/fiorella/gastos'],
-      ['/fiorella/simulador', '/fiorella/simulador'], ['/fiorella/calculadora', '/fiorella/simulador'], ['/fiorella/historial', '/fiorella/historial']]) {
+      ['/fiorella/metas', '/fiorella/metas'], ['/fiorella/metas?simular', '/fiorella/metas'], ['/fiorella/historial', '/fiorella/historial']]) {
       assert.deepEqual(current(renderPath(path)), [tab], path);
     }
     assert.deepEqual(current(renderPath('/fiorella/configuracion')), []);
@@ -73,7 +73,12 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="budget-groups"') && !renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="pace-chart"'));
     assert.doesNotMatch(renderPath('/fiorella/gastos'), />Todos</);
     assert.ok(renderPath('/fiorella/gastos').includes('Aún no hay gastos variables en'));
-    assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
+    // Metas: one page with "Nueva meta" and the "¿y si…?"; no scenarios, A/B or fractions.
+    const goals = renderPath('/fiorella/metas');
+    assert.ok(goals.includes('>Nueva meta<') && goals.includes('¿Y si…?') && goals.includes('Aún no tienes metas.'));
+    assert.doesNotMatch(goals, /Escenario|Comparar alternativas|Proyección por periodos|fracción exacta|hipotétic/i);
+    assert.doesNotMatch(renderPath('/fiorella/historial'), /Simulaciones de esta sesión/);
+    assert.ok(renderPath('/fiorella').includes('href="/fiorella/metas"') && !renderPath('/fiorella').includes('/fiorella/simulador'));
     assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
 
     // Visible spelling fixed; the official label (matched against the Excel) and the id stay.

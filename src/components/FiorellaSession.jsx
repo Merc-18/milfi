@@ -1,5 +1,4 @@
 import { useStore } from '../store/useStore.js';
-import { formatAmount } from '../presentation/format.js';
 import StatusNotice from './StatusNotice.jsx';
 
 export const fieldClass = 'w-full min-w-0 bg-fondo border border-secundario p-3 rounded-xl';
@@ -31,10 +30,4 @@ export function MoneyInput({ id, label, value, onChange }) {
     <input id={id} type="text" inputMode="decimal" maxLength={100} autoComplete="off" className={fieldClass}
       value={value} onChange={event => onChange(event.target.value)} placeholder="Sin registrar" />
   </div>;
-}
-
-export function AmountStatus({ label, amount, detail }) {
-  return <div className={cardClass}><h3 className="text-sm font-bold">{label}</h3>
-    <p className="text-xl font-bold mt-1 break-all">{amount == null ? 'Sin registrar' : formatAmount(amount)}</p>
-    {detail && <p className="text-xs mt-2">{detail}</p>}</div>;
 }

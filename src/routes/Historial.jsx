@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useStore } from '../store/useStore.js';
 import { usePeriodStore } from '../store/periodStore.js';
 import { formatAmount, formatPeriod, parsePeriodInput } from '../presentation/format.js';
-import DistributionDetails from '../components/DistributionDetails.jsx';
 import { fieldClass } from '../components/FiorellaSession.jsx';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
@@ -54,7 +53,6 @@ function HistoryRecord({ record, persisted }) {
 }
 
 export default function Historial() {
-  const simulations = useStore(state => state.simulations);
   const records = useStore(state => state.fiorellaDemoRecords);
   const events = useStore(state => state.fiorellaDemoEvents);
   const persisted = useStore(state => !!state.remote);
@@ -66,7 +64,7 @@ export default function Historial() {
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);
   const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
-  const groups = fiorellaHistory(records, events, simulations, persisted ? 'real' : 'simulated');
+  const groups = fiorellaHistory(records, events, [], persisted ? 'real' : 'simulated');
   const text = search.trim().toLocaleLowerCase('es');
   const matches = record => (kind === 'all' || record.kind === kind) && (category === 'all' || record.categoryId === category || record.categoryId?.startsWith(`${category}-`))
     && (!text || [record.description, record.subcategory, record.notes, record.categoryId && categoryName(record.categoryId)].some(value => value?.toLocaleLowerCase('es').includes(text)));
@@ -108,23 +106,6 @@ export default function Historial() {
         </details>}
       </section>)}
       {total > shown && <button type="button" className="mb-6 bg-texto text-white font-bold px-4 py-3 rounded-xl w-full sm:w-auto" onClick={() => setShown(value => value + PAGE)}>Ver más ({total - shown} restantes)</button>}
-      {(!persisted || simulations.length > 0) && <>
-      <h2 className="font-bold text-lg mb-2">Simulaciones de esta sesión</h2>
-      <p className="text-sm mb-5">Son ejemplos independientes. No representan ingresos ni ahorros reales y se pierden al recargar.</p>
-      {simulations.length === 0 ? <p className="text-sm bg-white p-5 rounded-[24px] shadow-soft">Todavía no guardaste simulaciones en esta sesión.</p> : (
-        <div className="space-y-4">
-          {groups.filter(group => group.simulations.length).map(group => <section key={group.key} className="space-y-4">
-            <h3 className="font-bold first-letter:uppercase">{formatPeriod(group.period)}</h3>
-            {group.simulations.map(simulation => (
-              <details key={simulation.id} className="bg-white p-5 rounded-[24px] shadow-soft">
-                <summary className="cursor-pointer font-bold"><span className="first-letter:uppercase">{formatPeriod(simulation.period)}</span> · {formatAmount(simulation.distribution.income)}<span className="block text-sm font-normal mt-1">Simulación · Ver distribución</span></summary>
-                <div className="mt-4"><DistributionDetails distribution={simulation.distribution} /></div>
-                <p className="text-sm mt-3">Importes exactos, sin redondear.{simulation.requiresRoundingDecision && ' Contiene fracciones de céntimo pendientes de criterio monetario.'}</p>
-              </details>
-            ))}</section>)}
-        </div>
-      )}
-      </>}
     </div>
   );
 }
