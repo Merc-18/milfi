@@ -70,7 +70,7 @@ function GoalForm({ record, onDone, onCancel }) {
     <MoneyInput id="goal-target" label="Monto objetivo hipotético (S/)" value={target} onChange={setTarget} />
     <div><label htmlFor="goal-months" className="block text-sm font-bold mb-2">Meses disponibles que tú defines</label><input id="goal-months" type="text" inputMode="numeric" maxLength={16} className={fieldClass} value={months} onChange={event => setMonths(event.target.value)} placeholder="Sin definir" /></div>
     <GoalEstimate estimate={estimate} />
-    <button type="submit" className={buttonClass} disabled={saving || estimate.status !== 'estimated'}>{saving ? 'Guardando…' : `${record ? 'Actualizar meta' : persisted ? 'Guardar meta' : 'Registrar meta'}${persisted ? '' : ' · sesión'}`}</button>
+    <button type="submit" className={buttonClass} disabled={saving || estimate.status !== 'estimated'}>{saving ? 'Guardando…' : 'Guardar'}</button>
     {record && <button type="button" className="block underline" onClick={onCancel}>Cancelar edición de meta</button>}
     {error && <p role="alert" className="text-sm">{error}</p>}
   </form>;
@@ -128,7 +128,7 @@ export default function Simulador() {
       <Link to="/fiorella/calculadora" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-2 min-h-11 text-sm"><Calculator size={16} aria-hidden="true" />Simular distribución</Link>
     </header>
     {persisted ? <Help title="Escenarios hipotéticos"><p>Los escenarios solo duran esta sesión. Escenarios y metas no son ingresos, saldos ni depósitos reales y no cambian tus registros GF/GV.</p></Help>
-      : <StatusNotice title="Escenarios hipotéticos · Solo esta sesión"><p>Los escenarios y metas no son ingresos, saldos ni depósitos reales. No se trasladan a Control Finanzas M&F. Se pierden al recargar y no cambian tus registros de demostración GF/GV.</p></StatusNotice>}
+      : <StatusNotice title="Escenarios hipotéticos · Solo esta sesión"><p>Los escenarios y metas no son ingresos, saldos ni depósitos reales. No se trasladan a Control Finanzas M&F. Se pierden al recargar y no cambian tus registros GF/GV.</p></StatusNotice>}
     {!!savedGoals.length && <section className="space-y-3" data-testid="saved-goals"><h2 className="font-bold text-xl">Metas de Fiorella</h2>
       {savedGoals.map(goal => <SavedGoal key={goal.id} goal={goal} />)}</section>}
     {feedback && <p role="status" className="text-sm">{feedback}</p>}

@@ -13,8 +13,6 @@ export function useFiorellaPeriod() {
 
 /** True while records are loaded from and saved to Supabase (authorized session). */
 export const usePersisted = () => useStore(state => !!state.remote);
-/** " · demo" while showing session examples; nothing with real data. */
-export const useDemoLabel = () => useStore(state => state.remote ? '' : ' · demo');
 
 const errors = {
   POSSIBLE_DUPLICATE_EXPENSE: 'Ya existe un gasto con los mismos datos. Revisa la lista o indica explícitamente que se trata de otro gasto.',
@@ -32,7 +30,7 @@ const errors = {
 };
 export function sessionResultMessage(result, persisted = false) {
   if (result.ok) return result.unchanged ? 'Sin cambios; no se creó otro registro.'
-    : persisted ? 'Guardado en MilFi. Se conserva al cerrar sesión y se ve desde otros dispositivos.' : 'Registrado solo en esta sesión de demostración. Se perderá al recargar.';
+    : persisted ? 'Guardado en MilFi. Se conserva al cerrar sesión y se ve desde otros dispositivos.' : 'Guardado.';
   return errors[result.errors?.[0]] ?? 'Revisa los campos. Usa importes no negativos con punto decimal, una fecha válida y descripción de hasta 300 caracteres.';
 }
 

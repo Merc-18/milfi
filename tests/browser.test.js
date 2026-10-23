@@ -92,7 +92,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.page('Page.reload');
       await browser.waitFor('document.body?.textContent.includes("Todavía no guardaste simulaciones")');
       assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 0);
-      assert.ok(await browser.evaluate('document.body.textContent.includes("Historial real aún no importado")'));
+      // The demo is explained once, by the header badge.
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
       await clickLink('/control', 'Control Finanzas M&F');
       assert.ok(await browser.evaluate('document.body.textContent.includes("no hay un saldo confirmado")'));
       assert.deepEqual(browser.exceptions, []);
@@ -114,9 +115,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await visibleText()).includes('Sin registrar'));
       await fill('fiorella-period', '2038-04');
       await fill('monthly-income', '5432.01'); await fill('monthly-fixed', '1500');
-      await submitForm('Datos mensuales de demostración');
+      await submitForm('Datos mensuales');
       await browser.waitFor('document.body.textContent.includes("786.402")');
-      assert.ok((await visibleText()).includes('Se perderá al recargar'));
+      assert.ok(await browser.evaluate('document.querySelector("form[aria-label=\'Datos mensuales\'] [role=status]").textContent === "Guardado."'));
       await fill('fiorella-period', '2038-05');
       assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
       await fill('fiorella-period', '2038-04');
@@ -146,7 +147,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       const expense = async (description, amount, category = 'salud', date = '2038-04-09') => {
         await fill('gv-date', date); await fill('gv-description', description); await fill('gv-amount', amount);
         await browser.evaluate(`(() => { const select = document.getElementById('gv-category'); select.value = ${JSON.stringify(category)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
-        await submitForm('Gasto variable de demostración');
+        await submitForm('Gasto variable');
       };
       await expense('Ejemplo sintético A', '0.10'); await browser.waitFor('document.querySelectorAll("article").length === 1');
       await expense('Ejemplo sintético B', '0.20'); await browser.waitFor('document.querySelectorAll("article").length === 2');
@@ -154,13 +155,13 @@ test('browser regression: redirects, simulation history and financial isolation'
       await expense('Ejemplo sintético ocio', '1000', 'ocio'); await browser.waitFor('document.querySelectorAll("article").length === 3');
       assert.ok((await visibleText()).includes('S/ 213.598'));
       await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Editar Ejemplo sintético A").click()');
-      await fill('gv-amount', '0.15'); await submitForm('Gasto variable de demostración');
+      await fill('gv-amount', '0.15'); await submitForm('Gasto variable');
       await browser.waitFor('document.body.textContent.includes("S/ 0.35")');
       await expense('Ejemplo sintético A', '0.15');
       await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("mismos datos")');
       assert.equal(await browser.evaluate('document.querySelectorAll("article").length'), 3);
       await browser.evaluate('document.getElementById("gv-similar").click()');
-      await submitForm('Gasto variable de demostración');
+      await submitForm('Gasto variable');
       await browser.waitFor('document.querySelectorAll("article").length === 4');
       assert.ok((await visibleText()).includes('S/ 0.50'));
       // An expense dated in another month is saved in that month and the view follows it.
@@ -211,7 +212,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/fiorella', 'Finanzas de Fiorella');
       await clickLink('/fiorella/historial', 'Historial');
       await browser.page('Page.reload');
-      await browser.waitFor('document.body?.textContent.includes("Sin registros de demostración en esta sesión")');
+      await browser.waitFor('document.body?.textContent.includes("Todavía no hay registros.")');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
       await clickLink('/fiorella', 'Finanzas de Fiorella');
       assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');

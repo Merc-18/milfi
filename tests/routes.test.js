@@ -20,9 +20,9 @@ test('module routes render with real-history notices and no simulated financial 
     const renderPath = path => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(AppRoutes)));
     const expectations = [
       ['/', 'Finanzas de Fiorella'],
-      ['/fiorella', 'Historial real aún no importado'],
+      ['/fiorella', 'Datos mensuales'],
       ['/fiorella/calculadora', 'Solo simulación'],
-      ['/fiorella/historial', 'Historial real aún no importado'],
+      ['/fiorella/historial', 'Todavía no hay registros.'],
       ['/fiorella/configuracion', 'Configuración oficial'],
       ['/fiorella/presupuestos', 'Presupuestos GF'],
       ['/fiorella/gastos', 'Gastos'],
@@ -38,6 +38,11 @@ test('module routes render with real-history notices and no simulated financial 
       assert.ok(html.includes('href="/fiorella"'), path);
       assert.ok(html.includes('href="/control"'), path);
       assert.doesNotMatch(html, /Gustos|Ropa|Abril 2026/);
+      // One demo explanation, in the header badge; no repeated notices or suffixes.
+      assert.equal((html.match(/data-testid="demo-mode"/g) ?? []).length, 1, path);
+      // Control's inner texts are revised in a later phase; only its demo notice goes now.
+      if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
+      assert.doesNotMatch(html, /Demostración temporal/, path);
     }
     assert.doesNotMatch(renderPath('/control'), /S\/\s*[\d]/);
     assert.doesNotMatch(renderPath('/control'), /Aportes de Milton|solo Fiorella|únicamente Fiorella/);

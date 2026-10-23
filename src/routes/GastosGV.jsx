@@ -1,4 +1,4 @@
-import { sessionCommand, sessionResultMessage, useDemoLabel, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
+import { sessionCommand, sessionResultMessage, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Pencil, SlidersHorizontal } from 'lucide-react';
@@ -33,7 +33,6 @@ function VariableForm({ input, period, record, onDone, onCancel, suggestions }) 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const persisted = usePersisted();
-  const demo = useDemoLabel();
   const submit = async event => {
     event.preventDefault();
     // A new expense belongs to the month of its own date; an edit keeps its month.
@@ -44,13 +43,13 @@ function VariableForm({ input, period, record, onDone, onCancel, suggestions }) 
     setSaving(false);
     if (!result.ok) { setError(sessionResultMessage(result, persisted)); return; }
     const moved = `${target.year}-${String(target.month).padStart(2, '0')}` !== input;
-    onDone(`${record ? 'Gasto actualizado' : 'Gasto guardado'}${moved ? ` en ${formatPeriod(target)}` : ''}. ${sessionResultMessage(result, persisted)}`);
+    onDone(`${record ? 'Gasto actualizado' : 'Gasto guardado'}${moved ? ` en ${formatPeriod(target)}` : ''}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
     if (moved) select(`${target.year}-${String(target.month).padStart(2, '0')}`);
   };
-  return <form aria-label={`Gasto variable${demo ? ' de demostración' : ''}`} onSubmit={submit} className="space-y-3 pt-3">
+  return <form aria-label="Gasto variable" onSubmit={submit} className="space-y-3 pt-3">
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <div>{label('gv-date', 'Fecha')}<input id="gv-date" type="date" min="0001-01-01" max="9999-12-31" className={fieldClass} value={date} onChange={event => setDate(event.target.value)} required /></div>
-      <MoneyInput id="gv-amount" label={`Importe${demo} (S/)`} value={amount} onChange={setAmount} />
+      <MoneyInput id="gv-amount" label="Importe (S/)" value={amount} onChange={setAmount} />
       <div>{label('gv-category', 'Categoría')}<select id="gv-category" className={fieldClass} value={category} onChange={event => setCategory(event.target.value)}>{FINANCIAL_RULES.variableCategories.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>
       <div>{label('gv-subcategory', 'Subcategoría')}<input id="gv-subcategory" className={fieldClass} maxLength={80} list="gv-subcategories" value={subcategory} onChange={event => setSubcategory(event.target.value)} placeholder="Opcional" />
         <datalist id="gv-subcategories">{suggestions.map(item => <option key={item} value={item} />)}</datalist></div>
@@ -59,7 +58,7 @@ function VariableForm({ input, period, record, onDone, onCancel, suggestions }) 
     </div>
     <label htmlFor="gv-similar" className="flex gap-3 items-start text-xs"><input id="gv-similar" type="checkbox" className="mt-1 shrink-0" checked={similar} onChange={event => setSimilar(event.target.checked)} />Es otro gasto aunque coincidan fecha, categoría, descripción e importe.</label>
     <div className="flex flex-wrap items-center gap-3">
-      <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar gasto' : persisted ? 'Guardar gasto' : 'Registrar gasto'}${persisted ? '' : ' · sesión'}`}</button>
+      <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
       {record && <button type="button" className="underline text-sm min-h-11" onClick={onCancel}>Cancelar edición</button>}
     </div>
     {error && <p role="alert" className={noticeClass()}>{error}</p>}
@@ -72,10 +71,9 @@ const amountOrMissing = value => value == null ? 'Sin registrar' : formatAmount(
 
 // GF real: monthly totals per subcategory from Presupuestos GF (no dates, no copies).
 function FixedExpenses({ summary, manage }) {
-  const demo = useDemoLabel();
   return <section className="space-y-3" aria-label="Gastos fijos">
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h2 className="font-bold text-lg">Gastos fijos (GF){demo}</h2>
+      <h2 className="font-bold text-lg">Gastos fijos (GF)</h2>
       <Link to="/fiorella/presupuestos" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-2 min-h-11 text-sm">
         {manage ? <><Pencil size={16} aria-hidden="true" />Editar gasto fijo</> : <><SlidersHorizontal size={16} aria-hidden="true" />Ver presupuestos</>}</Link>
     </div>
@@ -97,7 +95,6 @@ function FixedExpenses({ summary, manage }) {
 function VariableExpenses({ input, period, summary, manage, onFeedback, startOpen }) {
   const records = useStore(state => state.fiorellaDemoRecords);
   const persisted = usePersisted();
-  const demo = useDemoLabel();
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);
@@ -113,16 +110,16 @@ function VariableExpenses({ input, period, summary, manage, onFeedback, startOpe
   return <section className="space-y-3" aria-label="Gastos variables">
     {manage && <details className={cardClass} open={open || !!editing} onToggle={event => setOpen(event.currentTarget.open)}>
       <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden">
-        <span>{editing ? 'Editar gasto variable' : '+ Registrar gasto variable'}{demo}</span><span aria-hidden="true">▾</span></summary>
+        <span>{editing ? 'Editar gasto variable' : '+ Registrar gasto variable'}</span><span aria-hidden="true">▾</span></summary>
       <VariableForm key={`${editing ?? 'new'}:${generation}`} input={input} suggestions={suggestions} period={period} record={summary.variable.find(record => record.id === editing)} onDone={done} onCancel={() => done('Edición cancelada.')} />
     </details>}
-    <h2 className="font-bold text-lg">Gastos variables (GV){demo}</h2>
+    <h2 className="font-bold text-lg">Gastos variables (GV)</h2>
     <div className="grid gap-3 sm:grid-cols-2">
       {summary.categories.map(item => <div key={item.id} className={`${cardClass} text-sm space-y-1`}>
         <p className="flex flex-wrap justify-between gap-2"><span className="font-bold">{item.name}</span>
           <span>{item.executed.amount === null ? 'S/ 0' : formatAmount(item.executed.amount)} de {item.allocation === null ? '—' : formatAmount(item.allocation)} asignado</span></p>
         <Progress value={item.executed.amount ?? '0'} limit={item.allocation} label={`${item.name}: gasto frente a lo asignado`} />
-        <p className="text-xs"><span className="sr-only">{persisted ? 'Anotado' : 'Acumulado de la sesión'}: </span><Comparison budget={item.allocation} spent={item.executed.amount} /></p>
+        <p className="text-xs"><span className="sr-only">Anotado: </span><Comparison budget={item.allocation} spent={item.executed.amount} /></p>
       </div>)}
     </div>
     {summary.requiresRoundingDecision && <p className="text-sm">Importes con fracciones de céntimo; redondeo pendiente.</p>}
@@ -141,7 +138,7 @@ function VariableExpenses({ input, period, summary, manage, onFeedback, startOpe
         <div className="flex flex-wrap items-center justify-between gap-2">
           <details className="text-xs text-texto-light">
             <summary className="cursor-pointer min-h-11 flex items-center">Detalles</summary>
-            <p className="pb-2">{persisted ? (record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi') : 'Demostración'} · Revisión {record.revision}</p>
+            <p className="pb-2">{persisted && `${record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi'} · `}Revisión {record.revision}</p>
           </details>
           {manage && <button type="button" className="underline font-bold min-h-11" onClick={() => { setEditing(record.id); onFeedback(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar<span className="sr-only"> {record.description}</span></button>}
         </div>
@@ -158,7 +155,6 @@ export default function GastosGV() {
   const [searchParams] = useSearchParams();
   const [feedback, setFeedback] = useState('');
   const [filter, setFilter] = useState('all');
-  const demo = useDemoLabel();
   const expenses = summarizeExpenses(summary);
   const projected = summary.monthly?.planStatus === 'projected';
   return <div className="pb-10 space-y-4">
@@ -168,9 +164,9 @@ export default function GastosGV() {
     {feedback && <p role="status" className="text-sm font-bold rounded-xl bg-exito/60 px-3 py-2">{feedback}</p>}
     {projected && <p className="text-sm font-bold rounded-xl bg-acento/50 px-3 py-2" role="note">Mes proyectado: solo cuentan los gastos efectivamente registrados; presupuestos y planes no son gastos.</p>}
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3" data-testid="expense-summary">
-      <Kpi label={`GF real${demo}`} amount={expenses.fixed.amount}><p className="text-xs">{expenses.fixed.registered}/{expenses.fixed.expected} subcategorías con gasto</p></Kpi>
-      <Kpi label={`GV real${demo}`} amount={expenses.variable.amount}><p className="text-xs">{expenses.variable.count ? `${expenses.variable.count} gasto(s)` : 'Sin gastos variables'}</p></Kpi>
-      <div className="col-span-2 lg:col-span-1"><Kpi label={`Total registrado${expenses.total.partial && expenses.total.amount !== null ? ' · parcial' : ''}${demo}`} amount={expenses.total.amount} tone="bg-principal/40">
+      <Kpi label={`GF real`} amount={expenses.fixed.amount}><p className="text-xs">{expenses.fixed.registered}/{expenses.fixed.expected} subcategorías con gasto</p></Kpi>
+      <Kpi label={`GV real`} amount={expenses.variable.amount}><p className="text-xs">{expenses.variable.count ? `${expenses.variable.count} gasto(s)` : 'Sin gastos variables'}</p></Kpi>
+      <div className="col-span-2 lg:col-span-1"><Kpi label={`Total registrado${expenses.total.partial && expenses.total.amount !== null ? ' · parcial' : ''}`} amount={expenses.total.amount} tone="bg-principal/40">
         <p className="text-xs">{expenses.total.partial ? `Parcial: GF registrado en ${expenses.fixed.registered}/${expenses.fixed.expected} subcategorías` : 'GF completo + GV'}</p></Kpi></div>
     </div>
     <div className="flex gap-1 rounded-xl bg-white p-1 shadow-soft w-fit" role="group" aria-label="Tipo de gasto">

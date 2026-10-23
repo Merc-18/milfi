@@ -10,14 +10,13 @@ export const fieldClass = 'w-full min-w-0 bg-fondo border border-secundario p-3 
 export const buttonClass = 'bg-texto text-white font-bold px-4 py-3 rounded-xl disabled:opacity-50';
 export const cardClass = 'bg-white p-4 rounded-[24px] shadow-soft min-w-0';
 
-// With real data only problems are announced; the demo keeps its notice.
+// Only problems and loading are announced; the demo is explained by the header badge.
 export function SessionNotice() {
   const remote = useStore(state => state.remote ? state.remoteStatus : null);
   const error = useStore(state => state.remoteError);
   if (remote === 'error') return <StatusNotice title="No se pudieron cargar los datos guardados"><p role="alert">MilFi no pudo leer la información ({error}). No se muestran datos incompletos como si fueran definitivos. Recarga o vuelve a iniciar sesión.</p></StatusNotice>;
   if (remote === 'loading') return <p role="status" className="text-sm mb-4">Cargando datos…</p>;
-  if (remote) return null;
-  return <StatusNotice title="Demostración de esta sesión"><p>Estos registros son ejemplos, no información financiera confirmada. Solo permanecen en memoria y se pierden al recargar. Historial real aún no importado.</p></StatusNotice>;
+  return null;
 }
 
 export function Help({ title = 'Ayuda', children }) {

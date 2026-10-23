@@ -63,7 +63,6 @@ function ControlDemoView() {
     {manage && <section className={cardClass}><h2 className="font-bold text-lg">Preimportación del Excel de Control</h2>
       <p className="text-sm">Lee localmente un Excel de Control y revisa sus movimientos antes de una importación futura. No escribe en el historial real.</p>
       <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>}
-    <StatusNotice title="Demostración temporal · Sin dinero real"><p>Introduce únicamente datos inventados. Los ejemplos y sus revisiones se perderán al recargar. No hay almacenamiento permanente ni autenticación: los responsables se declaran, sus permisos no se verifican. La administración de Milton y la consulta de Fiorella se aplicarán con el backend futuro.</p></StatusNotice>
     <section className={cardClass}>
       <h2 className="font-bold text-sm">Periodo de consulta</h2>
       <PeriodPicker id="control-selected-period" onChange={() => { setEditing(null); setReviewing(null); setNotice(''); }} />

@@ -39,7 +39,7 @@ function BudgetEditor({ category, record, period, onCancel, onSaved, onBusy }) {
     setSaving(true); onBusy(true); setError(null);
     try {
       const result = await save(sessionCommand('fixed-budget', period, base, { categoryId: category.id, budgetAmount: budget, actualAmount: actual }));
-      if (result.ok) onSaved(`Guardado · ${category.name}. ${sessionResultMessage(result, persisted)}`);
+      if (result.ok) onSaved(`Guardado · ${category.name}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
       else setError(sessionResultMessage(result, persisted));
     } catch {
       setError(sessionResultMessage({ errors: ['PERSISTENCE_ERROR'] }, persisted));

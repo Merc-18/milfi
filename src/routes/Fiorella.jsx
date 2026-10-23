@@ -1,4 +1,4 @@
-import { sessionCommand, sessionResultMessage, useDemoLabel, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
+import { sessionCommand, sessionResultMessage, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useMemo, useState } from 'react';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
@@ -26,7 +26,6 @@ function MonthlyForm({ period, record }) {
   const [feedback, setFeedback] = useState(null);
   const [saving, setSaving] = useState(false);
   const persisted = usePersisted();
-  const demo = useDemoLabel();
   const submit = async event => {
     event.preventDefault();
     setSaving(true);
@@ -35,13 +34,13 @@ function MonthlyForm({ period, record }) {
     if (result.ok) setBase(result.value);
     setFeedback({ ok: result.ok, text: sessionResultMessage(result, persisted) });
   };
-  return <form aria-label={`Datos mensuales${demo ? ' de demostración' : ''}`} onSubmit={submit} className="space-y-3 pt-3">
+  return <form aria-label="Datos mensuales" onSubmit={submit} className="space-y-3 pt-3">
     <div className="grid gap-3 sm:grid-cols-2">
-      <MoneyInput id="monthly-income" label={`Ingreso del mes${demo} (S/)`} value={income} onChange={setIncome} />
+      <MoneyInput id="monthly-income" label="Ingreso del mes (S/)" value={income} onChange={setIncome} />
       <MoneyInput id="monthly-fixed" label="GF aplicado (S/) · tope 1,500" value={fixed} onChange={setFixed} />
     </div>
     <label htmlFor="monthly-projected" className="flex gap-3 items-start text-sm"><input id="monthly-projected" type="checkbox" className="mt-1 shrink-0" checked={projected} onChange={event => setProjected(event.target.checked)} />Proyección: aún no recibido</label>
-    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : persisted ? 'Guardar datos del mes' : 'Registrar datos del mes · sesión'}</button>
+    <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
     {feedback && <p className={`text-sm rounded-xl px-3 py-2 ${feedback.ok ? 'bg-exito/60' : TONE_CLASS.aviso}`} role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
     <Help><p>Usa punto decimal. Puedes registrar solo un campo y completar el otro después. El GF aplicado no se calcula a partir del presupuesto detallado ni del gasto registrado.</p></Help>
   </form>;
@@ -99,7 +98,6 @@ export default function Fiorella() {
   const { input, period, summary, persisted } = useFiorellaPeriod();
   const records = useStore(state => state.fiorellaDemoRecords);
   const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
-  const demo = useDemoLabel();
   const projected = summary.monthly?.planStatus === 'projected';
   const expenses = summarizeExpenses(summary);
   const variableTotal = expenses.variable.amount;
@@ -113,17 +111,17 @@ export default function Fiorella() {
     </div> : <ReadOnlyNotice>Administra Fiorella.</ReadOnlyNotice>}
     {projected && <p className="text-sm font-bold rounded-xl bg-acento/50 px-3 py-2" role="note">Mes proyectado: importes escritos por adelantado, no recibidos.</p>}
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-testid="monthly-summary">
-      <Kpi label={`Ingreso${projected ? ' · proyectado' : ''}${demo}`} amount={summary.monthly?.income} />
+      <Kpi label={`Ingreso${projected ? ' · proyectado' : ''}`} amount={summary.monthly?.income} />
       <Kpi label="GF aplicado" amount={summary.monthly?.appliedFixedExpense}><Progress value={summary.monthly?.appliedFixedExpense} limit={FINANCIAL_RULES.fixedExpenseCap} label="GF aplicado frente al tope" /></Kpi>
-      <Kpi label={`Gasto GF real${demo}`} amount={summary.actual.amount}>
+      <Kpi label={`Gasto GF real`} amount={summary.actual.amount}>
         <p className="text-xs">de {summary.budget.amount == null ? '—' : formatAmount(summary.budget.amount)} · {summary.actual.registered}/{summary.actual.expected} con gasto</p>
         <Progress value={summary.actual.amount} limit={summary.budget.amount} label="Gasto GF frente al presupuesto" />
       </Kpi>
-      <Kpi label={`Gasto GV real${demo}`} amount={variableTotal}>
+      <Kpi label={`Gasto GV real`} amount={variableTotal}>
         <p className="text-xs">de {variableAllocation == null ? '—' : formatAmount(variableAllocation)} · {summary.variable.length} gasto(s)</p>
         <Progress value={variableTotal ?? '0'} limit={variableAllocation} label="Gasto GV frente a lo asignado" />
       </Kpi>
-      <div className="col-span-2 lg:col-span-1" data-testid="expense-total"><Kpi label={`Total gastado${expenses.total.partial && expenses.total.amount !== null ? ' · parcial' : ''}${demo}`} amount={expenses.total.amount} tone="bg-principal/40">
+      <div className="col-span-2 lg:col-span-1" data-testid="expense-total"><Kpi label={`Total gastado${expenses.total.partial && expenses.total.amount !== null ? ' · parcial' : ''}`} amount={expenses.total.amount} tone="bg-principal/40">
         <p className="text-xs">GF real + GV real{expenses.total.partial ? ` · GF ${expenses.fixed.registered}/${expenses.fixed.expected}` : ''}</p>
         <Link to="/fiorella/gastos" className="text-xs underline font-bold">Ver gastos</Link></Kpi></div>
     </div>
@@ -147,11 +145,11 @@ export default function Fiorella() {
       </div>
     </div>
     {manage && <details className={cardClass}>
-      <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span>Ingreso y GF aplicado del mes{demo}</span><span aria-hidden="true">▾</span></summary>
+      <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span>Ingreso y GF aplicado del mes</span><span aria-hidden="true">▾</span></summary>
       <MonthlyForm key={input} period={period} record={summary.monthly} />
     </details>}
     <details className={cardClass}>
-      <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span>Distribución del mes{demo}</span><span aria-hidden="true">▾</span></summary>
+      <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span>Distribución del mes</span><span aria-hidden="true">▾</span></summary>
       <div className="mt-3">{summary.calculation.status === 'calculated' ? <DistributionDetails distribution={summary.calculation.distribution} />
         : <p className="text-sm">{summary.calculation.status === 'decision_required'
           ? 'Tratamiento pendiente de aprobación: hay déficit o sobrante cero. No se genera distribución.'

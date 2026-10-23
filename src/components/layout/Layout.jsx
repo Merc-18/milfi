@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
 import FiorellaNav from '../FiorellaNav.jsx';
+import DemoBadge from '../DemoBadge.jsx';
 
 const MODULES = [
   { to: '/', icon: Home, label: 'Inicio', end: true },
@@ -25,8 +26,11 @@ export default function Layout() {
               className={({ isActive }) => `flex items-center gap-2 rounded-xl px-4 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
               <item.icon size={18} aria-hidden="true" />{item.label}</NavLink>)}
           </nav>
+          <div className="flex items-center gap-2">
+          <DemoBadge />
           <NavLink to="/acceso" className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
             <UserRound size={18} aria-hidden="true" />Acceso</NavLink>
+          </div>
         </div>
         {pathname.startsWith('/fiorella') && <FiorellaNav />}
       </header>
