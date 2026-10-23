@@ -156,13 +156,13 @@ export default function Fiorella() {
         <DistributionChart summary={summary} remaining={remaining} deposited={deposited} manage={manage} onEdit={edit} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 content-start min-w-0">
-        <StatLink to="/fiorella/gastos?tipo=fijos" testId="fixed-stat" title="Gastos fijos" value={formatAmount(fixedSpent)}
+        <StatLink lit to="/fiorella/gastos?tipo=fijos" testId="fixed-stat" title="Gastos fijos" value={formatAmount(fixedSpent)}
           detail={applied === null ? 'Sin GF aplicado' : `de ${formatAmount(applied)} aplicado · ${summary.actual.registered}/${summary.actual.expected} con gasto`}
           badges={[usageBadge(fixedSpent, applied), budgetAboveApplied && { tone: 'aviso', text: 'Presupuesto mayor al GF aplicado' }].filter(Boolean)} />
-        <StatLink to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
+        <StatLink lit to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
           detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${expenses.variable.count} gasto(s)` : 'Sin asignación del mes'}
           badges={[usageBadge(variableSpent, distribution?.variable.total ?? null)].filter(Boolean)} />
-        <StatLink to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
+        <StatLink lit to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
           value={deposited == null ? 'Sin depósitos' : controlMoney(deposited, 'PEN')}
           detail={[distribution && `de ${formatAmount(distribution.savings.couple)} planificado`,
             ...otherDeposits.map(group => `también ${controlMoney(group.total, group.currency)}`),

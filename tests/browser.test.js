@@ -321,6 +321,21 @@ test('browser regression: redirects, simulation history and financial isolation'
       // GF real 1,660 above the S/ 1,500 reserved: the summary shows the excess.
       await clickLink('/fiorella', 'Resumen');
       assert.ok((await testText('fixed-stat')).includes('Exceso: −S/ 160.00'), await testText('fixed-stat'));
+      // The three cards wear their traffic light as background, with the word visible.
+      const lights = await browser.evaluate(`['fixed-stat', 'variable-stat', 'savings-tracking'].map(id => {
+        const card = document.querySelector('[data-testid=' + id + ']');
+        return [card.dataset.light, getComputedStyle(card).color, card.querySelector('[data-testid=' + id + '-state]')?.textContent]; })`);
+      assert.deepEqual(lights.map(([light]) => light), ['excedido', 'ok', 'neutral']);
+      assert.equal(lights[0][1], 'rgb(255, 255, 255)', 'white text on the red card');
+      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Aún no alcanza el plan']);
+      await capture('28-resumen-semaforo-movil.png');
+      // Historial: the month-by-month table is always visible at the top with a word next to each light.
+      await clickLink('/fiorella/historial', 'Historial');
+      assert.equal(await browser.evaluate('document.querySelector("[data-testid=monthly-evolution]").tagName'), 'SECTION');
+      const april = await browser.evaluate('Array.from(document.querySelectorAll("[data-month=\'2038-04\'] [data-light]")).map(cell => [cell.dataset.light, cell.textContent])');
+      assert.deepEqual(april.map(([light]) => light), ['rojo', 'verde']);
+      assert.ok(april[0][1].includes('S/ 1,660.00 / S/ 1,500.00') && april[0][1].endsWith('Excedido') && april[1][1].endsWith('Bien'), JSON.stringify(april));
+      await capture('29-historial-semaforo-movil.png');
     });
 
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {

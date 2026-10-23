@@ -7,6 +7,8 @@ import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategor
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
 import { withFixedCap } from '../presentation/fixedCap.js';
+import { historyLights } from '../presentation/historyLights.js';
+import { LIGHT_DOT } from '../presentation/tones.js';
 import { displayName } from '../presentation/categoryLabels.js';
 
 const labels = { income: 'Ingreso', appliedFixedExpense: 'GF aplicado', budgetAmount: 'Presupuesto GF', actualAmount: 'Gasto GF', amount: 'Importe GV', description: 'Descripción', effectiveDate: 'Fecha', categoryId: 'Categoría', subcategory: 'Subcategoría', notes: 'Notas' };
@@ -23,21 +25,35 @@ const sourceLabel = (record, persisted) => !persisted ? '' : `${record.provenanc
 const money = value => value == null ? '—' : formatAmount(value);
 
 // Month by month table (moved here from the summary, which now shows charts).
+// Traffic light with its word next to the dot (never color alone).
+function Light({ value }) {
+  return <span className="mt-0.5 flex items-center gap-1.5 font-bold">
+    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-texto/40 ${LIGHT_DOT[value.light]}`} aria-hidden="true" />{value.word}</span>;
+}
+
+const HEADS = ['Mes', 'Ingreso', 'GF real / reservado', 'GV real / asignado', 'Ahorro pareja'];
+
+// Month by month, always visible at the top, with a traffic light for GF and GV.
 function Evolution({ rows, selected }) {
   if (!rows.length) return null;
-  return <details className="bg-white p-4 rounded-[24px] shadow-soft mb-5" data-testid="monthly-evolution">
-    <summary className="font-bold cursor-pointer min-h-11 flex items-center">Evolución mensual</summary>
-    <div className="overflow-x-auto -mx-1 mt-2"><table className="w-full text-xs sm:text-sm min-w-[32rem]">
-      <thead><tr className="text-left text-texto-light">{['Mes', 'Ingreso', 'GF real / presup.', 'GV real / asignado', 'Ahorro pareja'].map(head => <th key={head} className="p-1.5 font-bold">{head}</th>)}</tr></thead>
-      <tbody>{[...rows].reverse().map(row => <tr key={row.key} className={`border-t border-secundario ${row.key === selected ? 'bg-principal/30' : ''}`}>
-        <td className="p-1.5 first-letter:uppercase whitespace-nowrap">{formatPeriod(row.period)}{row.projected && <span className="block font-bold">Proyectado</span>}</td>
-        <td className="p-1.5">{money(row.income)}</td>
-        <td className="p-1.5">{money(row.fixedActual)} / {money(row.fixedBudget)}</td>
-        <td className="p-1.5">{money(row.variableActual)} / {money(row.variablePlanned)}</td>
-        <td className="p-1.5">{money(row.couplePlanned)}</td>
-      </tr>)}</tbody>
+  return <section className="bg-white p-4 rounded-[24px] shadow-soft mb-5" data-testid="monthly-evolution" aria-labelledby="evolution-title">
+    <h2 id="evolution-title" className="font-bold min-h-11 flex items-center">Evolución mensual</h2>
+    <div className="overflow-x-auto -mx-1"><table className="w-full text-xs sm:text-sm min-w-[34rem]">
+      <thead><tr className="text-left">{HEADS.map(head => <th key={head} scope="col" className="p-1.5 font-bold">{head}</th>)}</tr></thead>
+      <tbody>{[...rows].reverse().map(row => {
+        const lights = historyLights(row);
+        return <tr key={row.key} className={`border-t border-secundario align-top ${row.key === selected ? 'bg-principal/30' : ''}`} data-month={row.key}>
+          <th scope="row" className="p-1.5 text-left font-normal first-letter:uppercase whitespace-nowrap">{formatPeriod(row.period)}
+            {row.projected && <span className="block font-bold">Proyectado</span>}</th>
+          <td className="p-1.5">{money(row.income)}</td>
+          <td className="p-1.5" data-light={lights.fixed.light}>{money(row.fixedActual)} / {money(row.appliedFixed)}<Light value={lights.fixed} /></td>
+          <td className="p-1.5" data-light={lights.variable.light}>{money(row.variableActual)} / {money(row.variablePlanned)}
+            <Light value={lights.variable} /></td>
+          <td className="p-1.5">{money(row.couplePlanned)}</td>
+        </tr>;
+      })}</tbody>
     </table></div>
-  </details>;
+  </section>;
 }
 
 function HistoryRecord({ record, persisted }) {

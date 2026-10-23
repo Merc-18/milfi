@@ -11,6 +11,11 @@
   --color-texto-light: #8B7A82;
   /* Exceeded state: dark rose from principal's hue, ~7:1 against white. */
   --color-excedido: #8E3B5B;
+  /* Traffic lights: aliases of palette colors, always shown with a word. */
+  --color-semaforo-verde: var(--color-exito);
+  --color-semaforo-amarillo: var(--color-acento);
+  --color-semaforo-rojo: var(--color-excedido);
+  --color-semaforo-gris: var(--color-secundario);
   
   --font-sans: "Quicksand", sans-serif;
   
