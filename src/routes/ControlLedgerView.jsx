@@ -18,7 +18,7 @@ import { controlButtonClass as buttonClass, controlCardClass as cardClass, contr
   controlMoney, controlExplanation, kindName, personName, purposeName } from '../presentation/control.js';
 
 const statusLabels = { pending: 'Pendiente de revisión', reviewed: 'Revisado · no conciliado', rejected: 'Rechazado', invalid: 'Inválido',
-  imported: 'Cargado del Excel · revisado' };
+  imported: 'Revisado · no conciliado' };
 // Three distinct operations, never netted against each other.
 const OPERATIONS = [['depositsExpenses', 'Depósitos para gastos', 'bg-principal/20'], ['depositsSavings', 'Depósitos para ahorro', 'bg-exito/30'], ['withdrawals', 'Retiros', 'bg-acento/30']];
 const operationOf = group => group.kind === 'withdrawal' ? 'withdrawals' : group.purpose === 'savings' ? 'depositsSavings' : 'depositsExpenses';
