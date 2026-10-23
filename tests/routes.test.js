@@ -100,10 +100,15 @@ test('module routes render with real-history notices and no simulated financial 
     const summary = renderPath('/fiorella');
     for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) assert.ok(summary.includes(`data-testid="${id}"`), id);
     assert.doesNotMatch(summary, /data-testid="monthly-summary"|data-testid="monthly-evolution"|Sin registrar|<details/);
-    assert.ok(summary.includes('href="/fiorella/gastos?tipo=fijos"') && summary.includes('href="/fiorella/gastos?nuevo"'));
+    assert.ok(summary.includes('href="/fiorella/gastos?tipo=fijos"') && !summary.includes('Registrar gasto'), 'the summary links to Gastos without registering');
     assert.ok(!summary.includes('href="/fiorella/presupuestos"'), 'links go straight to the fixed view');
-    assert.ok(renderPath('/fiorella/gastos').includes('href="/fiorella/gastos?nuevo"'), 'the floating button also opens the sheet on Gastos');
-    assert.ok(!renderPath('/control').includes('href="/fiorella/gastos?nuevo"'), 'floating button only in Fiorella');
+    // One "Registrar gasto", in the Gastos header (both views); no floating button anywhere.
+    for (const path of ['/fiorella/gastos', '/fiorella/gastos?tipo=fijos']) {
+      const html = renderPath(path);
+      assert.equal((html.match(/>Registrar gasto</g) ?? []).length, 1, path);
+      assert.match(html, /<header[^>]*>(?:(?!<\/header>).)*>Registrar gasto</s, path);
+    }
+    for (const path of ['/', '/fiorella', '/fiorella/metas', '/fiorella/historial', '/control']) assert.ok(!renderPath(path).includes('gastos?nuevo'), path);
 
     // Both modules use the same month switcher (the shared month is checked in Chromium).
     assert.ok(renderPath('/control').includes('aria-label="Mes anterior"'), 'Control uses the same month switcher');

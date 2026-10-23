@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
 import { FINANCIAL_RULES } from '../../domain/financialRules.js';
 import { formatAmount, formatPeriod } from '../../presentation/format.js';
 import { groupByDay } from '../../presentation/variablePace.js';
@@ -28,7 +27,7 @@ function ExpenseRow({ record, onEdit }) {
 }
 
 // The month's variable expenses by day, with search and category chips.
-export default function ExpenseList({ records, period, today, manage, onEdit, onNew }) {
+export default function ExpenseList({ records, period, today, manage, onEdit }) {
   const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);
@@ -40,8 +39,7 @@ export default function ExpenseList({ records, period, today, manage, onEdit, on
   const paged = groupByDay(newest.slice(0, shown), today);
   if (!records.length) return <section className={`${cardClass} space-y-3`} aria-label="Gastos variables">
     <p className="text-sm">Aún no hay gastos variables en {formatPeriod(period)}.</p>
-    {manage && <button type="button" className={`${buttonClass} inline-flex items-center gap-2`} onClick={onNew}>
-      <Plus size={18} aria-hidden="true" />Registrar gasto</button>}
+    {manage && <p className="text-xs text-texto-light">Usa «Registrar gasto», arriba.</p>}
   </section>;
   return <section className="space-y-3" aria-label="Gastos variables">
     <div className="space-y-2">

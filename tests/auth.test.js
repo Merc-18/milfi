@@ -159,7 +159,7 @@ test('screens: routes and management controls follow the loaded module access', 
     assert.ok(html.includes('Solo consulta') && !html.includes('Registrar ejemplo temporal') && !html.includes('Abrir preimportación'));
     assert.ok(render('/control/preimportacion').includes('Página no encontrada'));
     html = render('/fiorella');
-    assert.ok(html.includes('Registra el ingreso del mes') && html.includes('href="/fiorella/gastos?nuevo"') && !html.includes('Solo consulta'));
+    assert.ok(html.includes('Registra el ingreso del mes') && !html.includes('Registrar gasto') && !html.includes('Solo consulta'));
     html = render('/fiorella/gastos?tipo=fijos');
     assert.ok(html.includes('Copiar presupuestos del mes anterior') && html.includes('no tiene presupuestos.'), 'copy is shown but explains why it is off');
     setSession('ready', APPROVED_ACCESS.milton);

@@ -249,9 +249,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
       await fill('gv-filter-text', '');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
-      // ?nuevo opens the sheet (here from the floating button) and closing removes it from the URL.
+      // The header's single "Registrar gasto" opens the sheet as ?nuevo; closing removes it from the URL.
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      await browser.evaluate('document.querySelector(\'a[href="/fiorella/gastos?nuevo"]\').click()');
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).filter(button => button.textContent === "Registrar gasto").length'), 1);
+      await browser.evaluate('Array.from(document.querySelectorAll("main header button")).find(button => button.textContent === "Registrar gasto").click()');
       await browser.waitFor('location.search.startsWith("?nuevo") && !!document.querySelector("dialog[open] #gv-amount")');
       await capture('20-gasto-nuevo-movil.png');
       await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Cancelar").click()');
@@ -333,16 +334,12 @@ test('browser regression: redirects, simulation history and financial isolation'
           assert.ok(geometry.document <= geometry.width, `${width} ${path}: document overflow ${JSON.stringify(geometry)}`);
           assert.ok(geometry.content <= geometry.main + 1, `${width} ${path}: content overflow ${JSON.stringify(geometry)}`);
           assert.equal(geometry.unlabeled, 0, `${width} ${path}: inputs without explicit labels`);
-          if (path === '/fiorella' && width < 768) {
-            // The floating button and the bottom bar never cover the last block.
-            const clear = await browser.evaluate(`(() => { window.scrollTo(0, document.documentElement.scrollHeight);
-              const fab = document.querySelector('a[href="/fiorella/gastos?nuevo"]').getBoundingClientRect();
-              const page = document.querySelector('main h1').closest('main > div');
-              const last = Array.from(page.children).filter(child => child.getBoundingClientRect().height > 0).pop().getBoundingClientRect();
-              return { last: last.bottom, fab: fab.top }; })()`);
-            assert.ok(clear.last <= clear.fab, `${width}: floating button covers content ${JSON.stringify(clear)}`);
-            if (width === 360) { await browser.evaluate('window.scrollTo(0, 0)'); await capture('18-resumen-360.png'); }
-          }
+          // No floating button anywhere; "Registrar gasto" lives only in the Gastos header, once.
+          const register = await browser.evaluate(`({ links: document.querySelectorAll('a[href="/fiorella/gastos?nuevo"]').length,
+            buttons: Array.from(document.querySelectorAll('button')).filter(button => button.textContent === 'Registrar gasto').length,
+            header: !!Array.from(document.querySelectorAll('main header button')).find(button => button.textContent === 'Registrar gasto') })`);
+          assert.deepEqual(register, path.startsWith('/fiorella/gastos') ? { links: 0, buttons: 1, header: true } : { links: 0, buttons: 0, header: false }, `${width} ${path}`);
+          if (path === '/fiorella' && width === 360) { await browser.evaluate('window.scrollTo(0, 0)'); await capture('18-resumen-360.png'); }
         }
       }
       await clickLink('/fiorella', 'Resumen'); await capture('05-resumen-escritorio.png');
@@ -361,6 +358,11 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
       await clickLink('/fiorella', 'Resumen');
       assert.ok((await testText('remaining')).includes('Registra el ingreso del mes'));
+      // A ?nuevo link still opens the expense sheet directly.
+      await browser.page('Page.navigate', { url: origin + '/fiorella/gastos?nuevo' });
+      await browser.waitFor('location.search.startsWith("?nuevo") && !!document.querySelector("dialog[open] #gv-amount")');
+      await closeTop();
+      assert.equal(await browser.evaluate('location.search'), '');
       assert.deepEqual(browser.exceptions, []);
     });
 

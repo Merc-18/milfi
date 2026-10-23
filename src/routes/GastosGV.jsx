@@ -7,7 +7,8 @@ import { useStore } from '../store/useStore.js';
 import { summarizeExpenses } from '../domain/fiorellaDashboard.js';
 import { useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { formatAmount, todayInLima } from '../presentation/format.js';
-import { PageHeader, SessionNotice } from '../components/FiorellaSession.jsx';
+import { buttonClass, PageHeader, SessionNotice } from '../components/FiorellaSession.jsx';
+import { Plus } from 'lucide-react';
 import PeriodPicker from '../components/PeriodPicker.jsx';
 import MonthlyForm from '../components/MonthlyForm.jsx';
 import Badge from '../components/ui/Badge.jsx';
@@ -18,7 +19,7 @@ import VariableView from '../components/gastos/VariableView.jsx';
 import ExpenseSheet from '../components/gastos/ExpenseSheet.jsx';
 
 // Everything spent in the month: fixed (GF budgets and actuals) and variable (GV)
-// in two views reflected in ?tipo=; ?nuevo opens the expense sheet.
+// in two views reflected in ?tipo=; the header's "Registrar gasto" (and ?nuevo) opens the expense sheet.
 export default function GastosGV() {
   const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary, persisted } = useFiorellaPeriod();
@@ -38,7 +39,13 @@ export default function GastosGV() {
   const closeSheet = () => { setEditing(null); update(params => params.delete('nuevo')); };
   const expenses = summarizeExpenses(summary);
   return <div className="pb-10 space-y-4">
-    <PageHeader title="Gastos"><PeriodPicker /></PageHeader>
+    <PageHeader title="Gastos">
+      <div className="flex flex-wrap items-end gap-2">
+        <PeriodPicker />
+        {manage && <button type="button" onClick={openNew} className={`${buttonClass} inline-flex min-h-11 items-center gap-2`}>
+          <Plus size={18} aria-hidden="true" />Registrar gasto</button>}
+      </div>
+    </PageHeader>
     <SessionNotice />
     <p className="flex flex-wrap items-center gap-2 text-sm" data-testid="expense-summary">
       <span>Gastado este mes: <strong className="tabular-nums">{formatAmount(expenses.total.amount ?? '0')}</strong></span>
@@ -51,7 +58,7 @@ export default function GastosGV() {
     <div id="gastos-panel" role="tabpanel" aria-labelledby={`gastos-tab-${view}`}>
       {view === 'fijos'
         ? <FixedView key={`${input}:${manage}`} summary={summary} period={period} manage={manage} persisted={persisted} />
-        : <VariableView summary={summary} period={period} today={today} manage={manage} onNew={openNew} onMonthly={() => setMonthly(true)}
+        : <VariableView summary={summary} period={period} today={today} manage={manage} onMonthly={() => setMonthly(true)}
           onEdit={item => { setFeedback(''); setEditing(item.id); }} />}
     </div>
     {manage && <ExpenseSheet open={sheetOpen} record={record} initialKind={view === 'fijos' ? 'fijo' : 'variable'} input={input} period={period}
