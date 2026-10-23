@@ -41,16 +41,21 @@ test('saved data: dashboards, filters and goals render without demo labels and r
 
     await context.test('Fiorella dashboard: real month, planned vs deposited savings, monthly evolution', async () => {
       await mount('fiorella', '/fiorella', '2031-01');
-      await browser.waitFor('!!document.querySelector("[data-testid=monthly-evolution]")');
+      await browser.waitFor('!!document.querySelector("[data-testid=savings-tracking]")');
       const body = await text();
-      assert.doesNotMatch(body, /· demo|Demostración de esta sesión|Historial real aún no importado|Datos guardados en MilFi/);
-      assert.ok(body.includes('S/ 3,000.00') && body.includes('Proyectado'), 'income and projected month in the evolution');
+      assert.doesNotMatch(body, /· demo|Demostración de esta sesión|Historial real aún no importado|Datos guardados en MilFi|Modo demo/);
+      assert.ok(body.includes('S/ 3,000.00'), 'income of the month');
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent.includes("PEN 22.50")'), 'savings deposited in Control');
-      assert.ok(await browser.evaluate('!!document.getElementById("monthly-income")'));
+      assert.ok(await browser.evaluate('!!document.querySelector("[aria-label=\'Editar ingreso y GF aplicado\']")'));
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=couple-savings-chart] svg[role=img]")'));
       assert.equal(await fits(), true);
       await capture('datos-01-panel-fiorella.png');
       await mount('fiorella', '/fiorella', '2031-03');
-      assert.ok((await text()).includes('Mes proyectado'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=remaining]").textContent.includes("Proyectado")'));
+      // The month-by-month table now lives in Historial.
+      await mount('fiorella', '/fiorella/historial', '2031-01');
+      const evolution = await browser.evaluate('document.querySelector("[data-testid=monthly-evolution]").textContent');
+      assert.ok(evolution.includes('S/ 3,000.00') && evolution.includes('Proyectado'), 'income and projected month in the evolution');
     });
 
     await context.test('Fiorella GV: loaded subcategory and notes, filters by category and text', async () => {
@@ -83,7 +88,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('document.querySelector("[data-testid=fixed-expenses]").closest("[hidden]") !== null');
       assert.equal(await fits(), true);
       await mount('fiorella', '/fiorella', '2031-02');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-total]").textContent.includes("S/ 122.30")'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=fixed-stat]").textContent.includes("S/ 90.00")'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=variable-stat]").textContent.includes("S/ 32.30")'));
       await mount('fiorella', '/fiorella/gastos', '2031-03');
       assert.ok((await text()).includes('Mes proyectado') && await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("Sin registrar")'));
     });
@@ -120,7 +126,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     await context.test('Milton reads Fiorella without forms and manages Control', async () => {
       await mount('milton', '/fiorella', '2031-02');
       await browser.waitFor('document.body.textContent.includes("Solo consulta")');
-      assert.ok(await browser.evaluate('!document.getElementById("monthly-income")'));
+      assert.ok(await browser.evaluate('!document.getElementById("monthly-income") && !document.querySelector("[aria-label=\'Editar ingreso y GF aplicado\']")'));
       await mount('milton', '/fiorella/gastos', '2031-02');
       await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
       assert.ok(await browser.evaluate('!document.getElementById("gv-date") && !document.body.textContent.includes("Editar gasto fijo") && !document.body.textContent.includes("Registrar gasto variable") && document.body.textContent.includes("Solo consulta")'));

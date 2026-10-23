@@ -30,8 +30,12 @@ export function remainingToSpend(summary) {
   if (income === null) return { status: 'missing-income', amount: null };
   if (applied === null) return { status: 'missing-fixed', amount: null };
   if (summary.calculation.status !== 'calculated') return { status: 'deficit', amount: null };
-  const parts = [moneyDifference(summary.calculation.distribution.variable.total, summarizeExpenses(summary).variable.amount ?? '0'),
-    moneyDifference(applied, summary.actual.amount ?? '0')];
+  const allocated = summary.calculation.distribution.variable.total;
+  const variableSpent = summarizeExpenses(summary).variable.amount ?? '0';
+  const fixedSpent = summary.actual.amount ?? '0';
+  const parts = [moneyDifference(allocated, variableSpent), moneyDifference(applied, fixedSpent)];
   const sum = status => parts.filter(part => part.status === status).map(part => part.amount).reduce(addAmounts, '0');
-  return moneyDifference(sum('remaining'), sum('over'));
+  const spent = addAmounts(variableSpent, fixedSpent);
+  const limit = addAmounts(allocated, applied);
+  return { ...moneyDifference(sum('remaining'), sum('over')), spent, limit, tone: usageStatus(spent, limit) };
 }

@@ -13,6 +13,13 @@ export function formatPeriod(period) {
   return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(value));
 }
 
+// Compact month label for charts, e.g. "ene 31".
+export function formatShortPeriod(period) {
+  if (!isValidPeriod(period)) return '—';
+  const value = `${String(period.year).padStart(4, '0')}-${String(period.month).padStart(2, '0')}-01T00:00:00Z`;
+  return new Intl.DateTimeFormat('es-PE', { month: 'short', year: '2-digit', timeZone: 'UTC' }).format(new Date(value)).replace('.', '');
+}
+
 export function currentPeriodInput(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en', { year: 'numeric', month: '2-digit', timeZone: 'America/Lima' }).formatToParts(now);
   return `${parts.find(part => part.type === 'year').value}-${parts.find(part => part.type === 'month').value}`;

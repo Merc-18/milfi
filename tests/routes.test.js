@@ -20,7 +20,7 @@ test('module routes render with real-history notices and no simulated financial 
     const renderPath = path => renderToStaticMarkup(createElement(MemoryRouter, { initialEntries: [path] }, createElement(AppRoutes)));
     const expectations = [
       ['/', 'Finanzas de Fiorella'],
-      ['/fiorella', 'Datos mensuales'],
+      ['/fiorella', 'Registra el ingreso del mes'],
       ['/fiorella/calculadora', 'Solo simulación'],
       ['/fiorella/historial', 'Todavía no hay registros.'],
       ['/fiorella/configuracion', 'Configuración oficial'],
@@ -67,6 +67,14 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(renderPath('/fiorella/gastos').includes('href="/fiorella/presupuestos"'));
     assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
     assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
+
+    // The summary answers "how am I doing" without the old KPI grid or details.
+    const summary = renderPath('/fiorella');
+    for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) assert.ok(summary.includes(`data-testid="${id}"`), id);
+    assert.doesNotMatch(summary, /data-testid="monthly-summary"|data-testid="monthly-evolution"|Sin registrar|<details/);
+    assert.ok(summary.includes('href="/fiorella/presupuestos"') && summary.includes('href="/fiorella/gastos?nuevo"'));
+    assert.ok(!renderPath('/fiorella/gastos').includes('href="/fiorella/gastos?nuevo"'), 'no floating button over the expense form');
+    assert.ok(!renderPath('/control').includes('href="/fiorella/gastos?nuevo"'), 'floating button only in Fiorella');
 
     // Both modules use the same month switcher (the shared month is checked in Chromium).
     assert.ok(renderPath('/control').includes('aria-label="Mes anterior"'), 'Control uses the same month switcher');

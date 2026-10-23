@@ -43,12 +43,13 @@ test('remaining to spend uses the applied GF as limit and tells what is missing'
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '' }])), { status: 'missing-fixed', amount: null });
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1000', appliedFixedExpense: '1500' }])), { status: 'deficit', amount: null });
   // Complete: GV 40 % of 2,500 = 1,000; nothing spent yet and no GF actual registered.
-  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '1500' }])), { status: 'remaining', amount: '2500' });
+  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '1500' }])),
+    { status: 'remaining', amount: '2500', spent: '0', limit: '2500', tone: 'ok' });
   // Partial detail: budgets above the applied GF do not change the figure; only actuals count.
   const partial = monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '1500' }],
     ['fixed-budget', { categoryId: 'servicios-gas', budgetAmount: '2000', actualAmount: '120.10' }],
     ['variable-expense', { categoryId: 'salud', effectiveDate: '2045-03-04', description: 'Inventado', amount: '30.005' }]);
-  assert.deepEqual(remainingToSpend(partial), { status: 'remaining', amount: '2349.895' });
+  assert.deepEqual(remainingToSpend(partial), { status: 'remaining', amount: '2349.895', spent: '150.105', limit: '2500', tone: 'ok' });
 });
 
 test('remaining to spend can be negative when overspending exceeds what is left elsewhere', () => {
@@ -56,9 +57,9 @@ test('remaining to spend can be negative when overspending exceeds what is left 
     ['fixed-budget', { categoryId: 'servicios-luz', budgetAmount: null, actualAmount: '1400' }],
     ['variable-expense', { categoryId: 'ocio', effectiveDate: '2045-03-09', description: 'Inventado', amount: '350' }]);
   // GV 200 − 350 = −150; GF 1,500 − 1,400 = +100; total −50.
-  assert.deepEqual(remainingToSpend(over), { status: 'over', amount: '50' });
+  assert.deepEqual(remainingToSpend(over), { status: 'over', amount: '50', spent: '1750', limit: '1700', tone: 'excedido' });
   const equal = monthWith(['monthly-plan', { income: '2000', appliedFixedExpense: '1500' }],
     ['variable-expense', { categoryId: 'ocio', effectiveDate: '2045-03-09', description: 'Inventado', amount: '200' }],
     ['fixed-budget', { categoryId: 'servicios-luz', budgetAmount: null, actualAmount: '1500' }]);
-  assert.deepEqual(remainingToSpend(equal), { status: 'equal', amount: '0' });
+  assert.deepEqual(remainingToSpend(equal), { status: 'equal', amount: '0', spent: '1700', limit: '1700', tone: 'aviso' });
 });

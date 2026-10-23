@@ -159,10 +159,10 @@ test('screens: routes and management controls follow the loaded module access', 
     assert.ok(html.includes('Solo consulta') && !html.includes('Registrar ejemplo temporal') && !html.includes('Abrir preimportación'));
     assert.ok(render('/control/preimportacion').includes('Página no encontrada'));
     html = render('/fiorella');
-    assert.ok(html.includes('aria-label="Datos mensuales"') && !html.includes('Solo consulta'));
+    assert.ok(html.includes('Registra el ingreso del mes') && html.includes('href="/fiorella/gastos?nuevo"') && !html.includes('Solo consulta'));
     setSession('ready', APPROVED_ACCESS.milton);
     html = render('/fiorella');
-    assert.ok(html.includes('Solo consulta') && !html.includes('aria-label="Datos mensuales"'));
+    assert.ok(html.includes('Solo consulta') && html.includes('Falta registrar el ingreso del mes') && !html.includes('Registra el ingreso del mes') && !html.includes('href="/fiorella/gastos?nuevo"'));
     for (const path of ['/fiorella/gastos', '/fiorella/presupuestos', '/fiorella/simulador']) assert.ok(render(path).includes('Solo consulta'), path);
     assert.ok(render('/control').includes('Registrar ejemplo temporal'));
     setSession('ready', { fiorella: 'none', 'control-mf': 'read' });

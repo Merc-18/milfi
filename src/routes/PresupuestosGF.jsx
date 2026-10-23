@@ -142,6 +142,6 @@ export default function PresupuestosGF() {
     {summary.requiresRoundingDecision && <p className="text-xs">Fracciones de céntimo: se muestran exactas, sin redondear.</p>}
     {!manage && <ReadOnlyNotice>Administra Fiorella.</ReadOnlyNotice>}
     <BudgetWorkspace key={`${input}:${manage}`} period={period} summary={summary} manage={manage} />
-    <Help><p>Importes en soles. — significa sin registrar; cero es un importe registrado. Los subtotales parciales suman solo datos conocidos. La diferencia requiere presupuesto y real en todas las subcategorías del grupo. El gasto GF es el total mensual por subcategoría, sin fecha individual. Este detalle no sustituye el GF aplicado a la distribución, que se edita en el panel.</p></Help>
+    <Help><p>Importes en soles. — significa sin registrar; cero es un importe registrado. Los subtotales parciales suman solo datos conocidos. La diferencia requiere presupuesto y real en todas las subcategorías del grupo. El gasto GF es el total mensual por subcategoría, sin fecha individual. Este detalle no sustituye el GF aplicado a la distribución, que se edita en el Resumen.</p></Help>
   </div>;
 }

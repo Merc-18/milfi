@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '../store/useStore.js';
 import { usePeriodStore } from '../store/periodStore.js';
 import { formatAmount, formatPeriod, parsePeriodInput } from '../presentation/format.js';
@@ -6,6 +6,7 @@ import DistributionDetails from '../components/DistributionDetails.jsx';
 import { fieldClass } from '../components/FiorellaSession.jsx';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
+import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
 
 const labels = { income: 'Ingreso', appliedFixedExpense: 'GF aplicado', budgetAmount: 'Presupuesto GF', actualAmount: 'Gasto GF', amount: 'Importe GV', description: 'Descripción', effectiveDate: 'Fecha', categoryId: 'Categoría', subcategory: 'Subcategoría', notes: 'Notas' };
 const textFields = ['description', 'effectiveDate', 'subcategory', 'notes'];
@@ -17,6 +18,26 @@ const show = (field, value) => value == null ? 'Sin registrar' : textFields.incl
 const PAGE = 15;
 const kinds = { 'monthly-plan': 'Datos del mes', 'fixed-budget': 'GF', 'variable-expense': 'GV' };
 const sourceLabel = (record, persisted) => !persisted ? '' : `${record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi'} · `;
+
+const money = value => value == null ? '—' : formatAmount(value);
+
+// Month by month table (moved here from the summary, which now shows charts).
+function Evolution({ rows, selected }) {
+  if (!rows.length) return null;
+  return <details className="bg-white p-4 rounded-[24px] shadow-soft mb-5" data-testid="monthly-evolution">
+    <summary className="font-bold cursor-pointer min-h-11 flex items-center">Evolución mensual</summary>
+    <div className="overflow-x-auto -mx-1 mt-2"><table className="w-full text-xs sm:text-sm min-w-[32rem]">
+      <thead><tr className="text-left text-texto-light">{['Mes', 'Ingreso', 'GF real / presup.', 'GV real / asignado', 'Ahorro pareja'].map(head => <th key={head} className="p-1.5 font-bold">{head}</th>)}</tr></thead>
+      <tbody>{[...rows].reverse().map(row => <tr key={row.key} className={`border-t border-secundario ${row.key === selected ? 'bg-principal/30' : ''}`}>
+        <td className="p-1.5 first-letter:uppercase whitespace-nowrap">{formatPeriod(row.period)}{row.projected && <span className="block font-bold">Proyectado</span>}</td>
+        <td className="p-1.5">{money(row.income)}</td>
+        <td className="p-1.5">{money(row.fixedActual)} / {money(row.fixedBudget)}</td>
+        <td className="p-1.5">{money(row.variableActual)} / {money(row.variablePlanned)}</td>
+        <td className="p-1.5">{money(row.couplePlanned)}</td>
+      </tr>)}</tbody>
+    </table></div>
+  </details>;
+}
 
 function HistoryRecord({ record, persisted }) {
   const title = record.kind === 'monthly-plan' ? `Datos del mes${record.planStatus === 'projected' ? ' · proyectado' : ''}` : `${kinds[record.kind]} · ${categoryName(record.categoryId)}`;
@@ -43,6 +64,7 @@ export default function Historial() {
   const [month, setMonth] = useState(selected);
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);
+  const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
   const groups = fiorellaHistory(records, events, simulations, persisted ? 'real' : 'simulated');
   const text = search.trim().toLocaleLowerCase('es');
   const matches = record => (kind === 'all' || record.kind === kind) && (category === 'all' || record.categoryId === category || record.categoryId?.startsWith(`${category}-`))
@@ -58,6 +80,7 @@ export default function Historial() {
   return (
     <div className="pb-10">
       <header className="mt-2 mb-4"><h1 className="text-2xl md:text-3xl font-bold">Historial</h1><p className="text-sm text-texto-light mt-1">Ingresos, presupuestos y gastos</p></header>
+      <Evolution rows={evolution} selected={selected} />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5" role="search" aria-label="Filtrar historial">
         <div><label htmlFor="history-kind" className="block font-bold text-xs mb-1">Tipo</label><select id="history-kind" className={fieldClass} value={kind} onChange={change(setKind)}>
           <option value="all">Todos</option>{Object.entries(kinds).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>

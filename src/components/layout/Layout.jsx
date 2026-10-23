@@ -1,10 +1,12 @@
-import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, Flower2, Users, UserRound } from 'lucide-react';
+import { Link, Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Home, Flower2, Plus, Users, UserRound } from 'lucide-react';
 import { useEffect } from 'react';
 import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
 import FiorellaNav from '../FiorellaNav.jsx';
 import DemoBadge from '../DemoBadge.jsx';
+import { useModuleAccess } from '../../presentation/moduleAccess.js';
+import { canManage } from '../../domain/access.js';
 
 const MODULES = [
   { to: '/', icon: Home, label: 'Inicio', end: true },
@@ -15,6 +17,8 @@ const MODULES = [
 export default function Layout() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
+  // Quick entry for Fiorella's managers; on Gastos the form is already on the page.
+  const quickExpense = canManage(useModuleAccess('fiorella')) && pathname.startsWith('/fiorella') && pathname !== '/fiorella/gastos';
 
   return (
     <div className="min-h-dvh w-full bg-fondo">
@@ -35,10 +39,14 @@ export default function Layout() {
         {pathname.startsWith('/fiorella') && <FiorellaNav />}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-4 pb-32 md:px-8 md:pb-12">
+      <main className={`mx-auto w-full max-w-6xl min-w-0 px-4 pt-4 md:px-8 ${quickExpense ? 'pb-48 md:pb-28' : 'pb-32 md:pb-12'}`}>
         <DataSync />
         <AuthGate><Outlet /></AuthGate>
       </main>
+
+      {quickExpense && <Link to="/fiorella/gastos?nuevo"
+        className="fixed right-4 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 inline-flex min-h-14 items-center gap-2 rounded-full bg-texto px-5 font-bold text-white shadow-soft md:right-8 md:bottom-8">
+        <Plus size={20} aria-hidden="true" />Registrar gasto</Link>}
 
       <nav aria-label="Módulos de MilFi (móvil)" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-secundario rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-safe pt-2 px-6 flex justify-between items-center">
         {MODULES.map(item => (

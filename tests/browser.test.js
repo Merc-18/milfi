@@ -60,7 +60,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       for (const income of ['4000.01', '5000']) {
         await fill('simulation-period', '2032-05');
         await fill('simulation-income', income);
-        await browser.waitFor('document.querySelector("button")?.textContent.includes("Guardar simulación")');
+        await browser.waitFor('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))');
         if (income === '4000.01') assert.ok(await browser.evaluate('document.body.textContent.includes("600.0024")'));
         await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent.includes("Guardar simulación")).click()');
         await browser.waitFor('location.pathname === "/fiorella/historial" && !!document.querySelector("details")');
@@ -68,7 +68,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         const control = await browser.evaluate('document.body.textContent');
         assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
         assert.ok(control.includes('no hay un saldo confirmado'));
-        await clickLink('/fiorella', 'Finanzas de Fiorella');
+        await clickLink('/fiorella', 'Resumen');
         await clickLink('/fiorella/historial', 'Historial');
         if (income === '4000.01') await openCalculator();
       }
@@ -108,20 +108,45 @@ test('browser regression: redirects, simulation history and financial isolation'
     };
     const submitForm = label => browser.evaluate(`document.querySelector('form[aria-label="${label}"]').requestSubmit()`);
     const visibleText = () => browser.evaluate('document.body.textContent');
+    // The month's income and applied GF are edited in a sheet opened from the summary.
+    const openMonthly = async () => {
+      await browser.evaluate('document.querySelector("[data-testid=remaining] button").click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] #monthly-income")');
+    };
+    const closeSheet = async () => {
+      await browser.evaluate('document.querySelector("dialog[open] button[aria-label=Cerrar]").click()');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+    };
+    const testText = id => browser.evaluate(`document.querySelector("[data-testid=${id}]").textContent`);
 
     await context.test('Fiorella monthly demo separates applied GF, detailed budgets and recorded actuals across periods', async () => {
       await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-      await navigate('/fiorella', 'Finanzas de Fiorella');
-      assert.ok((await visibleText()).includes('Sin registrar'));
+      await navigate('/fiorella', 'Resumen');
+      // Without data the summary states the missing step as an action.
+      assert.ok((await testText('remaining')).includes('Registra el ingreso del mes'));
+      assert.ok((await testText('distribution-chart')).includes('Registra el ingreso del mes'));
       await fill('fiorella-period', '2038-04');
-      await fill('monthly-income', '5432.01'); await fill('monthly-fixed', '1500');
+      await openMonthly();
+      await fill('monthly-income', '5432.01');
       await submitForm('Datos mensuales');
-      await browser.waitFor('document.body.textContent.includes("786.402")');
+      await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("Registra el GF aplicado")');
+      await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
+      // GV 40 % of 3,932.01 = 1,572.804, plus the applied GF 1,500 with no GF actual yet.
+      await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("S/ 3,072.804")');
       assert.ok(await browser.evaluate('document.querySelector("form[aria-label=\'Datos mensuales\'] [role=status]").textContent === "Guardado."'));
+      await closeSheet();
+      assert.ok((await testText('remaining')).includes('Vas bien') && (await testText('remaining')).includes('S/ 5,432.01'));
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Ver detalle").click()');
+      await browser.waitFor('document.querySelector("dialog[open]")?.textContent.includes("786.402")');
+      await closeSheet();
       await fill('fiorella-period', '2038-05');
+      await openMonthly();
       assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
+      await closeSheet();
       await fill('fiorella-period', '2038-04');
+      await openMonthly();
       assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '5432.01');
+      await closeSheet();
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('01-resumen-movil.png');
       await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
@@ -182,15 +207,31 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 1);
       assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("[data-demo-period=\'2038-04\'] h4")).filter(h => h.textContent.startsWith("GV")).length'), 4);
       await capture('04-historial-movil.png');
-      await clickLink('/fiorella', 'Finanzas de Fiorella');
-      const total = await browser.evaluate('document.querySelector("[data-testid=expense-total]").textContent');
-      assert.ok(total.includes('S/ 1,110.55') && total.includes('parcial'), total);
+      await clickLink('/fiorella', 'Resumen');
+      // One figure per card: GF real 110.05 of 1,500 applied, GV real 1,000.50 of 1,572.804 assigned.
+      assert.ok((await testText('fixed-stat')).includes('S/ 110.05') && (await testText('fixed-stat')).includes('Vas bien'));
+      assert.ok((await testText('variable-stat')).includes('S/ 1,000.50') && (await testText('variable-stat')).includes('Vas bien'));
+      // (1,572.804 − 1,000.50) + (1,500 − 110.05)
+      assert.ok((await testText('remaining')).includes('S/ 1,962.254'));
+      assert.ok((await testText('savings-tracking')).includes('Sin depósitos'));
+      assert.ok((await testText('couple-savings-chart')).includes('S/ 943.6824'));
+      await openMonthly(); await fill('monthly-fixed', '1000'); await submitForm('Datos mensuales');
+      // The budget detail (120.10) stays below the applied GF, so no warning; spending above it shows the excess.
+      await browser.waitFor('document.querySelector("[data-testid=variable-stat]").textContent.includes("de S/ 1,772.804")');
+      await closeSheet();
+      await openMonthly(); await fill('monthly-fixed', '100'); await submitForm('Datos mensuales');
+      await browser.waitFor('document.querySelector("[data-testid=fixed-stat]").textContent.includes("Exceso: −S/ 10.05")');
+      assert.ok((await testText('fixed-stat')).includes('Presupuesto mayor al GF aplicado'));
+      await closeSheet();
+      await openMonthly(); await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
+      await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("S/ 1,962.254")');
+      await closeSheet();
     });
 
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
-      for (const width of [320, 390, 768, 1280]) {
+      for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
+        for (const [path, heading] of [['/fiorella', 'Resumen'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,
@@ -198,9 +239,19 @@ test('browser regression: redirects, simulation history and financial isolation'
           assert.ok(geometry.document <= geometry.width, `${width} ${path}: document overflow ${JSON.stringify(geometry)}`);
           assert.ok(geometry.content <= geometry.main + 1, `${width} ${path}: content overflow ${JSON.stringify(geometry)}`);
           assert.equal(geometry.unlabeled, 0, `${width} ${path}: inputs without explicit labels`);
+          if (path === '/fiorella' && width < 768) {
+            // The floating button and the bottom bar never cover the last block.
+            const clear = await browser.evaluate(`(() => { window.scrollTo(0, document.documentElement.scrollHeight);
+              const fab = document.querySelector('a[href="/fiorella/gastos?nuevo"]').getBoundingClientRect();
+              const page = document.querySelector('main h1').closest('main > div');
+              const last = Array.from(page.children).filter(child => child.getBoundingClientRect().height > 0).pop().getBoundingClientRect();
+              return { last: last.bottom, fab: fab.top }; })()`);
+            assert.ok(clear.last <= clear.fab, `${width}: floating button covers content ${JSON.stringify(clear)}`);
+            if (width === 360) { await browser.evaluate('window.scrollTo(0, 0)'); await capture('18-resumen-360.png'); }
+          }
         }
       }
-      await clickLink('/fiorella', 'Finanzas de Fiorella'); await capture('05-resumen-escritorio.png');
+      await clickLink('/fiorella', 'Resumen'); await capture('05-resumen-escritorio.png');
       await browser.evaluate('document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight');
       await clickLink('/control', 'Control Finanzas M&F');
       assert.equal(await browser.evaluate('document.querySelector("main").scrollTop'), 0);
@@ -209,13 +260,13 @@ test('browser regression: redirects, simulation history and financial isolation'
     });
 
     await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
-      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      await clickLink('/fiorella', 'Resumen');
       await clickLink('/fiorella/historial', 'Historial');
       await browser.page('Page.reload');
       await browser.waitFor('document.body?.textContent.includes("Todavía no hay registros.")');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
-      await clickLink('/fiorella', 'Finanzas de Fiorella');
-      assert.equal(await browser.evaluate('document.getElementById("monthly-income").value'), '');
+      await clickLink('/fiorella', 'Resumen');
+      assert.ok((await testText('remaining')).includes('Registra el ingreso del mes'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -305,7 +356,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');
       await clickLink('/control', 'Control Finanzas');
       assert.doesNotMatch(await visibleText(), /S\/\s*\d|Objetivo inventado|Fracción sintética/);
-      await clickLink('/fiorella', 'Finanzas de Fiorella'); await clickLink('/fiorella/simulador', 'Simulador y metas');
+      await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/simulador', 'Simulador y metas');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 1);
       await browser.page('Page.reload');
       await browser.waitFor('document.body?.textContent.includes("Todavía no registraste metas hipotéticas")');
@@ -435,7 +486,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await capture('15-control-escritorio.png');
       await fill('control-selected-period', '2044-08'); assert.equal(await controlCount(), 0);
       await fill('control-selected-period', '2043-07'); assert.equal(await controlCount(), 5);
-      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      await clickLink('/fiorella', 'Resumen');
       assert.doesNotMatch(await visibleText(), /Ejemplo Control|Depósito USD sintético|PEN 0\.20/);
       await clickLink('/fiorella/historial', 'Historial');
       assert.doesNotMatch(await visibleText(), /Ejemplo Control|Moneda desconocida|Retiro sintético/);
@@ -446,6 +497,30 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await controlCount(), 0);
       assert.ok((await visibleText()).includes('Sin cambios en esta sesión'));
       assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
+      assert.deepEqual(browser.exceptions, []);
+    });
+
+    await context.test('one month is kept across modules and sheets close with Esc returning focus', async () => {
+      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+      await clickLink('/fiorella', 'Resumen');
+      await fill('fiorella-period', '2047-03');
+      await clickLink('/control', 'Control Finanzas M&F');
+      assert.equal(await browser.evaluate('document.getElementById("control-selected-period").value'), '2047-03');
+      await browser.evaluate('document.querySelector("[aria-label=\'Mes siguiente\']").click()');
+      await browser.waitFor('document.getElementById("control-selected-period").value === "2047-04"');
+      await clickLink('/fiorella', 'Resumen');
+      assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '2047-04');
+      await clickLink('/fiorella/historial', 'Historial');
+      assert.equal(await browser.evaluate('document.getElementById("history-month").value'), '2047-04');
+      for (const opener of ['[aria-label="Reglas de Fiorella"]', '[data-testid=demo-mode]']) {
+        await browser.evaluate(`(() => { const button = document.querySelector('${opener}'); button.focus(); button.click(); })()`);
+        await browser.waitFor('!!document.querySelector("dialog[open]")');
+        if (opener.includes('Reglas')) assert.equal((await browser.evaluate('document.querySelector("dialog[open]").textContent')).match(/50% de variables/g).length, 2);
+        else assert.ok((await browser.evaluate('document.querySelector("dialog[open]").textContent')).includes('se borran al recargar'));
+        await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+        await browser.waitFor('!document.querySelector("dialog[open]")');
+        assert.ok(await browser.evaluate(`document.activeElement === document.querySelector('${opener}')`), `${opener}: focus returns`);
+      }
       assert.deepEqual(browser.exceptions, []);
     });
 

@@ -144,8 +144,9 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
       await click('a[href="/fiorella/gastos"]'); await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
       assert.ok((await text('[data-fixed-id=servicios-gas]')).includes('S/ 45.123'));
       assert.ok((await text('[data-testid=expense-summary]')).includes(formatAmount(expenses.total.amount)));
-      await click('a[href="/fiorella"]'); await browser.waitFor('!!document.querySelector("[data-testid=expense-total]")');
-      assert.ok((await text('[data-testid=expense-total]')).includes(formatAmount(expenses.total.amount)));
+      await click('a[href="/fiorella"]'); await browser.waitFor('!!document.querySelector("[data-testid=fixed-stat]")');
+      assert.ok((await text('[data-testid=fixed-stat]')).includes(formatAmount(expenses.fixed.amount)));
+      assert.ok((await text('[data-testid=variable-stat]')).includes(formatAmount(expenses.variable.amount ?? '0')));
       await click('a[href="/fiorella/historial"]'); await browser.waitFor('!!document.getElementById("history-search")');
       await fill('history-search', 'Servicios / Gas');
       await browser.waitFor('document.querySelectorAll("[data-demo-period] article").length >= 1');
