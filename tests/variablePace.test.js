@@ -91,10 +91,17 @@ test('pace amount is rounded half-up to whole soles only for the phrase', () => 
   assert.equal(phrase(month(april, '4000', [['01', 'salud', '1000'], ['02', 'ocio', '2345.5']]), '2045-04-15'), 'Vas unos S/ 2,846 por encima del ritmo ideal.');
 });
 
-test('a finished month is described in the past', () => {
-  assert.equal(phrase(month(april, '4000', [['10', 'ocio', '1100']]), '2045-05-02'), 'Terminaste el mes unos S/ 100 por encima de lo asignado.');
-  assert.equal(phrase(month(april, '4000', [['10', 'ocio', '700']]), '2045-05-02'), 'Terminaste el mes unos S/ 300 por debajo de lo asignado.');
-  assert.equal(phrase(month(april, '4000', [['10', 'ocio', '980']]), '2045-05-02'), 'Terminaste el mes al ritmo.');
+test('a finished month is final: exact difference in céntimos, no tolerance, same verdict as the card badge', async () => {
+  const { usageStatus } = await import('../src/presentation/status.js');
+  const ended = expenses => phrase(month(april, '4000', expenses), '2045-05-02');
+  // S/ 4 over used to fall inside the tolerance ("al ritmo"); a finished month says it exactly.
+  assert.equal(ended([['10', 'ocio', '1004']]), 'Terminaste el mes S/ 4.00 por encima de lo asignado.');
+  assert.equal(usageStatus('1004', '1000'), 'excedido');
+  assert.equal(ended([['10', 'ocio', '1100'], ['12', 'salud', '0.005']]), 'Terminaste el mes S/ 100.005 por encima de lo asignado.');
+  assert.equal(ended([['10', 'ocio', '980']]), 'Terminaste el mes S/ 20.00 por debajo de lo asignado.');
+  assert.equal(ended([['10', 'ocio', '700']]), 'Terminaste el mes S/ 300.00 por debajo de lo asignado.');
+  assert.equal(ended([['10', 'ocio', '600'], ['20', 'salud', '400']]), 'Terminaste el mes justo en lo asignado.');
+  assert.equal(ended([]), 'Terminaste el mes S/ 1,000.00 por debajo de lo asignado.');
 });
 
 test('top subcategories and day groups', () => {

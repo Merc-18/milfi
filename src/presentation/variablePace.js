@@ -56,14 +56,24 @@ function roundedQuotient(amount, divisor) {
 }
 
 /**
- * Pace against the ideal line at the reference day t, exactly:
- * gap × days = actual(t) × days − allocation × t. Within tolerance when
+ * A finished month is final: actual − allocation, exact, without tolerance, so it
+ * agrees with usageStatus on the cards. status: above | below | equal.
+ *
+ * The current month compares with the ideal line at today t, exactly:
+ * gap × days = actual × days − allocation × t. Within tolerance when
  * |gap| < max(S/ 5, 5 % of the allocation). The amount is |gap| rounded half-up
- * to whole soles, for display only. status: above | below | on | future | no-allocation
+ * to whole soles, for display only. status: above | below | on
+ * (also future | no-allocation).
  */
 export function variablePace(series) {
   if (series.allocation === null) return { status: 'no-allocation' };
   if (series.timing === 'future') return { status: 'future', allocation: series.allocation, days: series.days };
+  if (series.timing === 'past') {
+    const comparison = compareAmounts(series.actual, series.allocation);
+    if (comparison === 0) return { status: 'equal', timing: 'past', amount: '0' };
+    return { status: comparison > 0 ? 'above' : 'below', timing: 'past',
+      amount: comparison > 0 ? subtractAmounts(series.actual, series.allocation) : subtractAmounts(series.allocation, series.actual) };
+  }
   const spent = times(series.actual, series.days);
   const ideal = times(series.allocation, series.referenceDay);
   const above = compareAmounts(spent, ideal) > 0;
@@ -80,7 +90,7 @@ export function pacePhrase(pace, formatAmount) {
   if (pace.status === 'future') return `Este mes aún no empieza: tendrás ${formatAmount(pace.allocation)} para ${pace.days} días.`;
   const side = pace.status === 'above' ? 'por encima' : 'por debajo';
   if (pace.timing === 'past') {
-    return pace.status === 'on' ? 'Terminaste el mes al ritmo.' : `Terminaste el mes unos ${soles(pace.amount)} ${side} de lo asignado.`;
+    return pace.status === 'equal' ? 'Terminaste el mes justo en lo asignado.' : `Terminaste el mes ${formatAmount(pace.amount)} ${side} de lo asignado.`;
   }
   return pace.status === 'on' ? 'Vas al ritmo.' : `Vas unos ${soles(pace.amount)} ${side} del ritmo ideal.`;
 }
