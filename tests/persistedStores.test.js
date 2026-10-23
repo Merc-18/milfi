@@ -42,6 +42,15 @@ test('Fiorella store saves to the database, reloads elsewhere and never reports 
   assert.equal(stale.ok, false);
   const goal = await fiorella.getState().saveSavingsGoal({ id: crypto.randomUUID(), expectedRevision: 0, title: 'Meta inventada', target: '600', months: '3', occurredAt: new Date().toISOString() });
   assert.deepEqual([goal.ok, fiorella.getState().savingsGoals.length], [true, 1]);
+  // Deleting an own goal: Milton (read only) is refused by RLS; Fiorella deletes it for every device.
+  const extra = await fiorella.getState().saveSavingsGoal({ id: crypto.randomUUID(), expectedRevision: 0, title: 'Meta para borrar', target: '90', months: '2', occurredAt: new Date().toISOString() });
+  assert.equal(extra.ok, true);
+  await milton.getState().refreshRemote();
+  const refused = await milton.getState().deleteSavingsGoal(milton.getState().savingsGoals.find(item => item.title === 'Meta para borrar'));
+  assert.equal(refused.ok, false);
+  assert.deepEqual(await fiorella.getState().deleteSavingsGoal(fiorella.getState().savingsGoals.find(item => item.title === 'Meta para borrar')), { ok: true });
+  await milton.getState().refreshRemote();
+  assert.deepEqual([fiorella.getState().savingsGoals.length, milton.getState().savingsGoals.some(item => item.title === 'Meta para borrar')], [1, false]);
   // Disconnecting (sign-out/expiry) clears every loaded record from memory.
   fiorella.getState().disconnectRemote();
   assert.deepEqual([fiorella.getState().fiorellaDemoRecords, fiorella.getState().fiorellaDemoEvents, fiorella.getState().savingsGoals, fiorella.getState().remote], [[], [], [], null]);

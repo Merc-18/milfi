@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { prepareControlEntry, prepareControlEntryReview } from '../domain/controlLedger.js';
+import { prepareControlEntry, prepareControlEntryReview, prepareControlPlanAssignment, prepareImportedReview } from '../domain/controlLedger.js';
 
 // Persisted Control Finanzas M&F ledger for the signed-in household. Every write
 // is validated by the domain, then stored; on any failure nothing is reported as
@@ -43,6 +43,28 @@ export function createLedgerStore() {
         if (!prepared.ok) return prepared;
         const previous = records.find(record => record.id === draft.id);
         const saved = await persistence.addControlReview(prepared.record, previous, prepared.review, prepared.changed);
+        await reload();
+        return saved;
+      },
+      // Workbook rows: corrections plus an accepted/rejected review, bound to the new state.
+      async reviewImported(draft) {
+        const { persistence, identity, records } = get();
+        if (!persistence) return { ok: false, errors: ['NOT_CONNECTED'] };
+        const prepared = prepareImportedReview({ ...draft, reviewedBy: identity }, records);
+        if (!prepared.ok) return prepared;
+        const previous = records.find(record => record.id === draft.id);
+        const saved = await persistence.addControlReview(prepared.record, previous, prepared.review, prepared.changed);
+        await reload();
+        return saved;
+      },
+      // The Fiorella plan month of a savings deposit (manual or imported); never changes its review.
+      async assignPlan(draft) {
+        const { persistence, records } = get();
+        if (!persistence) return { ok: false, errors: ['NOT_CONNECTED'] };
+        const prepared = prepareControlPlanAssignment(draft, records);
+        if (!prepared.ok) return prepared;
+        const saved = await persistence.saveControlEntry(prepared.value, prepared.previous);
+        if (!saved.ok) return saved;
         await reload();
         return saved;
       },

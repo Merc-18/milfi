@@ -68,6 +68,11 @@ export function createMilfiPersistence(client, { householdId }) {
       if (!reviews.ok) return { ok: false, errors: [reviews.code] };
       return { ok: true, records: movements.rows.map(row => controlMovementFromRow(row, reviews.rows.filter(review => review.movement_id === row.id))) };
     },
+    // Own (simulated) goals only; the app never asks to delete a workbook goal.
+    async deleteSavingsGoal(goal) {
+      const result = await repository('fiorella_savings_goals').remove(goal.id, goal.revision);
+      return result.ok ? { ok: true } : { ok: false, errors: [result.code] };
+    },
     async saveControlEntry(record, previous) {
       const result = await save('control_movements', controlMovementToRow, row => controlMovementFromRow(row, []), record, previous);
       if (result.ok) result.value.manualReviews = structuredClone(record.manualReviews ?? []);

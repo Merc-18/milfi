@@ -59,6 +59,21 @@ export function createMilfiStore() {
       set(state => ({ savingsGoals: [...state.savingsGoals.filter(goal => goal.id !== snapshot.id), snapshot] }));
       return result;
     },
+    // Deletes an own goal (never one loaded from the workbook), after the caller confirmed.
+    deleteSavingsGoal: async goal => {
+      const current = get().savingsGoals.find(item => item.id === goal?.id);
+      if (!current) return { ok: false, errors: ['NOT_FOUND_OR_FORBIDDEN'] };
+      if (current.origin === 'real') return { ok: false, errors: ['WORKBOOK_GOAL'] };
+      const remote = get().remote;
+      if (remote) {
+        const removed = await remote.deleteSavingsGoal(current);
+        if (!removed.ok) return removed;
+        await get().refreshRemote();
+        return { ok: true };
+      }
+      set(state => ({ savingsGoals: state.savingsGoals.filter(item => item.id !== current.id) }));
+      return { ok: true };
+    },
     fiorellaDemoRecords: [],
     fiorellaDemoEvents: [],
     saveFiorellaDemo: input => {

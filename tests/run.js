@@ -27,3 +27,4 @@ import './fixedEntry.test.js';
 import './historyLights.test.js';
 import './contrast.test.js';
 import './controlImport.test.js';
+import './ledgerMemory.test.js';
