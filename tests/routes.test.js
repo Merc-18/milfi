@@ -28,7 +28,8 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/gastos', 'Seguimiento GV'],
       ['/fiorella/simulador', 'Escenarios hipotéticos'],
       ['/control', 'Historial real pendiente de importación'],
-      ['/control/preimportacion', 'Procesamiento local y temporal'],
+      // No Excel upload screen for end users: the history is loaded once, administratively.
+      ['/control/preimportacion', 'Página no encontrada'],
       ['/not-a-page', 'Página no encontrada'],
     ];
     for (const [path, text] of expectations) {

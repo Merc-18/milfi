@@ -5,10 +5,10 @@
 
 const AUDIT = 'revision, created_by, updated_by, created_at, updated_at';
 export const COLUMNS = Object.freeze({
-  fiorella_monthly_plans: `id, household_id, period_year, period_month, income::text, applied_fixed_expense::text, rules_version, currency, origin, validation_status, ${AUDIT}`,
-  fiorella_fixed_budgets: `id, household_id, period_year, period_month, category_id, budget_amount::text, actual_amount::text, currency, origin, validation_status, ${AUDIT}`,
-  fiorella_variable_expenses: `id, household_id, period_year, period_month, category_id, effective_date, description, amount::text, distinct_operation_reason, currency, origin, validation_status, ${AUDIT}`,
-  fiorella_savings_goals: `id, household_id, title, target_amount::text, months, scope, currency, origin, validation_status, ${AUDIT}`,
+  fiorella_monthly_plans: `id, household_id, period_year, period_month, income::text, applied_fixed_expense::text, plan_status, provenance, rules_version, currency, origin, validation_status, ${AUDIT}`,
+  fiorella_fixed_budgets: `id, household_id, period_year, period_month, category_id, budget_amount::text, actual_amount::text, provenance, currency, origin, validation_status, ${AUDIT}`,
+  fiorella_variable_expenses: `id, household_id, period_year, period_month, category_id, subcategory, effective_date, description, amount::text, notes, distinct_operation_reason, provenance, source_ref, currency, origin, validation_status, ${AUDIT}`,
+  fiorella_savings_goals: `id, household_id, title, target_amount::text, months, deadline_year, deadline_month, deadline_label, status, notes, provenance, source_ref, scope, currency, origin, validation_status, ${AUDIT}`,
   control_movements: `id, household_id, kind, purpose, contributor_identity, currency, amount::text, effective_date, period_year, period_month, description, origin, validation_status, source_type, source_fingerprint, source_sheet, source_amount_ref, import_batch_id, provenance, period_assignment, ${AUDIT}`,
   control_movement_reviews: 'id, household_id, movement_id, review_type, field, decision, binding, reason, evidence_reference, reviewed_by, reviewed_at',
 });
@@ -54,27 +54,30 @@ export function controlMovementFromRow(row, reviews = []) {
 
 // ── Finanzas de Fiorella ─────────────────────────────────────────────────────
 // Same record shape as the session domain (fiorellaSession.js), marked real.
+// Rows loaded from her workbook keep their stored provenance; app entries have none.
 const fiorellaMeta = row => ({ schemaVersion: 1, moduleId: 'fiorella', ownerId: 'fiorella', actorId: null, householdId: row.household_id,
   origin: row.origin, validationStatus: row.validation_status, currency: row.currency, revision: row.revision,
-  provenance: { type: 'manual-entry', sourceId: 'milfi-app', rulesVersion: 'fiorella-official-v1' },
+  provenance: row.provenance ?? { type: 'manual-entry', sourceId: 'milfi-app', rulesVersion: 'fiorella-official-v1' },
   createdAt: isoTime(row.created_at), updatedAt: isoTime(row.updated_at) });
 export const monthlyPlanToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
-  income: record.income ?? null, applied_fixed_expense: record.appliedFixedExpense ?? null, origin: 'real', validation_status: 'pending' });
+  income: record.income ?? null, applied_fixed_expense: record.appliedFixedExpense ?? null, plan_status: record.planStatus ?? 'actual', origin: 'real', validation_status: 'pending' });
 export const monthlyPlanFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'monthly-plan', period: period(row), income: money(row.income),
-  appliedFixedExpense: money(row.applied_fixed_expense), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
+  appliedFixedExpense: money(row.applied_fixed_expense), planStatus: row.plan_status ?? 'actual', currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const fixedBudgetToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
   category_id: record.categoryId, budget_amount: record.budgetAmount ?? null, actual_amount: record.actualAmount ?? null, origin: 'real', validation_status: 'pending' });
 export const fixedBudgetFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'fixed-budget', period: period(row), categoryId: row.category_id,
   budgetAmount: money(row.budget_amount), actualAmount: money(row.actual_amount), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const variableExpenseToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year, period_month: record.period.month,
-  category_id: record.categoryId, effective_date: record.effectiveDate, description: record.description, amount: record.amount,
-  distinct_operation_reason: record.distinctOperationReason ?? null, origin: 'real', validation_status: 'pending' });
+  category_id: record.categoryId, subcategory: record.subcategory ?? null, effective_date: record.effectiveDate, description: record.description, amount: record.amount,
+  notes: record.notes ?? null, distinct_operation_reason: record.distinctOperationReason ?? null, origin: 'real', validation_status: 'pending' });
 export const variableExpenseFromRow = row => ({ ...fiorellaMeta(row), id: row.id, kind: 'variable-expense', period: period(row), categoryId: row.category_id,
-  effectiveDate: isoDate(row.effective_date), description: row.description, amount: money(row.amount), currency: row.currency,
+  subcategory: row.subcategory ?? null, effectiveDate: isoDate(row.effective_date), description: row.description, amount: money(row.amount), notes: row.notes ?? null,
+  sourceRef: row.source_ref ?? null, currency: row.currency,
   origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 export const savingsGoalToRow = (record, householdId) => ({ household_id: householdId, title: record.title, target_amount: record.target, months: Number(record.months) });
-export const savingsGoalFromRow = row => ({ ...fiorellaMeta(row), provenance: { type: 'manual-simulation', sourceId: 'session-savings-goal' }, id: row.id, kind: 'savings-goal', period: null, scope: row.scope, title: row.title, target: money(row.target_amount),
-  months: String(row.months), currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
+export const savingsGoalFromRow = row => ({ ...fiorellaMeta(row), provenance: row.provenance ?? { type: 'manual-simulation', sourceId: 'session-savings-goal' }, id: row.id, kind: 'savings-goal', period: null, scope: row.scope, title: row.title, target: money(row.target_amount),
+  months: String(row.months), deadline: row.deadline_year == null ? null : { year: row.deadline_year, month: row.deadline_month }, deadlineLabel: row.deadline_label ?? null,
+  status: row.status ?? 'active', notes: row.notes ?? null, currency: row.currency, origin: row.origin, validationStatus: row.validation_status, revision: row.revision });
 
 // ── Generic repository with optimistic concurrency ───────────────────────────
 // Postgres error codes only; messages may echo data and are never surfaced.

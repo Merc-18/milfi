@@ -8,12 +8,31 @@ export const fieldClass = 'w-full min-w-0 bg-fondo border border-secundario p-3 
 export const buttonClass = 'bg-texto text-white font-bold px-4 py-3 rounded-xl disabled:opacity-50';
 export const cardClass = 'bg-white p-4 rounded-[24px] shadow-soft min-w-0';
 
+// With real data only problems are announced; the demo keeps its notice.
 export function SessionNotice() {
   const remote = useStore(state => state.remote ? state.remoteStatus : null);
   const error = useStore(state => state.remoteError);
   if (remote === 'error') return <StatusNotice title="No se pudieron cargar los datos guardados"><p role="alert">MilFi no pudo leer la información ({error}). No se muestran datos incompletos como si fueran definitivos. Recarga o vuelve a iniciar sesión.</p></StatusNotice>;
-  if (remote) return <StatusNotice title="Datos guardados en MilFi"><p>Los registros se guardan en la base de datos de MilFi y se ven al volver a entrar o desde otro dispositivo.{remote === 'loading' ? ' Cargando…' : ''} El historial anterior en Excel aún no se ha importado.</p></StatusNotice>;
+  if (remote === 'loading') return <p role="status" className="text-sm mb-4">Cargando datos…</p>;
+  if (remote) return null;
   return <StatusNotice title="Demostración de esta sesión"><p>Estos registros son ejemplos, no información financiera confirmada. Solo permanecen en memoria y se pierden al recargar. Historial real aún no importado.</p></StatusNotice>;
+}
+
+export function Help({ title = 'Ayuda', children }) {
+  return <details className="text-sm rounded-xl bg-secundario/20 px-3"><summary className="cursor-pointer min-h-11 py-3 font-bold">{title}</summary><div className="pb-3 space-y-2">{children}</div></details>;
+}
+
+// Visual proportion only (display width); amounts themselves stay exact strings.
+export function Progress({ value, limit, label }) {
+  const ratio = value != null && limit != null && Number(limit) > 0 ? Number(value) / Number(limit) : null;
+  if (ratio === null) return null;
+  return <div className="h-2 rounded-full bg-secundario/40 overflow-hidden" role="img" aria-label={label}>
+    <div className={`h-full rounded-full ${ratio > 1 ? 'bg-red-700' : ratio > 0.9 ? 'bg-acento' : 'bg-exito'}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} /></div>;
+}
+
+export function Kpi({ label, amount, children, tone = 'bg-white' }) {
+  return <div className={`${tone} p-4 rounded-[24px] shadow-soft min-w-0 space-y-1`}><h3 className="text-xs font-bold">{label}</h3>
+    <p className="text-lg font-bold break-all">{amount == null ? 'Sin registrar' : formatAmount(amount)}</p>{children}</div>;
 }
 
 export function PeriodPicker() {
@@ -25,7 +44,7 @@ export function PeriodPicker() {
 }
 
 export function FixedTotalComparison({ summary }) {
-  if (summary.fixedComparison.status === 'unavailable') return <p className="text-sm">Sin diferencia global GF: información incompleta. {summary.fixedCoverage.matched}/{summary.budget.expected} subcategorías tienen presupuesto y gasto registrados. Consulta las diferencias individuales; los totales parciales pueden cubrir subcategorías distintas.</p>;
+  if (summary.fixedComparison.status === 'unavailable') return <p className="text-sm">Sin diferencia global GF: información incompleta. {summary.fixedCoverage.matched}/{summary.budget.expected} subcategorías con presupuesto y gasto; revisa cada una.</p>;
   return <p className="text-sm">Diferencia global GF · detalle completo: <Comparison budget={summary.budget.amount} spent={summary.actual.amount} /></p>;
 }
 

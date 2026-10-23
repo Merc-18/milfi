@@ -1,0 +1,11 @@
+{
+  "reviewedBy": "milton",
+  "resolutions": [
+    { "field": "currency", "value": "<CODIGO_ISO, p. ej. PEN>", "match": {},
+      "reason": "<Por qué esa moneda aplica a estas operaciones>", "evidenceReference": "<Dónde consta: estado de cuenta, acta, etc.>" },
+    { "field": "contributorId", "value": "<milton|fiorella>", "match": { "kind": "deposit", "header": "<Texto exacto del encabezado de la columna, p. ej. Depósito Gastos (Tú)>" },
+      "reason": "<Quién es 'Tú' / 'Ella' en ese libro>", "evidenceReference": "<Referencia>" },
+    { "field": "period", "value": "month-of-date", "match": { "kind": "withdrawal" },
+      "reason": "<Cada retiro corresponde al mes de su propia fecha>", "evidenceReference": "<Referencia>" }
+  ]
+}

@@ -6,7 +6,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import process from 'node:process';
 import { preview } from 'vite';
-import { syntheticControlXlsx } from './helpers/xlsxBuilder.js';
 import { chromiumPath, openBrowser } from './helpers/chromium.js';
 
 test('browser regression: redirects, simulation history and financial isolation', { timeout: 90000 }, async context => {
@@ -33,7 +32,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('all four legacy routes redirect with replacement rather than trapping Back', async () => {
       const aliases = [
         ['/calculadora', '/fiorella/calculadora', 'Simular distribución'],
-        ['/historial', '/fiorella/historial', 'Historial y simulaciones'],
+        ['/historial', '/fiorella/historial', 'Historial'],
         ['/configuracion', '/fiorella/configuracion', 'Configuración oficial'],
         ['/fondo-comun', '/control', 'Control Finanzas M&F'],
       ];
@@ -60,7 +59,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
         assert.ok(control.includes('no hay un saldo confirmado'));
         await clickLink('/fiorella', 'Finanzas de Fiorella');
-        await clickLink('/fiorella/historial', 'Historial y simulaciones');
+        await clickLink('/fiorella/historial', 'Historial');
         if (income === '4000.01') await clickLink('/fiorella/calculadora', 'Simular distribución');
       }
       assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 2);
@@ -75,7 +74,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         await browser.waitFor('document.body.textContent.includes("Tratamiento pendiente de aprobación")');
         assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => button.textContent.includes("Guardar simulación"))'), false);
       }
-      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      await clickLink('/fiorella/historial', 'Historial');
       assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 2);
     });
 
@@ -156,7 +155,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await capture('03-gastos-movil.png');
       await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
       await capture('07-formulario-gv-movil.png');
-      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      await clickLink('/fiorella/historial', 'Historial');
       assert.ok((await visibleText()).includes('S/ 125.20 → S/ 110.05'));
       assert.ok((await visibleText()).includes('otro gasto con datos coincidentes'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 1);
@@ -166,7 +165,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Seguimiento GV'], ['/fiorella/historial', 'Historial y simulaciones']]) {
+        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Seguimiento GV'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,
@@ -186,7 +185,7 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
       await clickLink('/fiorella', 'Finanzas de Fiorella');
-      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      await clickLink('/fiorella/historial', 'Historial');
       await browser.page('Page.reload');
       await browser.waitFor('document.body?.textContent.includes("Sin registros de demostración en esta sesión")');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 0);
@@ -411,7 +410,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-selected-period', '2043-07'); assert.equal(await controlCount(), 5);
       await clickLink('/fiorella', 'Finanzas de Fiorella');
       assert.doesNotMatch(await visibleText(), /Ejemplo Control|Depósito USD sintético|PEN 0\.20/);
-      await clickLink('/fiorella/historial', 'Historial y simulaciones');
+      await clickLink('/fiorella/historial', 'Historial');
       assert.doesNotMatch(await visibleText(), /Ejemplo Control|Moneda desconocida|Retiro sintético/);
       await clickLink('/control', 'Control Finanzas M&F');
       assert.equal(await controlCount(), 5);
@@ -420,128 +419,6 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await controlCount(), 0);
       assert.ok((await visibleText()).includes('Sin cambios en esta sesión'));
       assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
-      assert.deepEqual(browser.exceptions, []);
-    });
-
-    // Phase 3.2: local preimport of invented workbooks only. Files live in the temporary profile folder.
-    const workbookFile = async (name, bytes) => { const path = join(profile, name); await writeFile(path, bytes); return path; };
-    const chooseFile = async path => {
-      const { root } = await browser.page('DOM.getDocument', { depth: 1 });
-      const { nodeId } = await browser.page('DOM.querySelector', { nodeId: root.nodeId, selector: '#preimport-file' });
-      await browser.page('DOM.setFileInputFiles', { files: [path], nodeId });
-    };
-    const preimportCount = () => browser.evaluate('document.querySelectorAll("[data-preimport-id]").length');
-    const preimportCounts = () => browser.evaluate('document.querySelector("[data-testid=preimport-counts]")?.textContent ?? ""');
-    const cardButton = async (ref, text) => {
-      const found = await browser.evaluate(`(() => { const card = document.querySelector('[data-preimport-id$="-${ref}"]'); const buttons = Array.from(card?.querySelectorAll('button') ?? []);
-        const button = buttons.find(item => item.textContent.includes(${JSON.stringify(text)})); if (button) { button.click(); return true; }
-        return { status: card?.dataset.preimportStatus, buttons: buttons.map(item => item.textContent), warnings: card?.querySelector('[aria-label=Advertencias]')?.textContent }; })()`);
-      assert.equal(found, true, `${ref} · ${text}: ${JSON.stringify(found)}`);
-      await browser.waitFor(`!!document.querySelector('[data-preimport-id$="-${ref}"] form')`);
-    };
-    const fillReviewer = async prefix => {
-      await chooseControl(`${prefix}-reviewer`, 'milton');
-      await fill(`${prefix}-reason`, 'Revisión sintética explícita de la prueba');
-      await fill(`${prefix}-reference`, 'Referencia sintética de la prueba');
-    };
-    const cardStatus = ref => browser.evaluate(`document.querySelector('[data-preimport-id$="-${ref}"]').dataset.preimportStatus`);
-    const syntheticV1 = syntheticControlXlsx();
-
-    await context.test('Control preimport reads an invented workbook locally and classifies warnings without assuming currency', async () => {
-      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-      await navigate('/control', 'Control Finanzas M&F');
-      await clickLink('/control/preimportacion', 'Preimportación de Control');
-      await chooseFile(await workbookFile('control-sintetico-v1.xlsx', syntheticV1));
-      await browser.waitFor('document.querySelector("[data-testid=preimport-counts]")?.textContent.includes("Identificados: 8")');
-      assert.match(await preimportCounts(), /Depósitos: 4 · Retiros: 4/);
-      assert.match(await preimportCounts(), /Pendientes: 8/);
-      assert.equal(await preimportCount(), 8);
-      const cards = await browser.evaluate('Array.from(document.querySelectorAll("[data-preimport-id]")).map(card => card.textContent).join("|")');
-      assert.ok(cards.includes('moneda pendiente'));
-      assert.doesNotMatch(cards, /PEN \d|USD \d/);
-      for (const [category, expected] of [['currency', 8], ['contributor', 4], ['period', 4], ['duplicate', 2], ['interpretation', 2], ['prepared', 0]]) {
-        await chooseControl('preimport-filter', category);
-        assert.equal(await preimportCount(), expected, category);
-      }
-      await chooseControl('preimport-filter', 'all');
-      assert.deepEqual(await browser.evaluate('({local: localStorage.length, session: sessionStorage.length})'), { local: 0, session: 0 });
-      assert.deepEqual(await browser.evaluate('indexedDB.databases().then(list => list.length)'), 0);
-      await browser.evaluate('document.querySelector("[data-testid=preimport-batch]").scrollIntoView({block:"start"})');
-      await capture('18-preimportacion-resumen-movil.png');
-    });
-
-    await context.test('Control preimport resolves fields with traceable bulk reviews, prepares, rejects and sums per currency', async () => {
-      await cardButton('C5', 'Resolver campos');
-      assert.equal(await browser.evaluate('document.getElementById("preimport-field").value'), 'currency');
-      await fill('preimport-currency', 'PEN');
-      await browser.evaluate('document.getElementById("preimport-bulk").click()');
-      await fillReviewer('preimport-resolution');
-      await browser.evaluate('document.querySelector(\'form[aria-label="Resolver campo de preimportación"]\').scrollIntoView({block:"start"})');
-      await capture('19-preimportacion-resolucion-movil.png');
-      await submitForm('Resolver campo de preimportación');
-      await browser.waitFor('document.body.textContent.includes("Resolución registrada en 8 movimiento(s)")');
-      await cardButton('C5', 'Resolver campos');
-      assert.equal(await browser.evaluate('document.getElementById("preimport-field").value'), 'contributorId');
-      await chooseControl('preimport-contributor', 'milton');
-      await browser.evaluate('document.getElementById("preimport-bulk").click()');
-      await fillReviewer('preimport-resolution');
-      await submitForm('Resolver campo de preimportación');
-      await browser.waitFor('document.body.textContent.includes("Resolución registrada en 2 movimiento(s)")');
-      for (const ref of ['C5', 'C6']) {
-        await cardButton(ref, 'Preparar');
-        await fillReviewer('preimport-decision');
-        await submitForm('Preparar para importación futura');
-        await browser.waitFor(`document.querySelector('[data-preimport-id$="-${ref}"]').dataset.preimportStatus === 'prepared'`);
-      }
-      await cardButton('D7', 'Rechazar');
-      await fillReviewer('preimport-decision');
-      await submitForm('Rechazar movimiento');
-      await browser.waitFor(`document.querySelector('[data-preimport-id$="-D7"]').dataset.preimportStatus === 'rejected'`);
-      const summary = await browser.evaluate('document.querySelector("[data-testid=preimport-prepared-summary]").textContent');
-      assert.match(summary, /Depósito · Gastos · Milton: PEN 24\.00 \(2\) · no confirmado/);
-      assert.match(await preimportCounts(), /Preparados: 2.*Pendientes: 5.*Rechazados: 1/);
-      await cardButton('C5', 'Corregir campos');
-      await chooseControl('preimport-field', 'currency');
-      await fill('preimport-currency', 'USD');
-      await fillReviewer('preimport-resolution');
-      await submitForm('Resolver campo de preimportación');
-      await browser.waitFor(`document.querySelector('[data-preimport-id$="-C5"]').dataset.preimportStatus === 'pending'`);
-      assert.ok((await browser.evaluate(`document.querySelector('[data-preimport-id$="-C5"]').textContent`)).includes('decisiones anteriores desactualizadas'));
-      assert.match(await browser.evaluate('document.querySelector("[data-testid=preimport-prepared-summary]").textContent'), /PEN 13\.00 \(1\)/);
-      await browser.evaluate(`document.querySelector('[data-preimport-id$="-C5"]').scrollIntoView({block:"start"})`);
-      await capture('20-preimportacion-movimiento-movil.png');
-      await clickLink('/control', 'Control Finanzas M&F');
-      assert.equal(await controlCount(), 0);
-      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
-      await clickLink('/control/preimportacion', 'Preimportación de Control');
-      assert.equal(await cardStatus('C6'), 'prepared');
-    });
-
-    await context.test('Control preimport rejects incompatible files, refuses the same file twice, keeps versions apart and clears on reload', async () => {
-      await chooseFile(await workbookFile('no-es-excel.xlsx', new TextEncoder().encode('texto sintético que no es un libro')));
-      await browser.waitFor('document.body.textContent.includes("no es un libro .xlsx válido")');
-      await chooseFile(await workbookFile('copia-v1.xlsx', syntheticV1));
-      await browser.waitFor('document.body.textContent.includes("ya está cargado en la sesión")');
-      assert.equal(await preimportCount(), 8);
-      await chooseFile(await workbookFile('control-sintetico-v2.xlsx', syntheticControlXlsx({ overrides: { C6: 14 } })));
-      await browser.waitFor('document.body.textContent.includes("Varias versiones cargadas")');
-      assert.equal(await preimportCount(), 16);
-      await chooseControl('preimport-filter', 'duplicate');
-      assert.ok(await preimportCount() >= 12);
-      await chooseControl('preimport-filter', 'all');
-      for (const width of [320, 390, 768, 1280]) {
-        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
-        const sizes = await browser.evaluate('({width:innerWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
-        assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
-        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
-      }
-      await browser.evaluate('document.querySelectorAll("[data-testid=preimport-batch]")[1].scrollIntoView({block:"start"})');
-      await capture('21-preimportacion-versiones-escritorio.png');
-      await browser.page('Page.reload');
-      await browser.waitFor('document.body?.textContent.includes("Selecciona el Excel de Control")');
-      assert.equal(await preimportCount(), 0);
-      assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=preimport-batch]").length'), 0);
-      assert.deepEqual(await browser.evaluate('({local: localStorage.length, session: sessionStorage.length})'), { local: 0, session: 0 });
       assert.deepEqual(browser.exceptions, []);
     });
 

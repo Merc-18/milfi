@@ -259,7 +259,7 @@ try {
   };
   if (await login('B')) {
     await go('/fiorella');
-    record('B', 'interfaz Fiorella', 'pantalla en modo datos guardados', 'ok', 'ok', await until('B', 'document.body?.textContent.includes("Datos guardados en MilFi") && !!document.getElementById("monthly-income")'));
+    record('B', 'interfaz Fiorella', 'pantalla en modo datos guardados', 'ok', 'ok', await until('B', '!!document.querySelector("[data-testid=monthly-summary]") && !document.body.textContent.includes("Demostración de esta sesión") && !!document.getElementById("monthly-income")'));
     await fill('fiorella-period', '2099-04');
     await until('B', 'document.getElementById("monthly-income")?.value === ""');
     await fill('monthly-income', '2500.75'); await fill('monthly-fixed', '1500');
@@ -272,7 +272,7 @@ try {
     record('B', 'interfaz Fiorella', 'sin conexión: el error no se muestra como éxito', 'ok', failedShown ? 'error visible' : 'sin error', failedShown);
     await browser.page('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
     await browser.page('Page.reload');
-    await until('B', 'document.body?.textContent.includes("Datos guardados en MilFi")');
+    await until('B', '!!document.querySelector("[data-testid=monthly-summary]") && !document.body.textContent.includes("Cargando datos")');
     await fill('fiorella-period', '2099-04');
     record('B', 'interfaz Fiorella', 'tras recargar: sesión recuperada y dato guardado (no el fallido)', 'ok', 'importe',
       await until('B', 'document.body?.textContent.includes("2,500.75") && !document.body.textContent.includes("2,600.00")'));
@@ -283,7 +283,7 @@ try {
   }
   if (await login('A')) {
     await go('/fiorella');
-    await until('A', 'document.body?.textContent.includes("Datos guardados en MilFi")');
+    await until('A', '!!document.querySelector("[data-testid=monthly-summary]") && !document.body.textContent.includes("Cargando datos")');
     await fill('fiorella-period', '2099-04');
     record('A', 'interfaz Fiorella', 'Milton consulta los datos de Fiorella, sin formularios', 'ok', 'solo consulta',
       await until('A', 'document.body?.textContent.includes("2,500.75") && document.body.textContent.includes("Solo consulta") && !document.getElementById("monthly-income")'));

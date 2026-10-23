@@ -10,8 +10,11 @@ const nonempty = value => typeof value === 'string' && value.trim().length > 0;
 const nullableMoney = value => value === null || value === '' ? null : typeof value === 'string' ? normalizeAmount(value) : undefined;
 const validTimestamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value))
   && new Date(value).toISOString() === value;
-const content = record => JSON.stringify([record.kind, record.period, record.income, record.appliedFixedExpense,
-  record.categoryId, record.budgetAmount, record.actualAmount, record.effectiveDate, record.description, record.amount]);
+const content = record => JSON.stringify([record.kind, record.period, record.income, record.appliedFixedExpense, record.planStatus ?? null,
+  record.categoryId, record.budgetAmount, record.actualAmount, record.effectiveDate, record.description, record.amount, record.subcategory ?? null, record.notes ?? null]);
+// Optional short text: blank means "not recorded" (NULL), never an empty string.
+const optionalText = (value, max) => value === undefined || value === null || (typeof value === 'string' && !value.trim()) ? null
+  : typeof value === 'string' && value.trim().length <= max ? value.trim() : undefined;
 
 export function fiorellaRecordKey(record) {
   return record.kind === 'variable-expense' ? `gv:${record.id}` : `${record.kind}:${periodKey(record.period)}:${record.categoryId ?? ''}`;
@@ -44,6 +47,9 @@ export function prepareFiorellaDemo(input, records = [], events = [], { origin =
     money('income'); money('appliedFixedExpense');
     if (payload.income === null && payload.appliedFixedExpense === null) errors.push('EMPTY_MONTHLY_PLAN');
     if (payload.appliedFixedExpense != null && compareAmounts(payload.appliedFixedExpense, FINANCIAL_RULES.fixedExpenseCap) > 0) errors.push('FIXED_EXPENSE_ABOVE_CAP');
+    // A projected month holds amounts typed in advance; it is not income received.
+    if (input.planStatus !== undefined && !['actual', 'projected'].includes(input.planStatus)) errors.push('INVALID_PLAN_STATUS');
+    payload.planStatus = input.planStatus ?? 'actual';
   } else if (input.kind === 'fixed-budget') {
     if (!FIXED_SUBCATEGORIES.some(category => category.id === input.categoryId)) errors.push('INVALID_FIXED_CATEGORY');
     payload.categoryId = input.categoryId;
@@ -56,7 +62,11 @@ export function prepareFiorellaDemo(input, records = [], events = [], { origin =
     if (!nonempty(input.description) || input.description.trim().length > 300) errors.push('INVALID_DESCRIPTION');
     money('amount');
     if (payload.amount === null) errors.push('MISSING_AMOUNT');
-    Object.assign(payload, { categoryId: input.categoryId, effectiveDate: input.effectiveDate, description: typeof input.description === 'string' ? input.description.trim() : null });
+    const subcategory = optionalText(input.subcategory, 80);
+    const notes = optionalText(input.notes, 500);
+    if (subcategory === undefined) errors.push('INVALID_SUBCATEGORY');
+    if (notes === undefined) errors.push('INVALID_NOTES');
+    Object.assign(payload, { categoryId: input.categoryId, subcategory, effectiveDate: input.effectiveDate, description: typeof input.description === 'string' ? input.description.trim() : null, notes });
   }
   if (errors.length) return { ok: false, errors };
   const candidate = { schemaVersion: FIORELLA_SESSION_VERSION, id: input.id.trim(), moduleId: 'fiorella', ownerId: 'fiorella',

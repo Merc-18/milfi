@@ -13,9 +13,6 @@ import { parseXml } from '../src/infrastructure/xlsx/xml.js';
 import { prepareFieldResolution, preparePreimportDecision, readControlWorkbook } from '../src/application/controlPreimport.js';
 import { inspectPreimport, summarizePreimport } from '../src/domain/controlPreimport.js';
 import { sourceOperationKey } from '../src/domain/excelEvidence.js';
-import { createPreimportStore } from '../src/store/preimportStore.js';
-import { createControlStore } from '../src/store/controlStore.js';
-import { createMilfiStore } from '../src/store/useStore.js';
 import { syntheticControlCells, syntheticControlXlsx, xlsxBytes, zipBytes } from './helpers/xlsxBuilder.js';
 
 // Every workbook here is generated in memory with invented labels and values.
@@ -235,38 +232,9 @@ test('summary: prepared totals are per file, per currency and never mixed', asyn
   assert.deepEqual([summary.identified, summary.prepared, summary.pending, summary.rejected], [8, 3, 5, 0]);
 });
 
-test('versions: the same file is not loaded twice and different versions are never reconciled', async () => {
-  const store = createPreimportStore();
-  const first = syntheticControlXlsx();
-  assert.equal((await store.getState().loadWorkbook(first, 'v1.xlsx')).ok, true);
-  assert.deepEqual(await store.getState().loadWorkbook(first.slice(), 'copia.xlsx'), { ok: false, code: 'ALREADY_LOADED' });
-  assert.equal(store.getState().records.length, 8);
-  const second = syntheticControlXlsx({ overrides: { C6: 14 } });
-  assert.equal((await store.getState().loadWorkbook(second, 'v2.xlsx')).ok, true);
-  const { records, context, batches } = store.getState();
-  assert.equal(records.length, 16);
-  const entries = inspectPreimport(records, context);
-  const sameCell = entries.filter(entry => entry.record.provenance.operation.amountRef === 'C5');
-  assert.ok(sameCell.every(entry => entry.pendingReasons.includes('OTHER_VERSION_SAME_OPERATION')));
-  assert.ok(entries.filter(entry => entry.record.provenance.operation.amountRef === 'C6').every(entry => !entry.pendingReasons.includes('OTHER_VERSION_SAME_OPERATION')));
-  assert.deepEqual(batches.map(batch => summarizePreimport(entries, batch.fingerprint).identified), [8, 8]);
-  store.getState().discardWorkbook(batches[0].fingerprint);
-  assert.equal(store.getState().records.length, 8);
-  assert.ok(inspectPreimport(store.getState().records, store.getState().context).every(entry => !entry.pendingReasons.includes('OTHER_VERSION_SAME_OPERATION')));
-});
-
-test('separation: preimport never writes Control demos, Fiorella records or real movements', async () => {
-  const preimport = createPreimportStore(); const control = createControlStore(); const milfi = createMilfiStore();
-  await preimport.getState().loadWorkbook(syntheticControlXlsx(), 'x.xlsx');
-  assert.deepEqual([control.getState().demoMovements, control.getState().events], [[], []]);
-  for (const key of ['fiorellaRecords', 'controlMovements', 'simulations', 'fiorellaDemoRecords']) assert.deepEqual(milfi.getState()[key], []);
-  assert.ok(preimport.getState().records.every(record => record.validationStatus === 'pending' && record.householdId === null));
-});
-
-test('privacy: reader, preimport and route code use no storage, network or logging APIs', async () => {
+test('privacy: reader, preimport and historical-load code use no storage, network or logging APIs', async () => {
   const files = ['src/infrastructure/xlsx/zip.js', 'src/infrastructure/xlsx/xml.js', 'src/infrastructure/xlsx/workbook.js', 'src/domain/controlWorkbook.js',
-    'src/domain/controlPreimport.js', 'src/application/controlPreimport.js', 'src/store/preimportStore.js', 'src/routes/ControlPreimportacion.jsx',
-    'src/components/PreimportForms.jsx', 'src/presentation/preimport.js'];
+    'src/domain/controlPreimport.js', 'src/application/controlPreimport.js', 'src/domain/fiorellaWorkbook.js', 'src/application/historicalLoad.js'];
   for (const file of files) {
     const source = (await readFile(new URL(`../${file}`, import.meta.url), 'utf8')).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|console\.|fetch\(|XMLHttpRequest|sendBeacon|WebSocket|persist\(/, file);
