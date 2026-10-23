@@ -133,6 +133,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
       const detail = await browser.evaluate('document.querySelector("dialog[open]").textContent');
       assert.ok(detail.includes('Fecha límite: Jun 2031') && detail.includes('Notas de prueba') && detail.includes('Del Excel de Fiorella'), detail);
+      // Only the workbook's own deadline is a date; the term is a count of months.
+      assert.ok(detail.includes('para lograrla en 3 meses') && detail.includes('Plazo: 3 meses') && !detail.includes('para terminar en'), detail);
       assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => button.textContent === "Editar")'), false);
       assert.equal(await fits(), true);
     });

@@ -432,6 +432,11 @@ test('browser regression: redirects, simulation history and financial isolation'
       const reading = await testText('goal-reading');
       assert.ok(reading.includes(`Llegas en unos 22 meses (${arrival(22)})`) && reading.includes('te faltan S/ 722.99 al mes'), reading);
       assert.ok(reading.includes('necesitarías un ingreso de S/ 8,444.45'), reading);
+      // The term reads as a count of months; only the estimated arrival has a date.
+      assert.ok(reading.includes('Necesitas S/ 1,666.67 al mes para lograrla en 12 meses'), reading);
+      const path = await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-detail] figure").textContent');
+      assert.ok(path.includes('Plazo: 12 meses') && path.includes(`Llegada: `), path);
+      assert.doesNotMatch(path, new RegExp(`Plazo: [a-z]{3} \\d{2}|${formatPeriod(addMonths(parsePeriodInput(currentPeriodInput()), 11))}`));
       assert.equal((reading.match(/Estimación lineal/g) ?? []).length, 1);
       await capture('24-meta-detalle-movil.png');
       await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-detail] details summary").click()');

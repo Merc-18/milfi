@@ -54,7 +54,8 @@ test('arrival is current month + M − 1, crossing the year, and never before th
   const one = goalPlan({ target: '500', months: '2' }, '600', october);
   assert.deepEqual([one.months, one.arrival], [1, october]);
   const fourteen = goalPlan({ target: '1400', months: '20' }, '100', october);
-  assert.deepEqual([fourteen.months, fourteen.arrival, fourteen.deadline], [14, { year: 2027, month: 11 }, { year: 2028, month: 5 }]);
+  // The term is a count of months, not a date (it would move every month).
+  assert.deepEqual([fourteen.months, fourteen.arrival, fourteen.termMonths, 'deadline' in fourteen], [14, { year: 2027, month: 11 }, 20, false]);
   // The capacity may come from a past month; the start is still the current month.
   const records = recordsWith([{ year: 2026, month: 3 }, '4000', '1500']);
   const capacity = couplePlanCapacity(records, { year: 2026, month: 3 });
@@ -69,7 +70,7 @@ test('status: on time when C ≥ N (equal included), short otherwise; no capacit
   const short = goalPlan({ target: '1200', months: '12' }, '99.995', october);
   assert.deepEqual([short.status, short.shortfall, short.months], ['aviso', '0.01', 13]);
   const none = goalPlan({ target: '1200', months: '12' }, null, october);
-  assert.deepEqual([none.status, none.needed, none.deadline, none.arrival], ['no-estimate', '100', { year: 2027, month: 9 }, undefined]);
+  assert.deepEqual([none.status, none.needed, none.termMonths, none.arrival], ['no-estimate', '100', 12, undefined]);
   const zero = goalPlan({ target: '1200', months: '12' }, '0', october);
   assert.deepEqual([zero.status, zero.months], ['no-capacity', undefined]);
   assert.equal(goalPlan({ target: '1200', months: '' }, '100', october).status, 'invalid');

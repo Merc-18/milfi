@@ -44,8 +44,9 @@ export function monthsToReach(target, capacity) {
 
 /**
  * One goal against capacity C, starting in the current month (Lima): the M-th
- * contribution falls in current + M − 1, and the goal's own term ends in
- * current + months − 1. N = target / months (exact); ok when C ≥ N, otherwise the
+ * contribution falls in current + M − 1. The goal's term is only a count of months
+ * (termMonths): without a rule to discount what is already saved it is not anchored
+ * to a date. N = target / months (exact); ok when C ≥ N, otherwise the
  * monthly shortfall X = N − C. N, X and the required income are rounded up to the
  * céntimo only for display.
  * status: ok | aviso | no-estimate (no C) | no-capacity (C = 0) | invalid
@@ -55,7 +56,7 @@ export function goalPlan(goal, capacity, current) {
   if (estimate.status !== 'estimated') return { status: 'invalid' };
   const n = BigInt(estimate.monthlyContribution.numerator);
   const d = BigInt(estimate.monthlyContribution.denominator);
-  const base = { target: estimate.target, termMonths: estimate.months, deadline: addMonths(current, estimate.months - 1),
+  const base = { target: estimate.target, termMonths: estimate.months,
     needed: ceilCents(n, d), requiredIncome: ceilCents(estimate.requiredIncome.numerator, estimate.requiredIncome.denominator) };
   if (capacity == null) return { ...base, status: 'no-estimate' };
   if (compareAmounts(capacity, '0') <= 0) return { ...base, status: 'no-capacity' };

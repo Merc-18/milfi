@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pencil } from 'lucide-react';
-import { formatAmount, formatPeriod } from '../../presentation/format.js';
+import { formatAmount } from '../../presentation/format.js';
 import { goalPlan, monthsToReach, whatIfCapacity } from '../../presentation/goalPlan.js';
 import GoalPath from '../charts/GoalPath.jsx';
 import Badge from '../ui/Badge.jsx';
@@ -28,8 +28,8 @@ export default function GoalDetail({ goal, capacity, base, current, editable, on
       {plan.months && <p className="font-bold">{arrivalText(plan)}.</p>}
       {plan.status === 'no-capacity' && <p className="font-bold">Con tu plan actual no queda ahorro de pareja. Prueba otro ingreso en «¿y si…?».</p>}
       {plan.status === 'no-estimate' && <p className="font-bold">Registra el ingreso del mes para estimar cuándo llegas.</p>}
-      {plan.needed && <p className="tabular-nums">Necesitas {formatAmount(plan.needed)} al mes para terminar en {formatPeriod(plan.deadline)}
-        {plan.shortfall ? `; te faltan ${formatAmount(plan.shortfall)} al mes.` : '.'}</p>}
+      {plan.needed && <p className="tabular-nums">Necesitas {formatAmount(plan.needed)} al mes para lograrla en {plan.termMonths}{' '}
+        {plan.termMonths === 1 ? 'mes' : 'meses'}{plan.shortfall ? `; te faltan ${formatAmount(plan.shortfall)} al mes.` : '.'}</p>}
       {plan.requiredIncome && <p className="tabular-nums">Para lograrlo a tiempo necesitarías un ingreso de {formatAmount(plan.requiredIncome)}.</p>}
       <p className="text-xs text-texto-light">Estimación lineal: no incluye intereses, saldo inicial ni lo ya depositado.</p>
     </div>}
