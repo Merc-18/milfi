@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "check:control-structure": "node scripts/check-control-structure.mjs",
     "check:live": "node scripts/rls-live-check.mjs",
+    "check:fiorella-fixed": "node scripts/check-fiorella-fixed.mjs",
     "test:budgets": "node --test tests/fixedBudgets.test.js tests/fixedBudgets.browser.test.js"
   },
   "dependencies": {
