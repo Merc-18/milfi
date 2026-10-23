@@ -24,7 +24,10 @@ function HistoryRecord({ record, persisted }) {
   return <article className="bg-white p-4 rounded-2xl text-sm space-y-1">
     <h4 className="font-bold">{title}{persisted ? '' : ' · Demostración'}</h4>
     <dl className="grid grid-cols-2 gap-x-3">{shown.map(([field, label]) => <div key={field} className="py-1 min-w-0"><dt className="text-xs">{label}</dt><dd className="font-bold break-words">{show(field, record[field])}</dd></div>)}</dl>
-    <p className="text-xs">{sourceLabel(record, persisted)} · Revisión {record.revision}</p>
+    <details className="text-xs text-texto-light">
+      <summary className="cursor-pointer min-h-11 flex items-center">Detalles</summary>
+      <p className="pb-2">{sourceLabel(record, persisted)} · Revisión {record.revision}</p>
+    </details>
   </article>;
 }
 
