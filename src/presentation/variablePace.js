@@ -10,8 +10,10 @@ const monthKey = ({ year, month }) => `${String(year).padStart(4, '0')}-${String
 /**
  * Cumulative GV spending of one month, day by day, for 'salud', 'ocio' or 'all'.
  * actual(d) = exact sum of the expenses dated up to day d; ideal(d) = allocation × d / days
- * (drawn by the chart). Past months use the last day, the current month (today in
- * Lima, 'YYYY-MM-DD') stops at today and a future month has no actual line.
+ * (drawn by the chart). Past months use the last day and a future month has no
+ * actual line. In the current month (today in Lima, 'YYYY-MM-DD') the line stops at
+ * today; expenses dated later are `scheduled` (drawn apart, from today on) and
+ * still count: `actual` = actual(today) + scheduled, like the cards and the total.
  */
 export function cumulativeVariableSeries(summary, period, categoryId = 'all', today) {
   const days = daysInMonth(period);
@@ -32,8 +34,17 @@ export function cumulativeVariableSeries(summary, period, categoryId = 'all', to
     running = addAmounts(running, daily.get(day) ?? '0');
     return { day, actual: day <= referenceDay ? running : null };
   });
-  const actual = referenceDay ? points[referenceDay - 1].actual : '0';
-  return { days, timing, referenceDay, allocation, actual, points };
+  const upToToday = referenceDay ? points[referenceDay - 1].actual : '0';
+  let scheduled = '0';
+  const later = [];
+  if (timing === 'current') {
+    for (let day = referenceDay + 1; day <= days; day++) {
+      if (!daily.has(day)) continue;
+      scheduled = addAmounts(scheduled, daily.get(day));
+      later.push({ day, actual: addAmounts(upToToday, scheduled) });
+    }
+  }
+  return { days, timing, referenceDay, allocation, actual: addAmounts(upToToday, scheduled), upToToday, scheduled, later, points };
 }
 
 // Half-up division of a non-negative exact amount by a whole number, to whole soles.

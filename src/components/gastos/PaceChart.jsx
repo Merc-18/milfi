@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Pencil } from 'lucide-react';
+import { compareAmounts } from '../../domain/amounts.js';
 import { formatAmount } from '../../presentation/format.js';
 import { MISSING, MISSING_READ, remainingToSpend } from '../../presentation/status.js';
 import { cumulativeVariableSeries, pacePhrase, variablePace } from '../../presentation/variablePace.js';
@@ -26,6 +27,8 @@ export default function PaceChart({ summary, period, today, manage, onMonthly })
     </div>
     <CumulativeLine series={series} label={`Gasto variable acumulado, ${name === 'Ambas' ? 'Salud y Ocio' : name}`} />
     {phrase && <p className="text-sm font-bold" data-testid="pace-phrase">{phrase}</p>}
+    {compareAmounts(series.scheduled, '0') > 0 && <p className="text-xs" data-testid="pace-scheduled">
+      Incluye {formatAmount(series.scheduled)} con fecha posterior a hoy.</p>}
     {series.allocation === null && MISSING[missing] && (manage
       ? <button type="button" onClick={onMonthly} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-texto px-4 py-3 font-bold text-white">
         <Pencil size={18} aria-hidden="true" />{MISSING[missing]}</button>

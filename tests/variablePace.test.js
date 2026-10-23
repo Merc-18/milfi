@@ -34,11 +34,19 @@ test('cumulative series: past month to its last day, same-day expenses added exa
   assert.deepEqual([ocio.allocation, ocio.actual, ocio.points[19].actual], ['500', '0.205', '0.205']);
 });
 
-test('cumulative series: current month stops at today; a future month has no actual line', () => {
-  const summary = month(april, '4000', [['02', 'salud', '7'], ['20', 'salud', '9']]);
+test('cumulative series: current month line stops at today, later expenses are scheduled; a future month has no actual line', () => {
+  const summary = month(april, '4000', [['02', 'salud', '7'], ['20', 'salud', '9'], ['20', 'ocio', '0.5'], ['28', 'ocio', '1.25']]);
   const current = cumulativeVariableSeries(summary, april, 'all', '2045-04-15');
-  assert.deepEqual([current.timing, current.referenceDay, current.actual], ['current', 15, '7']);
+  // Everything registered in the month counts, as in the cards and the total.
+  assert.deepEqual([current.timing, current.referenceDay, current.upToToday, current.scheduled, current.actual], ['current', 15, '7', '10.75', '17.75']);
   assert.deepEqual([current.points[14].actual, current.points[15].actual], ['7', null]);
+  assert.deepEqual(current.later, [{ day: 20, actual: '16.5' }, { day: 28, actual: '17.75' }]);
+  const salud = cumulativeVariableSeries(summary, april, 'salud', '2045-04-15');
+  assert.deepEqual([salud.scheduled, salud.actual], ['9', '16']);
+  const none = cumulativeVariableSeries(month(april, '4000', [['02', 'salud', '7'], ['15', 'salud', '3']]), april, 'all', '2045-04-15');
+  assert.deepEqual([none.upToToday, none.scheduled, none.actual, none.later], ['10', '0', '10', []]);
+  const past = cumulativeVariableSeries(summary, april, 'all', '2045-06-01');
+  assert.deepEqual([past.scheduled, past.actual, past.later], ['0', '17.75', []]);
   const future = cumulativeVariableSeries(summary, april, 'all', '2045-03-10');
   assert.deepEqual([future.timing, future.referenceDay, future.actual, future.points.every(point => point.actual === null)], ['future', 0, '0', true]);
   assert.equal(phrase(summary, '2045-03-10'), 'Este mes aún no empieza: tendrás S/ 1,000.00 para 30 días.');
@@ -64,6 +72,13 @@ test('pace tolerance is max(S/ 5, 5 % of the allocation), strict and exact', () 
   // The tolerance follows the selection: Salud alone has 500 assigned (tolerance 25, ideal 250).
   assert.equal(phrase(month(april, '4000', [['01', 'salud', '274.99']]), '2045-04-15', 'salud'), 'Vas al ritmo.');
   assert.equal(phrase(month(april, '4000', [['01', 'salud', '275']]), '2045-04-15', 'salud'), 'Vas unos S/ 25 por encima del ritmo ideal.');
+});
+
+test('expenses dated after today move the current pace from below to above', () => {
+  // Day 15 of 30 with 1,000 assigned: ideal 500, tolerance 50.
+  assert.equal(phrase(month(april, '4000', [['10', 'salud', '400']]), '2045-04-15'), 'Vas unos S/ 100 por debajo del ritmo ideal.');
+  assert.equal(phrase(month(april, '4000', [['10', 'salud', '400'], ['25', 'ocio', '180']]), '2045-04-15'), 'Vas unos S/ 80 por encima del ritmo ideal.');
+  assert.equal(phrase(month(april, '4000', [['10', 'salud', '400'], ['25', 'ocio', '100']]), '2045-04-15'), 'Vas al ritmo.');
 });
 
 test('pace amount is rounded half-up to whole soles only for the phrase', () => {
