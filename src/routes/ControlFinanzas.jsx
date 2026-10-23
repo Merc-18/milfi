@@ -7,7 +7,8 @@ import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
 import Badge from '../components/ui/Badge.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
-import PeriodInput from '../components/PeriodInput.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
+import { usePeriodStore } from '../store/periodStore.js';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
 import ControlReviewEditor from '../components/ControlReviewEditor.jsx';
 import { controlReviewBinding, summarizeControlDemo } from '../domain/controlSession.js';
@@ -24,6 +25,7 @@ export default function ControlFinanzas() {
 
 function ControlDemoView() {
   const state = useControlStore();
+  const periodInput = usePeriodStore(store => store.selectedPeriod);
   const manage = canManage(useModuleAccess('control-mf'));
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
@@ -34,7 +36,7 @@ function ControlDemoView() {
   const reviewRef = useRef(null);
   useEffect(() => { if (editing) editorRef.current?.scrollIntoView({ block: 'start' }); }, [editing]);
   useEffect(() => { if (reviewing) reviewRef.current?.scrollIntoView({ block: 'start' }); }, [reviewing]);
-  const period = parsePeriodInput(state.selectedPeriod);
+  const period = parsePeriodInput(periodInput);
   const summary = summarizeControlDemo(state.demoMovements, period);
   const entries = summary.entries.filter(entry => status === 'all' || entry.status === status)
     .sort((a, b) => b.record.effectiveDate.localeCompare(a.record.effectiveDate) || a.record.id.localeCompare(b.record.id));
@@ -63,9 +65,8 @@ function ControlDemoView() {
       <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>}
     <StatusNotice title="Demostración temporal · Sin dinero real"><p>Introduce únicamente datos inventados. Los ejemplos y sus revisiones se perderán al recargar. No hay almacenamiento permanente ni autenticación: los responsables se declaran, sus permisos no se verifican. La administración de Milton y la consulta de Fiorella se aplicarán con el backend futuro.</p></StatusNotice>
     <section className={cardClass}>
-      <PeriodInput id="control-selected-period" label="Periodo de consulta" applied={state.selectedPeriod} className={fieldClass} onValidChange={value => {
-        state.selectPeriod(value); setEditing(null); setReviewing(null); setNotice('');
-      }} />
+      <h2 className="font-bold text-sm">Periodo de consulta</h2>
+      <PeriodPicker id="control-selected-period" onChange={() => { setEditing(null); setReviewing(null); setNotice(''); }} />
       <div data-testid="control-counts" className="text-sm space-y-2"><p>Depósitos registrados de demo: {summary.deposits}</p><p>Retiros registrados de demo: {summary.withdrawals}</p><p>Movimientos demo pendientes: {summary.pending}</p><p>Movimientos reales confirmados: ninguno importado.</p></div>
     </section>
     <section className={cardClass} data-testid="control-summary">
@@ -83,7 +84,7 @@ function ControlDemoView() {
       <h2 className="font-bold text-lg">Retiros y consulta de saldos</h2><p className="text-sm">Los retiros son movimientos independientes; no se deducen de diferencias entre saldos ni se atribuyen automáticamente a una persona. Los casos cuyo tratamiento requiera aprobación quedan pendientes.</p>
     </section>
     {manage && <section className={cardClass} ref={editorRef}>
-      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${state.selectedPeriod}`} record={editing} period={state.selectedPeriod} onSave={save} onCancel={() => setEditing(null)} />
+      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${periodInput}`} record={editing} period={periodInput} onSave={save} onCancel={() => setEditing(null)} />
       {notice && <p role="status" className="text-sm bg-secundario/30 rounded-xl p-3">{notice}</p>}
     </section>}
     {manage && reviewing && <section ref={reviewRef}><ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} /></section>}

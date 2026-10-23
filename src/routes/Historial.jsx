@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore.js';
+import { usePeriodStore } from '../store/periodStore.js';
 import { formatAmount, formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
@@ -39,7 +40,7 @@ export default function Historial() {
   const [kind, setKind] = useState('all');
   const [category, setCategory] = useState('all');
   // Opens on the month selected in the module, not on every month at once.
-  const selected = useStore(state => state.selectedFiorellaPeriod);
+  const selected = usePeriodStore(state => state.selectedPeriod);
   const [month, setMonth] = useState(selected);
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);

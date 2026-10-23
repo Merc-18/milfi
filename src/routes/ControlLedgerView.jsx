@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import Badge from '../components/ui/Badge.jsx';
 import { noticeClass, TONE_CLASS } from '../presentation/tones.js';
 import StatusNotice from '../components/StatusNotice.jsx';
-import PeriodInput from '../components/PeriodInput.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
 import ControlReviewEditor from '../components/ControlReviewEditor.jsx';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
@@ -13,7 +13,7 @@ import { canManage } from '../domain/access.js';
 import { inspectLedger, summarizeLedger } from '../domain/controlLedger.js';
 import { controlEvolution } from '../domain/fiorellaDashboard.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
-import { useControlStore } from '../store/controlStore.js';
+import { usePeriodStore } from '../store/periodStore.js';
 import { useSessionStore } from '../store/sessionStore.js';
 import { formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass,
@@ -64,7 +64,7 @@ export default function ControlLedgerView() {
   const manage = canManage(useModuleAccess('control-mf'));
   const userId = useSessionStore(state => state.user?.id ?? null);
   const { status, error, records, events, identity } = useLedgerStore(useShallow(state => ({ status: state.status, error: state.error, records: state.records, events: state.events, identity: state.identity })));
-  const periodInput = useControlStore(state => state.selectedPeriod);
+  const periodInput = usePeriodStore(state => state.selectedPeriod);
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -98,9 +98,7 @@ export default function ControlLedgerView() {
     <header className="flex flex-wrap items-end justify-between gap-3 mt-2 mb-2">
       <h1 className="text-2xl md:text-3xl font-bold">Control Finanzas M&F</h1>
       <div className="flex flex-wrap items-end gap-2">
-        <div className="w-44"><PeriodInput id="control-selected-period" label="Periodo" labelClassName="sr-only" applied={periodInput} className={`${fieldClass} text-center font-bold`} onValidChange={value => {
-          useControlStore.getState().selectPeriod(value); setEditing(null); setReviewing(null); setNotice(''); setShown(15);
-        }} /></div>
+        <PeriodPicker id="control-selected-period" onChange={() => { setEditing(null); setReviewing(null); setNotice(''); setShown(15); }} />
         <button type="button" className={buttonClass} onClick={async () => { const result = await useLedgerStore.getState().refresh(); setNotice(result.ok ? 'Datos actualizados.' : controlExplanation(result.errors[0])); }}>Actualizar</button>
       </div>
     </header>

@@ -27,7 +27,7 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
       await browser.waitFor('typeof window.mountMilfi === "function"');
     };
     const mount = async (identity = 'fiorella', data = fixture) => {
-      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: { fiorella: identity === 'fiorella' ? 'manage' : 'read', 'control-mf': identity === 'fiorella' ? 'read' : 'manage' }, path: '/fiorella/presupuestos', fiorellaPeriod: '2038-04', controlPeriod: '2038-04' })})`);
+      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: { fiorella: identity === 'fiorella' ? 'manage' : 'read', 'control-mf': identity === 'fiorella' ? 'read' : 'manage' }, path: '/fiorella/presupuestos', period: '2038-04' })})`);
       await browser.waitFor('document.querySelectorAll("[data-budget-id]").length === 19 && !document.body.textContent.includes("Cargando")');
     };
     const click = selector => browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);

@@ -48,6 +48,9 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(config.includes('Ocio'));
     assert.equal((config.match(/50% de variables/g) ?? []).length, 2);
 
+    // Both modules use the same month switcher (the shared month is checked in Chromium).
+    assert.ok(renderPath('/control').includes('aria-label="Mes anterior"'), 'Control uses the same month switcher');
+
     const { default: DistributionDetails } = await server.ssrLoadModule('/src/components/DistributionDetails.jsx');
     const distribution = calculateDistribution({ income: '4000.01', fixedExpense: '1500' }).distribution;
     const html = renderToStaticMarkup(createElement(DistributionDetails, { distribution }));

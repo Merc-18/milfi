@@ -6,11 +6,13 @@ import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
+import { usePeriodStore } from '../store/periodStore.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { fixedGroups, summarizeExpenses } from '../domain/fiorellaDashboard.js';
 import { noticeClass } from '../presentation/tones.js';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
-import { buttonClass, cardClass, Comparison, fieldClass, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
+import { buttonClass, cardClass, Comparison, fieldClass, Help, Kpi, MoneyInput, PageHeader, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
 
 const PAGE = 15;
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
@@ -19,7 +21,7 @@ const label = (id, text) => <label htmlFor={id} className="block font-bold text-
 
 function VariableForm({ input, period, record, onDone, onCancel, suggestions }) {
   const save = useStore(state => state.saveFiorellaDemo);
-  const select = useStore(state => state.selectFiorellaPeriod);
+  const select = usePeriodStore(state => state.selectPeriod);
   const [base] = useState(record);
   const [date, setDate] = useState(record?.effectiveDate ?? (today().startsWith(input) ? today() : ''));
   const [category, setCategory] = useState(record?.categoryId ?? 'salud');

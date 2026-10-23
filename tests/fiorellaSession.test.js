@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMilfiStore } from '../src/store/useStore.js';
+import { createPeriodStore } from '../src/store/periodStore.js';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../src/domain/fiorellaCategories.js';
 import { fiorellaHistory, moneyDifference, periodKey, prepareFiorellaDemo, summarizeFiorella } from '../src/domain/fiorellaSession.js';
 import { validateEnvelope } from '../src/domain/models.js';
@@ -239,9 +240,11 @@ test('session periods are dynamic and data does not leak across months or years'
   save(store, command('fixed-budget', { period: { year: 2037, month: 2 }, budgetAmount: '1', actualAmount: '2' }));
   assert.equal(summary(store).budget.amount, '45.1');
   assert.equal(summarizeFiorella(store.getState().fiorellaDemoRecords, { year: 2037, month: 2 }).budget.amount, '1');
-  assert.equal(store.getState().selectFiorellaPeriod('2037-02'), true);
-  assert.equal(store.getState().selectFiorellaPeriod('2037-13'), false);
-  assert.equal(store.getState().selectedFiorellaPeriod, '2037-02');
+  // The month is shared with Control: see periodStore in the Control tests.
+  const months = createPeriodStore();
+  assert.equal(months.getState().selectPeriod('2037-02'), true);
+  assert.equal(months.getState().selectPeriod('2037-13'), false);
+  assert.equal(months.getState().selectedPeriod, '2037-02');
 });
 
 test('history groups demo records and independent scenarios by period with chronological audit', () => {

@@ -14,7 +14,8 @@ import { fiorellaEvolution, registeredSavingsDeposits, summarizeExpenses } from 
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { TONE_CLASS } from '../presentation/tones.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
-import { buttonClass, cardClass, Comparison, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
+import { buttonClass, cardClass, Comparison, Help, Kpi, MoneyInput, PageHeader, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
 
 function MonthlyForm({ period, record }) {
   const save = useStore(state => state.saveFiorellaDemo);

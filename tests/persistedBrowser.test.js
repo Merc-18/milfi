@@ -23,8 +23,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
     await browser.page('Page.navigate', { url: `${origin}/tests/harness/persisted.html` });
     await browser.waitFor('typeof window.mountMilfi === "function"');
-    const mount = async (identity, path, fiorellaPeriod, controlPeriod = '2031-01') => {
-      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: APPROVED_ACCESS[identity], path, fiorellaPeriod, controlPeriod })})`);
+    const mount = async (identity, path, period) => {
+      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: APPROVED_ACCESS[identity], path, period })})`);
       await browser.waitFor('!!document.querySelector("h1") && !document.body.textContent.includes("Cargando")');
     };
     const text = () => browser.evaluate('document.body.textContent');

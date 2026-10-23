@@ -11,7 +11,8 @@ import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { formatAmount } from '../presentation/format.js';
 import Badge from '../components/ui/Badge.jsx';
 import { noticeClass } from '../presentation/tones.js';
-import { buttonClass, cardClass, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
+import { buttonClass, cardClass, Help, Kpi, MoneyInput, PageHeader, SessionNotice } from '../components/FiorellaSession.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
 
 function Difference({ comparison }) {
   const { status, amount } = comparison;

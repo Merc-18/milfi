@@ -7,6 +7,7 @@ import { createControlStore } from '../src/store/controlStore.js';
 import { createMilfiStore } from '../src/store/useStore.js';
 import { controlMoney } from '../src/presentation/control.js';
 import { context, syntheticMovement } from './helpers/excelFixture.js';
+import { createPeriodStore } from '../src/store/periodStore.js';
 
 // Invented manual operations and independent synthetic workbook fixtures only.
 const period = { year: 2042, month: 6 };
@@ -275,7 +276,8 @@ test('Control: session store preserves audit snapshots and is isolated from Fior
 });
 
 test('Control: valid period selection isolates month/year totals and invalid drafts preserve applied period', () => {
-  const record = accept(create()); const store = createControlStore();
+  // One shared month store serves both modules.
+  const record = accept(create()); const store = createPeriodStore();
   assert.equal(store.getState().selectPeriod('2042-06'), true);
   for (const value of ['', '2042-', '0000-01', '2042-13', 'not-a-month']) assert.equal(store.getState().selectPeriod(value), false);
   assert.equal(store.getState().selectedPeriod, '2042-06');
