@@ -5,6 +5,7 @@ import StatusNotice from '../components/StatusNotice.jsx';
 import { useSessionStore } from '../store/sessionStore.js';
 import { safeReturnPath } from '../domain/access.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass } from '../presentation/control.js';
+import { noticeClass } from '../presentation/tones.js';
 
 const errors = {
   INVALID_CREDENTIALS: 'Correo o contraseña incorrectos.',
@@ -62,7 +63,7 @@ export default function Acceso() {
     {session.mode === 'demo' && <StatusNotice title="Autenticación no configurada"><p>Este entorno no tiene un proyecto Supabase configurado. La aplicación funciona en modo demostración local, sin usuarios, sin seguridad y sin datos reales. No existe un inicio de sesión simulado.</p></StatusNotice>}
     {session.status === 'config-error' && <StatusNotice title="Configuración no válida"><p>{message(session.error)}</p></StatusNotice>}
     {session.status === 'initializing' && <p role="status" className="text-sm">Recuperando la sesión…</p>}
-    {session.status === 'expired' && <p role="alert" className="text-sm rounded-xl bg-amber-50 p-3">{message('SESSION_EXPIRED')}</p>}
+    {session.status === 'expired' && <p role="alert" className={noticeClass()}>{message('SESSION_EXPIRED')}</p>}
     {['signed-out', 'expired', 'signing-in'].includes(session.status) && <form aria-label="Iniciar sesión" onSubmit={submit} className={cardClass}>
       <div><label htmlFor="login-email" className="block text-sm font-bold mb-2">Correo</label><input id="login-email" type="email" autoComplete="username" required className={fieldClass} value={email} onChange={event => setEmail(event.target.value)} /></div>
       <div><label htmlFor="login-password" className="block text-sm font-bold mb-2">Contraseña</label><input id="login-password" type="password" autoComplete="current-password" required className={fieldClass} value={password} onChange={event => setPassword(event.target.value)} /></div>
@@ -79,7 +80,7 @@ export default function Acceso() {
       <button type="button" className={buttonClass} onClick={() => useSessionStore.getState().signOut()}>Cerrar sesión</button>
       {session.status === 'ready' && <ChangePassword />}
     </section>}
-    {session.status === 'error' && <p role="alert" className="text-sm rounded-xl bg-amber-50 p-3">{message(session.error)}</p>}
+    {session.status === 'error' && <p role="alert" className={noticeClass()}>{message(session.error)}</p>}
     <p className="text-xs text-texto-light">Versión {import.meta.env.VITE_MILFI_VERSION ?? 'local'}</p>
   </div>;
 }

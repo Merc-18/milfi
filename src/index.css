@@ -9,6 +9,8 @@
   --color-fondo: #FDFAF7;
   --color-texto: #5C4A52;
   --color-texto-light: #8B7A82;
+  /* Exceeded state: dark rose from principal's hue, ~7:1 against white. */
+  --color-excedido: #8E3B5B;
   
   --font-sans: "Quicksand", sans-serif;
   

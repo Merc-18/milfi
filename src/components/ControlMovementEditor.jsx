@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PeriodInput from './PeriodInput.jsx';
 import { parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlFieldClass as fieldClass, controlExplanation } from '../presentation/control.js';
+import { noticeClass } from '../presentation/tones.js';
 
 // real: persisted movement of the signed-in Control manager (recorder fixed to that identity).
 export default function ControlMovementEditor({ record, period, onSave, onCancel, real = false, identity = null }) {
@@ -37,7 +38,7 @@ export default function ControlMovementEditor({ record, period, onSave, onCancel
     <div><label htmlFor="control-description" className="block text-sm font-bold mb-2">{real ? 'Descripción' : 'Descripción del ejemplo'}</label><input id="control-description" type="text" maxLength={1000} className={fieldClass} value={draft.description} onChange={change('description')} /></div>
     <div><label htmlFor="control-source" className="block text-sm font-bold mb-2">{real ? 'Procedencia (comprobante, extracto o referencia)' : 'Procedencia declarada del ejemplo'}</label><input id="control-source" type="text" required maxLength={500} className={fieldClass} value={draft.provenanceNote} onChange={change('provenanceNote')} placeholder={real ? 'Por ejemplo: voucher o extracto del mes' : 'Referencia ficticia de esta operación'} /></div>
     <div><label htmlFor="control-distinct" className="block text-sm font-bold mb-2">{real ? 'Si coincide con otro movimiento, explica por qué es distinto' : 'Si coincide con otro ejemplo, explica por qué es distinto'}</label><input id="control-distinct" type="text" maxLength={500} className={fieldClass} value={draft.distinctOperationReason} onChange={change('distinctOperationReason')} /></div>
-    {!!errors.length && <div role="alert" className="rounded-xl bg-amber-50 p-3 text-sm">{errors.map(error => <p key={error}>{controlExplanation(error)}</p>)}</div>}
+    {!!errors.length && <div role="alert" className={noticeClass()}>{errors.map(error => <p key={error}>{controlExplanation(error)}</p>)}</div>}
     <div className="flex flex-wrap gap-3"><button type="submit" className={buttonClass} disabled={!periodValid || saving}>{saving ? 'Guardando…' : real ? (record ? 'Guardar cambios' : 'Guardar movimiento') : record ? 'Aplicar edición temporal' : 'Registrar ejemplo temporal'}</button>{record && <button type="button" className={buttonClass} onClick={onCancel}>Cancelar edición</button>}</div>
   </form>;
 }

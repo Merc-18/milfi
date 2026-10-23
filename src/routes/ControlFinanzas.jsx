@@ -5,6 +5,7 @@ import { useLedgerStore } from '../store/ledgerStore.js';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
+import Badge from '../components/ui/Badge.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
 import PeriodInput from '../components/PeriodInput.jsx';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
@@ -13,7 +14,7 @@ import { controlReviewBinding, summarizeControlDemo } from '../domain/controlSes
 import { useControlStore } from '../store/controlStore.js';
 import { formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass,
-  controlMoney, controlExplanation, kindName, personName, purposeName, statusName } from '../presentation/control.js';
+  controlMoney, controlExplanation, kindName, personName, purposeName, statusName, statusTone } from '../presentation/control.js';
 
 // Persisted ledger while an authorized session is connected; session demo otherwise.
 export default function ControlFinanzas() {
@@ -95,7 +96,7 @@ function ControlDemoView() {
       {entries.map(entry => {
         const { record } = entry;
         return <article key={record.id} data-control-id={record.id} data-control-state={entry.status} className={cardClass}>
-          <p className={`text-sm font-bold rounded-xl p-3 ${entry.status === 'pending' || entry.status === 'invalid' ? 'bg-amber-50' : entry.status === 'rejected' ? 'bg-rose-50' : 'bg-violet-50'}`}>{statusName(entry.status)} · Nunca confirmado</p>
+          <p><Badge tone={statusTone(entry.status)}>{statusName(entry.status)} · Nunca confirmado</Badge></p>
           <h3 className="font-bold">{kindName(record.kind)} · {purposeName(record.purpose)}</h3>
           <p>{controlMoney(record.amount, record.currency)}</p>
           <p className="text-sm">Fecha: {record.effectiveDate} · Periodo: {formatPeriod(record.period)}</p>

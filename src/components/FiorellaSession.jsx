@@ -4,6 +4,9 @@ import { useStore } from '../store/useStore.js';
 import { formatAmount, parsePeriodInput } from '../presentation/format.js';
 import { moneyDifference } from '../domain/fiorellaSession.js';
 import StatusNotice from './StatusNotice.jsx';
+import Badge from './ui/Badge.jsx';
+import { TONE_FILL } from '../presentation/tones.js';
+import { usageStatus } from '../presentation/status.js';
 import PeriodInput from './PeriodInput.jsx';
 
 export const fieldClass = 'w-full min-w-0 bg-fondo border border-secundario p-3 rounded-xl';
@@ -26,10 +29,11 @@ export function Help({ title = 'Ayuda', children }) {
 
 // Visual proportion only (display width); amounts themselves stay exact strings.
 export function Progress({ value, limit, label }) {
+// The tone comes from the exact comparison; the text beside it states the result.
   const ratio = value != null && limit != null && Number(limit) > 0 ? Number(value) / Number(limit) : null;
   if (ratio === null) return null;
   return <div className="h-2 rounded-full bg-secundario/40 overflow-hidden" role="img" aria-label={label}>
-    <div className={`h-full rounded-full ${ratio > 1 ? 'bg-red-700' : ratio > 0.9 ? 'bg-acento' : 'bg-exito'}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} /></div>;
+    <div className={`h-full rounded-full ${TONE_FILL[usageStatus(value, limit)]}`} style={{ width: `${Math.min(ratio, 1) * 100}%` }} /></div>;
 }
 
 export function Kpi({ label, amount, children, tone = 'bg-white' }) {
@@ -84,9 +88,8 @@ export function MoneyInput({ id, label, value, onChange }) {
 export function Comparison({ budget, spent, partial = false }) {
   const comparison = moneyDifference(budget, spent);
   if (comparison.status === 'unavailable') return <span>Sin comparación: faltan importes registrados.</span>;
-  return <span className={comparison.status === 'over' ? 'font-bold text-red-800' : 'font-bold'}>
-    {partial ? 'Comparación parcial · ' : ''}{comparison.status === 'over' ? 'Exceso: −' : comparison.status === 'equal' ? 'Diferencia: ' : 'Diferencia a favor: '}{formatAmount(comparison.amount)}
-  </span>;
+  const prefix = comparison.status === 'over' ? 'Exceso: −' : comparison.status === 'equal' ? 'Diferencia: ' : 'Diferencia a favor: ';
+  return <Badge tone={usageStatus(spent, budget)}>{partial ? 'Comparación parcial · ' : ''}{prefix}{formatAmount(comparison.amount)}</Badge>;
 }
 
 export function AmountStatus({ label, amount, detail }) {

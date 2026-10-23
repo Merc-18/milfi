@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import Badge from '../components/ui/Badge.jsx';
+import { noticeClass, TONE_CLASS } from '../presentation/tones.js';
 import StatusNotice from '../components/StatusNotice.jsx';
 import PeriodInput from '../components/PeriodInput.jsx';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
@@ -15,7 +17,7 @@ import { useControlStore } from '../store/controlStore.js';
 import { useSessionStore } from '../store/sessionStore.js';
 import { formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass,
-  controlMoney, controlExplanation, kindName, personName, purposeName } from '../presentation/control.js';
+  controlMoney, controlExplanation, kindName, personName, purposeName, statusTone } from '../presentation/control.js';
 
 const statusLabels = { pending: 'Pendiente de revisión', reviewed: 'Revisado · no conciliado', rejected: 'Rechazado', invalid: 'Inválido',
   imported: 'Revisado · no conciliado' };
@@ -38,7 +40,7 @@ function PeriodDashboard({ summary }) {
         </div>;
       })}
     </div>)}
-    {summary.pending > 0 && <p className="text-sm font-bold rounded-xl bg-amber-50 p-3" role="note">{summary.pending} movimiento(s) pendientes de revisión: no se incluyen en estos totales.</p>}
+    {summary.pending > 0 && <p className={`${noticeClass()} font-bold`} role="note">{summary.pending} movimiento(s) pendientes de revisión: no se incluyen en estos totales.</p>}
     <Help><p>Totales de movimientos revisados (manuales o cargados del Excel con todos sus campos resueltos), por moneda. Las monedas no se suman entre sí y depósitos y retiros se muestran por separado: no es un saldo bancario ni neto, y ninguna revisión confirma ni concilia dinero.</p></Help>
   </section>;
 }
@@ -106,7 +108,7 @@ export default function ControlLedgerView() {
     {status === 'loading' && <p role="status" className="text-sm">Cargando movimientos…</p>}
     {!manage && <ReadOnlyNotice>Administra Milton.</ReadOnlyNotice>}
     <div data-testid="control-counts" className="flex flex-wrap gap-2 text-sm">{[['Depósitos', summary.deposits], ['Retiros', summary.withdrawals], ['Pendientes', summary.pending]].map(([name, count]) =>
-      <span key={name} className={`rounded-xl px-3 py-1 ${name === 'Pendientes' && count ? 'bg-amber-50 font-bold' : 'bg-white shadow-soft'}`}>{name}: {count}</span>)}</div>
+      <span key={name} className={`rounded-xl px-3 py-1 ${name === 'Pendientes' && count ? `${TONE_CLASS.aviso} font-bold` : 'bg-white shadow-soft'}`}>{name}: {count}</span>)}</div>
     {notice && <p role="status" className="text-sm font-bold bg-exito/60 rounded-xl px-3 py-2">{notice}</p>}
     {manage && reviewing && <ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} real entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} />}
     {manage && <details className={cardClass} open={!!editing}>
@@ -134,7 +136,7 @@ export default function ControlLedgerView() {
         const manual = record.provenance?.type === 'control-manual';
         return <article key={record.id} data-ledger-id={record.id} data-ledger-state={entry.status} className={cardClass}>
           <p className="flex flex-wrap justify-between gap-2"><span className="font-bold">{kindName(record.kind)} · {purposeName(record.purpose)}</span><span className="font-bold">{controlMoney(record.amount, record.currency)}</span></p>
-          <p className={`text-xs font-bold rounded-xl px-3 py-2 ${entry.status === 'pending' || entry.status === 'invalid' ? 'bg-amber-50' : entry.status === 'rejected' ? 'bg-rose-50' : 'bg-violet-50'}`}>{statusLabels[entry.status]}</p>
+          <p><Badge tone={statusTone(entry.status)}>{statusLabels[entry.status]}</Badge></p>
           <p className="text-sm">{record.effectiveDate ?? 'Sin fecha'} · {formatPeriod(record.period)}{record.kind === 'deposit' ? ` · Aportante: ${personName(record.contributorId)}` : ''}{manual ? ` · Registrado por: ${personName(record.actorId)}` : ''}</p>
           {record.description && <p className="text-sm">{record.description}</p>}
           {!!entry.pendingReasons.length && <ul className="text-sm space-y-1">{entry.pendingReasons.map(reason => <li key={reason}>{controlExplanation(reason)}</li>)}</ul>}

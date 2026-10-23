@@ -12,6 +12,7 @@ import { controlMoney } from '../presentation/control.js';
 import { inspectLedger } from '../domain/controlLedger.js';
 import { fiorellaEvolution, registeredSavingsDeposits, summarizeExpenses } from '../domain/fiorellaDashboard.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
+import { TONE_CLASS } from '../presentation/tones.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
 import { buttonClass, cardClass, Comparison, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
 
@@ -40,7 +41,7 @@ function MonthlyForm({ period, record }) {
     </div>
     <label htmlFor="monthly-projected" className="flex gap-3 items-start text-sm"><input id="monthly-projected" type="checkbox" className="mt-1 shrink-0" checked={projected} onChange={event => setProjected(event.target.checked)} />Proyección: aún no recibido</label>
     <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : persisted ? 'Guardar datos del mes' : 'Registrar datos del mes · sesión'}</button>
-    {feedback && <p className={`text-sm rounded-xl px-3 py-2 ${feedback.ok ? 'bg-exito/60' : 'bg-rose-50'}`} role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
+    {feedback && <p className={`text-sm rounded-xl px-3 py-2 ${feedback.ok ? 'bg-exito/60' : TONE_CLASS.aviso}`} role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
     <Help><p>Usa punto decimal. Puedes registrar solo un campo y completar el otro después. El GF aplicado no se calcula a partir del presupuesto detallado ni del gasto registrado.</p></Help>
   </form>;
 }

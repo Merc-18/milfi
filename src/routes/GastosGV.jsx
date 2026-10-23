@@ -8,6 +8,7 @@ import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { fixedGroups, summarizeExpenses } from '../domain/fiorellaDashboard.js';
+import { noticeClass } from '../presentation/tones.js';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
 import { buttonClass, cardClass, Comparison, fieldClass, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
 
@@ -59,7 +60,7 @@ function VariableForm({ input, period, record, onDone, onCancel, suggestions }) 
       <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : `${record ? 'Actualizar gasto' : persisted ? 'Guardar gasto' : 'Registrar gasto'}${persisted ? '' : ' · sesión'}`}</button>
       {record && <button type="button" className="underline text-sm min-h-11" onClick={onCancel}>Cancelar edición</button>}
     </div>
-    {error && <p role="alert" className="text-sm rounded-xl bg-rose-50 px-3 py-2">{error}</p>}
+    {error && <p role="alert" className={noticeClass()}>{error}</p>}
     <Help><p>Usa punto decimal. El gasto se guarda en el mes de su fecha. Ningún gasto redistribuye fondos.</p></Help>
   </form>;
 }

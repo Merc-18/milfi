@@ -9,14 +9,15 @@ import { moneyDifference } from '../domain/fiorellaSession.js';
 import { budgetGroups } from '../presentation/fixedBudgets.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { formatAmount } from '../presentation/format.js';
+import Badge from '../components/ui/Badge.jsx';
+import { noticeClass } from '../presentation/tones.js';
 import { buttonClass, cardClass, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, SessionNotice } from '../components/FiorellaSession.jsx';
 
 function Difference({ comparison }) {
   const { status, amount } = comparison;
   if (status === 'unavailable') return <span title="Faltan importes registrados" aria-label="Sin diferencia: faltan importes registrados">—</span>;
-  return <span className={status === 'over' ? 'text-red-800' : status === 'remaining' ? 'text-green-800' : ''}>
-    {status === 'over' ? '−' : status === 'equal' ? '' : '+'}{formatAmount(amount)}
-  </span>;
+  const tone = status === 'over' ? 'excedido' : status === 'remaining' ? 'ok' : 'neutral';
+  return <Badge tone={tone}>{status === 'over' ? '−' : status === 'equal' ? '' : '+'}{formatAmount(amount)}</Badge>;
 }
 
 function BudgetEditor({ category, record, period, onCancel, onSaved, onBusy }) {
@@ -61,7 +62,7 @@ function BudgetEditor({ category, record, period, onCancel, onSaved, onBusy }) {
       </div>
     </fieldset>
     {saving && <p role="status" className="text-xs">Guardando…</p>}
-    {error && <p role="alert" className="text-sm rounded-lg bg-rose-50 p-2">{error}</p>}
+    {error && <p role="alert" className={noticeClass()}>{error}</p>}
   </form>;
 }
 

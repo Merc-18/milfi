@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { controlButtonClass as buttonClass, controlFieldClass as fieldClass, controlExplanation, controlMoney, kindName } from '../presentation/control.js';
+import { noticeClass } from '../presentation/tones.js';
 
 export default function ControlReviewEditor({ entry, onReview, onCancel, real = false }) {
   const { record } = entry;
@@ -21,7 +22,7 @@ export default function ControlReviewEditor({ entry, onReview, onCancel, real = 
     <div><label htmlFor="control-review-reference" className="block text-sm font-bold mb-2">Referencia verificable dentro del ejemplo</label><input id="control-review-reference" required maxLength={500} className={fieldClass} value={draft.evidenceReference} onChange={change('evidenceReference')} /></div>
     <div><label htmlFor="control-review-decision" className="block text-sm font-bold mb-2">Decisión sobre el ejemplo</label><select id="control-review-decision" className={fieldClass} value={draft.decision} onChange={change('decision')}><option value="accepted">{real ? 'Marcar como revisado' : 'Marcar como demo revisada'}</option><option value="rejected">{real ? 'Rechazar movimiento' : 'Rechazar ejemplo'}</option></select></div>
     {entry.pendingReasons.includes('PERIOD_ASSIGNMENT_REVIEW_REQUIRED') && <div><input id="control-review-period" type="checkbox" checked={draft.acceptPeriodAssignment} onChange={event => setDraft(value => ({ ...value, acceptPeriodAssignment: event.target.checked }))} /><label htmlFor="control-review-period" className="text-sm ml-2">He revisado explícitamente la imputación de esta operación a un periodo distinto de su fecha. El motivo y la referencia anteriores la justifican.</label></div>}
-    {!!errors.length && <div role="alert" className="bg-amber-50 p-3 rounded-xl text-sm">{errors.map(error => <p key={error}>{controlExplanation(error)}</p>)}</div>}
+    {!!errors.length && <div role="alert" className={noticeClass()}>{errors.map(error => <p key={error}>{controlExplanation(error)}</p>)}</div>}
     <p className="text-xs">{real ? 'No confirma ni concilia dinero.' : 'No confirma dinero real ni acredita permisos.'} Los tratamientos financieros pendientes no se resuelven con esta revisión.</p>
     <div className="flex flex-wrap gap-3"><button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : real ? 'Guardar revisión' : 'Aplicar revisión demostrativa'}</button><button type="button" className={buttonClass} onClick={onCancel}>Cerrar revisión</button></div>
   </form>;
