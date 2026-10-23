@@ -8,6 +8,7 @@ import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { currentPeriodInput, formatAmount, formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { couplePlanCapacity, goalPlan } from '../presentation/goalPlan.js';
+import { withFixedCap } from '../presentation/fixedCap.js';
 import { useStore } from '../store/useStore.js';
 import { buttonClass, cardClass, PageHeader, SessionNotice } from '../components/FiorellaSession.jsx';
 import PeriodPicker from '../components/PeriodPicker.jsx';
@@ -37,8 +38,8 @@ export default function Metas() {
   const origin = persisted ? 'real' : 'simulated';
   const capacity = useMemo(() => couplePlanCapacity(records, period, origin), [records, period, origin]);
   // The "¿y si…?" starts from the month the capacity comes from.
-  const source = capacity.from ? summarizeFiorella(records, capacity.from, origin).monthly : null;
-  const base = { income: source?.income ?? '', fixed: source?.appliedFixedExpense ?? '1500' };
+  const source = capacity.from ? summarizeFiorella(withFixedCap(records), capacity.from, origin).monthly : null;
+  const base = { income: source?.income ?? '' };
   const [whatIf, setWhatIf] = useState(null);
   const simulate = searchParams.has('simular');
   const updateParams = change => setSearchParams(params => { const next = new URLSearchParams(params); change(next); return next; }, { replace: true });
@@ -87,8 +88,8 @@ export default function Metas() {
     <Sheet open={simulate} onClose={closeSimulate} title="¿Y si…?">
       <WhatIfPanel id="page-whatif" values={whatIf ?? base} onChange={setWhatIf} capacity={capacity.amount} current={current} />
     </Sheet>
-    {manage && <Sheet open={monthly} onClose={() => setMonthly(false)} title="Ingreso y GF aplicado del mes">
-      <MonthlyForm key={input} period={period} record={summarizeFiorella(records, period, origin).monthly} />
+    {manage && <Sheet open={monthly} onClose={() => setMonthly(false)} title="Ingreso del mes">
+      <MonthlyForm key={input} period={period} record={summarizeFiorella(withFixedCap(records), period, origin).monthly} />
     </Sheet>}
   </div>;
 }

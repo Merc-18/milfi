@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatAmount, formatPeriod } from '../../presentation/format.js';
+import { FINANCIAL_RULES } from '../../domain/financialRules.js';
 import { addMonths, monthsToReach, whatIfCapacity } from '../../presentation/goalPlan.js';
 import { noticeClass } from '../../presentation/tones.js';
 import DistributionDetails from '../DistributionDetails.jsx';
@@ -8,8 +9,6 @@ import Sheet from '../ui/Sheet.jsx';
 
 const ISSUES = {
   INVALID_INCOME: 'Ingresa un ingreso no negativo y finito, usando punto para los decimales.',
-  INVALID_FIXED_EXPENSE: 'Ingresa un gasto fijo no negativo y finito, usando punto para los decimales.',
-  FIXED_EXPENSE_ABOVE_CAP: 'El gasto fijo no puede superar el tope oficial de S/ 1,500.',
 };
 
 // Controlled by the parent (values/onChange) so the goal chart can draw C'.
@@ -18,10 +17,8 @@ export default function WhatIfPanel({ id = 'whatif', values, onChange, capacity,
   const { calculation, capacity: next } = whatIfCapacity(values);
   const months = goal && next ? monthsToReach(goal.target, next) : null;
   return <section className="space-y-3 rounded-xl bg-white p-3" aria-label="¿Y si…?" data-testid={`${id}-panel`}>
-    <div className="grid gap-3 sm:grid-cols-2">
-      <MoneyInput id={`${id}-income`} label="Ingreso mensual (S/)" value={values.income} onChange={income => onChange({ ...values, income })} />
-      <MoneyInput id={`${id}-fixed`} label="GF aplicado (S/), tope 1,500" value={values.fixed} onChange={fixed => onChange({ ...values, fixed })} />
-    </div>
+    <MoneyInput id={`${id}-income`} label="Ingreso mensual (S/)" value={values.income} onChange={income => onChange({ ...values, income })} />
+    <p className="text-xs text-texto-light">Con {formatAmount(FINANCIAL_RULES.fixedExpenseCap)} reservados para gastos fijos.</p>
     <div aria-live="polite" className="space-y-1 text-sm" data-testid={`${id}-result`}>
       {calculation.status === 'invalid' && <ul className={noticeClass()}>{calculation.issues.map(issue => <li key={issue}>{ISSUES[issue]}</li>)}</ul>}
       {calculation.status === 'decision_required' && <p className={noticeClass()}>{calculation.reason === 'DEFICIT_POLICY_PENDING'

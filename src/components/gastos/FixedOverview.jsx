@@ -16,7 +16,7 @@ export default function FixedOverview({ summary }) {
   const aboveReserved = applied != null && budget.amount != null && compareAmounts(budget.amount, applied) > 0;
   const aboveCap = budget.amount != null && compareAmounts(budget.amount, FINANCIAL_RULES.fixedExpenseCap) > 0;
   const figures = [
-    ['Reservado (GF aplicado)', money(applied), 'Lo que usa la distribución del mes'],
+    ['Reservado para gastos fijos', money(applied), 'Lo que usa la distribución del mes'],
     ['Presupuesto detallado', money(budget.amount), `${budget.registered}/${budget.expected} subcategorías con presupuesto`],
     ['Gastado', money(spent.amount), `${spent.registered}/${spent.expected} subcategorías con gasto`],
   ];

@@ -1,6 +1,8 @@
 import { compareAmounts, normalizeAmount } from '../domain/amounts.js';
 import { calculateDistribution } from '../domain/distribution.js';
+import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
+import { withFixedCap } from './fixedCap.js';
 import { estimateSavingsGoal } from '../domain/savingsPlanning.js';
 import { periodKey } from '../domain/fiorellaSession.js';
 
@@ -29,7 +31,7 @@ export function addMonths({ year, month }, count) {
  */
 export function couplePlanCapacity(records, selected, origin = 'simulated') {
   const key = periodKey(selected);
-  const rows = fiorellaEvolution(records, origin).filter(row => row.couplePlanned != null && row.key <= key);
+  const rows = fiorellaEvolution(withFixedCap(records), origin).filter(row => row.couplePlanned != null && row.key <= key);
   const row = rows.at(-1);
   return row ? { status: 'ready', amount: row.couplePlanned, from: row.period } : { status: 'empty', amount: null, from: null };
 }
@@ -67,8 +69,8 @@ export function goalPlan(goal, capacity, current) {
     shortfall: onTime ? null : ceilCents(n * cD - cN * d, d * cD) };
 }
 
-/** The "¿y si…?" capacity C' for an income and applied GF; nothing is saved. */
+/** The "¿y si…?" capacity C' for another income, with the GF at its cap; nothing is saved. */
 export function whatIfCapacity(values) {
-  const calculation = calculateDistribution({ income: values.income, fixedExpense: values.fixed });
+  const calculation = calculateDistribution({ income: values.income, fixedExpense: FINANCIAL_RULES.fixedExpenseCap });
   return { calculation, capacity: calculation.status === 'calculated' ? calculation.distribution.savings.couple : null };
 }

@@ -47,7 +47,7 @@ test('GF fixed view renders 5 groups and 19 rows with inline editors; open group
     // Nothing registered yet: every group needs attention, so all of them start open.
     assert.equal((html.match(/aria-expanded="true" aria-controls="gf-rows-/g) ?? []).length, 5);
     assert.doesNotMatch(html, /<form|<progress|>Ayuda</);
-    assert.ok(html.includes('data-testid="budget-totals"') && html.includes('Reservado (GF aplicado)') && html.includes('Presupuesto detallado'));
+    assert.ok(html.includes('data-testid="budget-totals"') && html.includes('Reservado para gastos fijos') && html.includes('Presupuesto detallado'));
     assert.ok(html.includes('Sin registrar') && html.includes('Cobertura parcial'));
     assert.ok(html.includes('<table class="sr-only">'), 'the bullet chart has an equivalent table');
     const read = render('read');

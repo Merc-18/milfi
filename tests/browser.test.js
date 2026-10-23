@@ -125,9 +125,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("El ingreso es menor que el gasto fijo")');
       await fill('page-whatif-income', '1500');
       await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("El sobrante es cero")');
-      await fill('page-whatif-income', '4000'); await fill('page-whatif-fixed', '1600');
-      await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("tope oficial de S/ 1,500")');
       assert.doesNotMatch(await result(), /Ahorro de pareja|Ver reparto completo/);
+      // The GF is always the cap: the "¿y si…?" only changes the income.
+      assert.equal(await browser.evaluate('document.querySelectorAll("#page-whatif-fixed").length'), 0);
+      assert.ok(await browser.evaluate('document.querySelector("dialog[open]").textContent.includes("S/ 1,500.00 reservados para gastos fijos")'));
       await closeTop();
     });
 
@@ -150,10 +151,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await testText('distribution-chart')).includes('Registra el ingreso del mes'));
       await fill('fiorella-period', '2038-04');
       await openMonthly();
+      // Only the income is asked: the applied GF is always the S/ 1,500 cap.
+      assert.equal(await browser.evaluate('document.querySelectorAll("#monthly-fixed").length'), 0);
       await fill('monthly-income', '5432.01');
       await submitForm('Datos mensuales');
-      await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("Registra el GF aplicado")');
-      await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
       // GV 40 % of 3,932.01 = 1,572.804, plus the applied GF 1,500 with no GF actual yet.
       await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("S/ 3,072.804")');
       assert.ok(await browser.evaluate('document.querySelector("form[aria-label=\'Datos mensuales\'] [role=status]").textContent === "Guardado."'));
@@ -179,7 +180,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('actual-servicios-gas', '110.05'); await submitForm('Presupuesto servicios-gas');
       await browser.waitFor('document.body.textContent.includes("S/ 10.05")');
       // The three GF figures are explained once, with the applied GF as "reserved".
-      assert.ok((await testText('budget-totals')).includes('Reservado (GF aplicado)') && (await testText('budget-totals')).includes('S/ 1,500.00'));
+      assert.ok((await testText('budget-totals')).includes('Reservado para gastos fijos') && (await testText('budget-totals')).includes('S/ 1,500.00'));
       assert.doesNotMatch(await visibleText(), />?Ayuda</);
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('02-presupuestos-movil.png');
@@ -273,17 +274,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await testText('remaining')).includes('S/ 1,962.254'));
       assert.ok((await testText('savings-tracking')).includes('Sin depósitos'));
       assert.ok((await testText('couple-savings-chart')).includes('S/ 943.6824'));
-      await openMonthly(); await fill('monthly-fixed', '1000'); await submitForm('Datos mensuales');
-      // The budget detail (120.10) stays below the applied GF, so no warning; spending above it shows the excess.
-      await browser.waitFor('document.querySelector("[data-testid=variable-stat]").textContent.includes("de S/ 1,772.804")');
-      await closeSheet();
-      await openMonthly(); await fill('monthly-fixed', '100'); await submitForm('Datos mensuales');
-      await browser.waitFor('document.querySelector("[data-testid=fixed-stat]").textContent.includes("Exceso: −S/ 10.05")');
-      assert.ok((await testText('fixed-stat')).includes('Presupuesto mayor al GF aplicado'));
-      await closeSheet();
-      await openMonthly(); await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
-      await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("S/ 1,962.254")');
-      await closeSheet();
+      // The budget detail (120.10) stays below the reserved GF, so no warning badge.
+      assert.doesNotMatch(await testText('fixed-stat'), /Presupuesto mayor/);
       // Home shows the same live figure for the selected month.
       await clickLink('/', 'MilFi');
       assert.ok((await visibleText()).includes('S/ 1,962.254'));
@@ -390,7 +382,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/fiorella/metas', 'Metas');
       await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Registra el ingreso del mes").click()');
       await browser.waitFor('!!document.querySelector("dialog[open] #monthly-income")');
-      await fill('monthly-income', '5432.01'); await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
+      await fill('monthly-income', '5432.01'); await submitForm('Datos mensuales');
       await closeTop();
       // Capacity = 24 % of 3,932.01 from the selected month (January 2040).
       const capacity = await testText('goal-capacity');

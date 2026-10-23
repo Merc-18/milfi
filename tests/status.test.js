@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMilfiStore } from '../src/store/useStore.js';
 import { summarizeFiorella } from '../src/domain/fiorellaSession.js';
+import { withFixedCap } from '../src/presentation/fixedCap.js';
 import { remainingToSpend, savingsStatus, usageStatus } from '../src/presentation/status.js';
 
 // Invented values only.
@@ -9,6 +10,11 @@ let sequence = 0;
 const period = { year: 2045, month: 3 };
 const command = (kind, fields) => ({ id: `status-${++sequence}`, eventId: `status-event-${sequence}`, kind, period, expectedRevision: 0,
   occurredAt: '2045-03-01T12:00:00.000Z', ...fields });
+const capped = (...commands) => {
+  const store = createMilfiStore();
+  for (const [kind, fields] of commands) assert.equal(store.getState().saveFiorellaDemo(command(kind, fields)).ok, true);
+  return summarizeFiorella(withFixedCap(store.getState().fiorellaDemoRecords), period);
+};
 const monthWith = (...commands) => {
   const store = createMilfiStore();
   for (const [kind, fields] of commands) assert.equal(store.getState().saveFiorellaDemo(command(kind, fields)).ok, true);
@@ -40,7 +46,8 @@ test('couple savings status is ok once the plan is reached and neutral before, n
 test('remaining to spend uses the applied GF as limit and tells what is missing', () => {
   assert.deepEqual(remainingToSpend(monthWith()), { status: 'missing-income', amount: null });
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '', appliedFixedExpense: '1200' }])), { status: 'missing-income', amount: null });
-  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '' }])), { status: 'missing-fixed', amount: null });
+  // A month saved without GF is read with the cap (withFixedCap): no "missing GF" state exists.
+  assert.deepEqual(remainingToSpend(capped(['monthly-plan', { income: '4000', appliedFixedExpense: '' }])).amount, '2500');
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1000', appliedFixedExpense: '1500' }])), { status: 'deficit', amount: null });
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1499.99', appliedFixedExpense: '1500' }])), { status: 'deficit', amount: null });
   // Complete: GV 40 % of 2,500 = 1,000; nothing spent yet and no GF actual registered.

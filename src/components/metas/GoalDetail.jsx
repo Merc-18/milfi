@@ -14,7 +14,7 @@ export default function GoalDetail({ goal, capacity, base, current, editable, on
   const [values, setValues] = useState(base);
   const plan = goalPlan(goal, capacity.amount, current);
   const next = whatIfCapacity(values).capacity;
-  const changed = values.income !== base.income || values.fixed !== base.fixed;
+  const changed = values.income !== base.income;
   const alternative = changed && next ? { capacity: next, months: monthsToReach(goal.target, next) } : null;
   const finished = isFinished(goal);
   return <div className="space-y-4" data-testid="goal-detail">

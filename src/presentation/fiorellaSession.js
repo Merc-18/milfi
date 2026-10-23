@@ -2,13 +2,14 @@ import { useStore } from '../store/useStore.js';
 import { usePeriodStore } from '../store/periodStore.js';
 import { parsePeriodInput } from './format.js';
 import { summarizeFiorella } from '../domain/fiorellaSession.js';
+import { withFixedCap } from './fixedCap.js';
 
 export function useFiorellaPeriod() {
   const input = usePeriodStore(state => state.selectedPeriod);
   const records = useStore(state => state.fiorellaDemoRecords);
   const persisted = useStore(state => !!state.remote);
   const period = parsePeriodInput(input);
-  return { input, period, persisted, summary: summarizeFiorella(records, period, persisted ? 'real' : 'simulated') };
+  return { input, period, persisted, summary: summarizeFiorella(withFixedCap(records), period, persisted ? 'real' : 'simulated') };
 }
 
 /** True while records are loaded from and saved to Supabase (authorized session). */

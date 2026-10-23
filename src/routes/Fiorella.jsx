@@ -13,6 +13,7 @@ import { MISSING, MISSING_READ, remainingToSpend, savingsStatus, USAGE_TEXT, usa
 import { addAmounts, compareAmounts } from '../domain/amounts.js';
 import { inspectLedger } from '../domain/controlLedger.js';
 import { fiorellaEvolution, registeredSavingsDeposits, summarizeExpenses } from '../domain/fiorellaDashboard.js';
+import { withFixedCap } from '../presentation/fixedCap.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
 import Badge from '../components/ui/Badge.jsx';
 import Sheet from '../components/ui/Sheet.jsx';
@@ -52,7 +53,7 @@ function RemainingCard({ summary, remaining, manage, onEdit }) {
     </>}
     {income != null && <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/70 pt-3 text-sm">
       <span>Ingreso del mes: <strong className="break-all">{formatAmount(income)}</strong></span>
-      {manage && <button type="button" className={quietButtonClass} onClick={onEdit} aria-label="Editar ingreso y GF aplicado">
+      {manage && <button type="button" className={quietButtonClass} onClick={onEdit} aria-label="Editar ingreso del mes">
         <Pencil size={16} aria-hidden="true" />Editar</button>}
     </div>}
     {summary.requiresRoundingDecision && <p className="text-xs">Hay fracciones de céntimo: se muestran exactas; su redondeo está pendiente.</p>}
@@ -130,7 +131,7 @@ export default function Fiorella() {
   const records = useStore(state => state.fiorellaDemoRecords);
   const ledger = useLedgerStore(state => state.records);
   const [editing, setEditing] = useState(false);
-  const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
+  const evolution = useMemo(() => fiorellaEvolution(withFixedCap(records), persisted ? 'real' : 'simulated'), [records, persisted]);
   const deposits = useMemo(() => registeredSavingsDeposits(inspectLedger(ledger), period, 'fiorella'), [ledger, period]);
   const remaining = remainingToSpend(summary);
   const expenses = summarizeExpenses(summary);
@@ -173,7 +174,7 @@ export default function Fiorella() {
       <CoupleSavingsChart rows={evolution} selected={input} />
       <RecentExpenses records={summary.variable} />
     </div>
-    {manage && <Sheet open={editing} onClose={() => setEditing(false)} title="Ingreso y GF aplicado del mes">
+    {manage && <Sheet open={editing} onClose={() => setEditing(false)} title="Ingreso del mes">
       <MonthlyForm key={input} period={period} record={summary.monthly} />
     </Sheet>}
   </div>;

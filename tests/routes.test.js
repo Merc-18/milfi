@@ -24,7 +24,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/historial', 'Todavía no hay registros.'],
       ['/fiorella/configuracion', 'Configuración oficial'],
       // Presupuestos is the fixed view of Gastos (its redirect is checked in Chromium).
-      ['/fiorella/gastos?tipo=fijos', 'Reservado (GF aplicado)'],
+      ['/fiorella/gastos?tipo=fijos', 'Reservado para gastos fijos'],
       ['/fiorella/gastos', 'Ritmo del mes'],
       // Simulador and Calculadora redirect here (checked in Chromium).
       ['/fiorella/metas', 'Registra el ingreso del mes para estimar tus metas'],
@@ -107,6 +107,13 @@ test('module routes render with real-history notices and no simulated financial 
 
     // Both modules use the same month switcher (the shared month is checked in Chromium).
     assert.ok(renderPath('/control').includes('aria-label="Mes anterior"'), 'Control uses the same month switcher');
+
+    // The month form only asks for the income; a month saved with another GF says what will change.
+    const { default: MonthlyForm } = await server.ssrLoadModule('/src/components/MonthlyForm.jsx');
+    const monthlyForm = record => renderToStaticMarkup(createElement(MonthlyForm, { period: { year: 2041, month: 2 }, record }));
+    assert.ok(!monthlyForm(null).includes('monthly-fixed') && monthlyForm(null).includes('monthly-income'));
+    assert.ok(monthlyForm({ income: '4000', appliedFixedExpense: '1200' }).includes('Este mes tenía S/ 1,200.00 de GF aplicado; al guardar pasará a S/ 1,500.00.'));
+    assert.ok(!monthlyForm({ income: '4000', appliedFixedExpense: '1500' }).includes('Este mes tenía'));
 
     const { default: DistributionDetails } = await server.ssrLoadModule('/src/components/DistributionDetails.jsx');
     const distribution = calculateDistribution({ income: '4000.01', fixedExpense: '1500' }).distribution;

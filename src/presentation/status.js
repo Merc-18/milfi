@@ -1,5 +1,6 @@
 import { addAmounts, compareAmounts, percentageOf, subtractAmounts } from '../domain/amounts.js';
 import { formatAmount } from './format.js';
+import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { moneyDifference } from '../domain/fiorellaSession.js';
 import { summarizeExpenses } from '../domain/fiorellaDashboard.js';
 
@@ -23,13 +24,13 @@ export function savingsStatus(deposited, planned) {
  * "Te queda por gastar": (GV asignado − GV gastado) + (GF aplicado − GF real).
  * The applied GF is the limit, so it matches the distribution's surplus; an
  * unregistered GF actual counts as nothing spent yet. The result may be negative.
- * status: missing-income | missing-fixed | deficit | zero-surplus | remaining | over | equal
+ * Expects records read with withFixedCap (the applied GF is always set).
+ * status: missing-income | deficit | zero-surplus | remaining | over | equal
  */
 export function remainingToSpend(summary) {
   const income = summary.monthly?.income ?? null;
-  const applied = summary.monthly?.appliedFixedExpense ?? null;
   if (income === null) return { status: 'missing-income', amount: null };
-  if (applied === null) return { status: 'missing-fixed', amount: null };
+  const applied = summary.monthly?.appliedFixedExpense ?? FINANCIAL_RULES.fixedExpenseCap;
   if (summary.calculation.status !== 'calculated') {
     return { status: summary.calculation.reason === 'ZERO_SURPLUS_POLICY_PENDING' ? 'zero-surplus' : 'deficit', amount: null };
   }
@@ -47,13 +48,11 @@ export const USAGE_TEXT = { ok: 'Vas bien', aviso: 'Cerca del límite', neutral:
 // Missing data is stated as the action that completes it.
 export const MISSING = {
   'missing-income': 'Registra el ingreso del mes',
-  'missing-fixed': 'Registra el GF aplicado',
   deficit: 'El ingreso no cubre el GF aplicado',
   'zero-surplus': 'No queda sobrante para repartir este mes',
 };
 export const MISSING_READ = {
   'missing-income': 'Falta registrar el ingreso del mes.',
-  'missing-fixed': 'Falta registrar el GF aplicado.',
   deficit: 'El ingreso no cubre el GF aplicado.',
   'zero-surplus': 'No queda sobrante para repartir este mes.',
 };

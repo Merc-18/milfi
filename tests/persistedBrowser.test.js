@@ -46,7 +46,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.doesNotMatch(body, /· demo|Demostración de esta sesión|Historial real aún no importado|Datos guardados en MilFi|Modo demo/);
       assert.ok(body.includes('S/ 3,000.00'), 'income of the month');
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent.includes("PEN 22.50")'), 'savings deposited in Control');
-      assert.ok(await browser.evaluate('!!document.querySelector("[aria-label=\'Editar ingreso y GF aplicado\']")'));
+      assert.ok(await browser.evaluate('!!document.querySelector("[aria-label=\'Editar ingreso del mes\']")'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=couple-savings-chart] svg[role=img]")'));
       assert.equal(await fits(), true);
       await capture('datos-01-panel-fiorella.png');
@@ -157,7 +157,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     await context.test('Milton reads Fiorella without forms and manages Control', async () => {
       await mount('milton', '/fiorella', '2031-02');
       await browser.waitFor('document.body.textContent.includes("Solo consulta")');
-      assert.ok(await browser.evaluate('!document.getElementById("monthly-income") && !document.querySelector("[aria-label=\'Editar ingreso y GF aplicado\']")'));
+      assert.ok(await browser.evaluate('!document.getElementById("monthly-income") && !document.querySelector("[aria-label=\'Editar ingreso del mes\']")'));
       await mount('milton', '/fiorella/gastos', '2031-02');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
       assert.ok(await browser.evaluate('!document.querySelector("[data-expense-id] button") && !document.getElementById("gv-date") && document.body.textContent.includes("Solo consulta")'));

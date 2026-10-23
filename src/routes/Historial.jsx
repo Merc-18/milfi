@@ -6,6 +6,7 @@ import { fieldClass } from '../components/FiorellaSession.jsx';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
+import { withFixedCap } from '../presentation/fixedCap.js';
 import { displayName } from '../presentation/categoryLabels.js';
 
 const labels = { income: 'Ingreso', appliedFixedExpense: 'GF aplicado', budgetAmount: 'Presupuesto GF', actualAmount: 'Gasto GF', amount: 'Importe GV', description: 'Descripción', effectiveDate: 'Fecha', categoryId: 'Categoría', subcategory: 'Subcategoría', notes: 'Notas' };
@@ -63,7 +64,7 @@ export default function Historial() {
   const [month, setMonth] = useState(selected);
   const [search, setSearch] = useState('');
   const [shown, setShown] = useState(PAGE);
-  const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
+  const evolution = useMemo(() => fiorellaEvolution(withFixedCap(records), persisted ? 'real' : 'simulated'), [records, persisted]);
   const groups = fiorellaHistory(records, events, [], persisted ? 'real' : 'simulated');
   const text = search.trim().toLocaleLowerCase('es');
   const matches = record => (kind === 'all' || record.kind === kind) && (category === 'all' || record.categoryId === category || record.categoryId?.startsWith(`${category}-`))
