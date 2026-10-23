@@ -40,12 +40,14 @@ export default function ExpenseList({ records, period, today, manage, onEdit, on
   const paged = groupByDay(newest.slice(0, shown), today);
   if (!records.length) return <section className={`${cardClass} space-y-3`} aria-label="Gastos variables">
     <p className="text-sm">Aún no hay gastos variables en {formatPeriod(period)}.</p>
-    {manage && <button type="button" className={`${buttonClass} inline-flex items-center gap-2`} onClick={onNew}><Plus size={18} aria-hidden="true" />Registrar gasto</button>}
+    {manage && <button type="button" className={`${buttonClass} inline-flex items-center gap-2`} onClick={onNew}>
+      <Plus size={18} aria-hidden="true" />Registrar gasto</button>}
   </section>;
   return <section className="space-y-3" aria-label="Gastos variables">
     <div className="space-y-2">
       <div><label htmlFor="gv-filter-text" className="block text-xs font-bold mb-1">Buscar</label>
-        <input id="gv-filter-text" type="search" className={fieldClass} value={search} onChange={event => { setSearch(event.target.value); setShown(PAGE); }} /></div>
+        <input id="gv-filter-text" type="search" className={fieldClass} value={search}
+          onChange={event => { setSearch(event.target.value); setShown(PAGE); }} /></div>
       <div role="group" aria-label="Categoría" className="flex flex-wrap gap-2">
         {CHIPS.map(([id, label]) => <button key={id} type="button" aria-pressed={category === id} className={chipClass(category === id)}
           onClick={() => { setCategory(id); setShown(PAGE); }}>{label}</button>)}

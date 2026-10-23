@@ -14,6 +14,7 @@ export default function VariableView({ summary, period, today, manage, onNew, on
       <CategoryCards summary={summary} />
     </div>
     {summary.requiresRoundingDecision && <p className="text-sm">Importes con fracciones de céntimo; redondeo pendiente.</p>}
-    <ExpenseList key={`${period.year}-${period.month}`} records={summary.variable} period={period} today={today} manage={manage} onEdit={onEdit} onNew={onNew} />
+    <ExpenseList key={`${period.year}-${period.month}`} records={summary.variable} period={period} today={today} manage={manage}
+      onEdit={onEdit} onNew={onNew} />
   </div>;
 }

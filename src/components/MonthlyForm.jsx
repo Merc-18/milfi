@@ -18,7 +18,8 @@ export default function MonthlyForm({ period, record }) {
   const submit = async event => {
     event.preventDefault();
     setSaving(true);
-    const result = await save(sessionCommand('monthly-plan', period, base, { income, appliedFixedExpense: fixed, planStatus: projected ? 'projected' : 'actual' }));
+    const planStatus = projected ? 'projected' : 'actual';
+    const result = await save(sessionCommand('monthly-plan', period, base, { income, appliedFixedExpense: fixed, planStatus }));
     setSaving(false);
     if (result.ok) setBase(result.value);
     setFeedback({ ok: result.ok, text: sessionResultMessage(result, persisted) });
@@ -33,6 +34,7 @@ export default function MonthlyForm({ period, record }) {
       Proyección: aún no recibido</label>
     <p className="text-xs text-texto-light">Usa punto decimal. Puedes completar un campo ahora y el otro después.</p>
     <button type="submit" className={buttonClass} disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
-    {feedback && <p className={`text-sm rounded-xl px-3 py-2 ${feedback.ok ? 'bg-exito/60' : TONE_CLASS.aviso}`} role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
+    {feedback && <p className={`text-sm rounded-xl px-3 py-2 ${feedback.ok ? 'bg-exito/60' : TONE_CLASS.aviso}`}
+      role={feedback.ok ? 'status' : 'alert'}>{feedback.text}</p>}
   </form>;
 }

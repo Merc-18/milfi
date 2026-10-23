@@ -3,6 +3,8 @@ import { formatAmount } from '../../presentation/format.js';
 
 const FILL = { ok: 'fill-exito', aviso: 'fill-acento', neutral: 'fill-secundario', excedido: 'fill-excedido' };
 const ratio = (value, scale) => value == null || Number(scale) === 0 ? 0 : Math.min(1, Number(value) / Number(scale)) * 100;
+const rowClass = 'grid w-full min-h-11 grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-center gap-x-3 rounded-xl px-2 py-1.5 text-left'
+  + ' hover:bg-principal/30 sm:grid-cols-[9rem_minmax(0,1fr)_auto]';
 const money = value => value == null ? 'sin registrar' : formatAmount(value);
 
 // One bullet: the budget is the background track, the actual the inner bar in
@@ -32,7 +34,7 @@ export default function BulletBars({ items, label, onSelect }) {
     {items.map(item => {
       const Row = onSelect ? 'button' : 'div';
       return <Row key={item.key} {...(onSelect ? { type: 'button', onClick: () => onSelect(item.key) } : { 'aria-hidden': true })}
-        className="grid w-full min-h-11 grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-center gap-x-3 rounded-xl px-2 py-1.5 text-left hover:bg-principal/30 sm:grid-cols-[9rem_minmax(0,1fr)_auto]">
+        className={rowClass}>
         <span className="text-sm font-bold truncate">{item.label}</span>
         <BulletTrack budget={item.budget} actual={item.actual} tone={item.tone} />
         <span className="col-span-2 text-xs tabular-nums text-texto-light sm:col-span-1 sm:text-right">

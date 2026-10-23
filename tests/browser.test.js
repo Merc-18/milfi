@@ -44,17 +44,19 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     };
 
-    await context.test('all four legacy routes redirect with replacement rather than trapping Back', async () => {
+    await context.test('legacy routes redirect with replacement rather than trapping Back', async () => {
       const aliases = [
         ['/calculadora', '/fiorella/calculadora', 'Simular distribución'],
         ['/historial', '/fiorella/historial', 'Historial'],
         ['/configuracion', '/fiorella/configuracion', 'Configuración oficial'],
         ['/fondo-comun', '/control', 'Control Finanzas M&F'],
+        // Presupuestos is now the fixed view of Gastos.
+        ['/fiorella/presupuestos', '/fiorella/gastos?tipo=fijos', 'Gastos'],
       ];
       for (const [oldPath, target, heading] of aliases) {
         await navigate('/', 'MilFi');
         await browser.page('Page.navigate', { url: origin + oldPath });
-        await browser.waitFor(`location.pathname === ${JSON.stringify(target)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+        await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(target)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
         await browser.evaluate('history.back()');
         await browser.waitFor('location.pathname === "/" && document.querySelector("h1")?.textContent.includes("MilFi")');
       }

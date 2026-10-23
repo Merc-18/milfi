@@ -60,38 +60,55 @@ test('saved data: dashboards, filters and goals render without demo labels and r
 
     await context.test('Fiorella GV: loaded subcategory and notes, filters by category and text', async () => {
       await mount('fiorella', '/fiorella/gastos', '2031-02');
-      await browser.waitFor('document.querySelectorAll("article").length === 2');
-      assert.ok((await text()).includes('Cargado del Excel') && (await text()).includes('Nota inventada'));
-      await browser.evaluate('(() => { const select = document.getElementById("gv-filter-category"); select.value = "salud"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
-      await browser.waitFor('document.querySelectorAll("article").length === 1');
-      await browser.evaluate('(() => { const select = document.getElementById("gv-filter-category"); select.value = "all"; select.dispatchEvent(new Event("change", { bubbles: true })); const input = document.getElementById("gv-filter-text"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "antojo"); input.dispatchEvent(new Event("input", { bubbles: true })); })()');
-      await browser.waitFor('document.querySelectorAll("article").length === 1 && document.querySelector("article").textContent.includes("Antojo")');
-      assert.ok(await browser.evaluate('!!document.getElementById("gv-subcategory") && !!document.getElementById("gv-notes")'));
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
+      // Provenance, revision and notes are shown only in the edit sheet.
+      assert.doesNotMatch(await text(), /Cargado del Excel|Revisión \d/);
+      const details = [];
+      for (const index of [0, 1]) {
+        await browser.evaluate(`document.querySelectorAll("[data-expense-id] button")[${index}].click()`);
+        await browser.waitFor('!!document.querySelector("dialog[open] #gv-notes")');
+        details.push(await browser.evaluate('({ source: document.querySelector("dialog[open] [data-testid=expense-source]").textContent, notes: document.getElementById("gv-notes").value, subcategory: document.getElementById("gv-subcategory").value })'));
+        await browser.evaluate('document.querySelector("dialog[open] button[aria-label=Cerrar]").click()');
+        await browser.waitFor('!document.querySelector("dialog[open]")');
+      }
+      assert.ok(details.some(item => item.source.includes('Cargado del Excel')), JSON.stringify(details));
+      assert.ok(details.some(item => item.notes === 'Nota inventada'), JSON.stringify(details));
+      const chip = name => browser.evaluate(`Array.from(document.querySelectorAll("[aria-label=Categoría] button")).find(button => button.textContent === ${JSON.stringify(name)}).click()`);
+      await chip('Salud');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
+      await chip('Todas');
+      await browser.evaluate('(() => { const input = document.getElementById("gv-filter-text"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "antojo"); input.dispatchEvent(new Event("input", { bubbles: true })); })()');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1 && document.querySelector("[data-expense-id]").textContent.includes("Antojo")');
       assert.equal(await fits(), true);
     });
 
     await context.test('Gastos: GF and GV of the month together, NULL kept, projected months without spending', async () => {
-      await mount('fiorella', '/fiorella/gastos', '2031-01');
+      await mount('fiorella', '/fiorella/gastos?tipo=fijos', '2031-01');
       await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
-      // January has GF actuals and no GV: the screen is not empty.
-      assert.ok((await text()).includes('Sin gastos variables registrados'));
+      // January has GF actuals and no GV: the total is not empty.
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 233.70")'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-fixed-id]").length'), 19);
+      await mount('fiorella', '/fiorella/gastos', '2031-01');
+      assert.ok((await text()).includes('Aún no hay gastos variables en enero de 2031'));
       await mount('fiorella', '/fiorella/gastos', '2031-02');
-      await browser.waitFor('document.querySelectorAll("article").length === 2');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
       const summary = await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent');
-      assert.ok(summary.includes('S/ 90.00') && summary.includes('S/ 32.30') && summary.includes('S/ 122.30') && summary.includes('parcial') && summary.includes('18/19'), summary);
-      assert.ok(await browser.evaluate('document.querySelector("[data-fixed-id=servicios-luz]").textContent.includes("Sin registrar")'));
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Fijos").click()');
-      await browser.waitFor('document.querySelector("[aria-label=\'Gastos variables\']").closest("[hidden]") !== null');
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Variables").click()');
-      await browser.waitFor('document.querySelector("[data-testid=fixed-expenses]").closest("[hidden]") !== null');
+      assert.ok(summary.includes('S/ 122.30') && summary.includes('Parcial'), summary);
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=pace-chart] svg[role=img]") && !document.querySelector("[data-testid=fixed-expenses]")'));
+      // Keyboard on the tabs: arrows move between the two views.
+      await browser.evaluate('document.getElementById("gastos-tab-variables").focus()');
+      await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
+      await browser.waitFor('document.getElementById("gastos-tab-fijos").getAttribute("aria-selected") === "true" && document.activeElement.id === "gastos-tab-fijos"');
+      const totals = await browser.evaluate('document.querySelector("[data-testid=budget-totals]").textContent');
+      assert.ok(totals.includes('S/ 90.00') && totals.includes('18/19 subcategorías con gasto'), totals);
+      assert.ok(await browser.evaluate('/sin registrar/i.test(document.querySelector("[data-fixed-id=servicios-luz]").textContent)'));
       assert.equal(await fits(), true);
       await mount('fiorella', '/fiorella', '2031-02');
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=fixed-stat]").textContent.includes("S/ 90.00")'));
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=variable-stat]").textContent.includes("S/ 32.30")'));
       await mount('fiorella', '/fiorella/gastos', '2031-03');
-      assert.ok((await text()).includes('Mes proyectado') && await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("Sin registrar")'));
+      const projected = await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent');
+      assert.ok(projected.includes('Proyectado') && projected.includes('S/ 0.00'), projected);
     });
 
     await context.test('Fiorella history and goals: all months filterable; saved goal keeps its attributes', async () => {
@@ -128,8 +145,12 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('document.body.textContent.includes("Solo consulta")');
       assert.ok(await browser.evaluate('!document.getElementById("monthly-income") && !document.querySelector("[aria-label=\'Editar ingreso y GF aplicado\']")'));
       await mount('milton', '/fiorella/gastos', '2031-02');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
+      assert.ok(await browser.evaluate('!document.querySelector("[data-expense-id] button") && !document.getElementById("gv-date") && document.body.textContent.includes("Solo consulta")'));
+      assert.ok(await browser.evaluate('!Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Registrar gasto") && !document.querySelector(\'a[href="/fiorella/gastos?nuevo"]\')'));
+      await mount('milton', '/fiorella/gastos?tipo=fijos', '2031-02');
       await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
-      assert.ok(await browser.evaluate('!document.getElementById("gv-date") && !document.body.textContent.includes("Editar gasto fijo") && !document.body.textContent.includes("Registrar gasto variable") && document.body.textContent.includes("Solo consulta")'));
+      assert.ok(await browser.evaluate('!document.querySelector("[data-budget-id] button") && !document.body.textContent.includes("Copiar presupuestos")'));
       await mount('milton', '/control', '2031-01');
       await browser.waitFor('!!document.getElementById("control-amount")');
       assert.deepEqual(browser.exceptions, []);

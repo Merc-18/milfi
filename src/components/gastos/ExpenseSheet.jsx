@@ -45,10 +45,12 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
       return;
     }
     const moved = keyOf(target) !== input;
-    onDone(`${record ? 'Gasto actualizado' : 'Gasto guardado'}${moved ? ` en ${formatPeriod(target)}` : ''}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
+    const where = moved ? ` en ${formatPeriod(target)}` : '';
+    onDone(`${record ? 'Gasto actualizado' : 'Gasto guardado'}${where}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
     if (moved) select(keyOf(target));
   };
-  const source = !record ? null : `${persisted ? `${record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi'}. ` : ''}Revisión ${record.revision}.`;
+  const origin = record?.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel. ' : 'Registrado en MilFi. ';
+  const source = !record ? null : `${persisted ? origin : ''}Revisión ${record.revision}.`;
   return <form aria-label="Gasto variable" onSubmit={event => { event.preventDefault(); send(false); }} className="space-y-4">
     <div>{label('gv-amount', 'Importe (S/)')}
       <input id="gv-amount" data-autofocus type="text" inputMode="decimal" maxLength={100} autoComplete="off" required value={amount}
@@ -62,9 +64,11 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
       </div>
     </fieldset>
     <div>{label('gv-description', 'Descripción')}
-      <input id="gv-description" className={fieldClass} maxLength={300} required value={description} onChange={event => edit(setDescription)(event.target.value)} /></div>
+      <input id="gv-description" className={fieldClass} maxLength={300} required value={description}
+        onChange={event => edit(setDescription)(event.target.value)} /></div>
     <div>{label('gv-date', 'Fecha')}
-      <input id="gv-date" type="date" min="0001-01-01" max="9999-12-31" className={fieldClass} required value={date} onChange={event => edit(setDate)(event.target.value)} /></div>
+      <input id="gv-date" type="date" min="0001-01-01" max="9999-12-31" className={fieldClass} required value={date}
+        onChange={event => edit(setDate)(event.target.value)} /></div>
     <details open={!!(record?.subcategory || record?.notes)} className="rounded-xl bg-white px-3">
       <summary className="cursor-pointer min-h-11 flex items-center font-bold text-sm">Más opciones</summary>
       <div className="space-y-3 pb-3">
@@ -73,7 +77,8 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
             onChange={event => setSubcategory(event.target.value)} />
           <datalist id="gv-subcategories">{suggestions.map(item => <option key={item} value={item} />)}</datalist></div>
         <div>{label('gv-notes', 'Notas')}
-          <input id="gv-notes" className={fieldClass} maxLength={500} value={notes} placeholder="Opcional" onChange={event => setNotes(event.target.value)} /></div>
+          <input id="gv-notes" className={fieldClass} maxLength={500} value={notes} placeholder="Opcional"
+            onChange={event => setNotes(event.target.value)} /></div>
       </div>
     </details>
     {duplicate && <div role="alert" className={`${noticeClass()} space-y-2`} data-testid="duplicate-warning">

@@ -20,11 +20,13 @@ export default function CumulativeLine({ series, label }) {
       <line x1="0" x2={WIDTH} y1={HEIGHT} y2={HEIGHT} className="stroke-secundario" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       {allocation !== null && <>
         <line x1="0" x2={WIDTH} y1={y(allocation)} y2={y(allocation)} className="stroke-texto-light" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-        <line x1="0" y1={HEIGHT} x2={WIDTH} y2={y(allocation)} className="stroke-texto-light" strokeWidth="1.5" strokeDasharray="4 4" vectorEffect="non-scaling-stroke" />
+        <line x1="0" y1={HEIGHT} x2={WIDTH} y2={y(allocation)} className="stroke-texto-light" strokeWidth="1.5" strokeDasharray="4 4"
+          vectorEffect="non-scaling-stroke" />
       </>}
       {timing === 'current' && <line x1={x(referenceDay)} x2={x(referenceDay)} y1="0" y2={HEIGHT} className="stroke-excedido/50" strokeWidth="1.5"
         strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />}
-      {timing !== 'future' && <polyline points={line} fill="none" className="stroke-texto" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
+      {timing !== 'future' && <polyline points={line} fill="none" className="stroke-texto" strokeWidth="2.5" strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke" />}
     </svg>
     <div className="flex justify-between text-[11px] text-texto-light" aria-hidden="true"><span>1</span>
       {timing === 'current' && <span className="font-bold text-texto">Hoy, día {referenceDay}</span>}<span>{days}</span></div>
@@ -34,7 +36,8 @@ export default function CumulativeLine({ series, label }) {
       {allocation !== null && <li className="flex items-center gap-1.5"><span className="h-px w-5 bg-texto-light" />Asignado</li>}
     </ul>
     <table className="sr-only">
-      <caption>{allocation === null ? 'Gasto acumulado por día' : `Gasto acumulado por día; el ritmo ideal reparte ${formatAmount(allocation)} en ${days} días`}</caption>
+      <caption>{allocation === null ? 'Gasto acumulado por día'
+        : `Gasto acumulado por día; el ritmo ideal reparte ${formatAmount(allocation)} en ${days} días`}</caption>
       <thead><tr><th scope="col">Día</th><th scope="col">Acumulado</th></tr></thead>
       <tbody>{reached.map(point => <tr key={point.day}><th scope="row">{point.day}</th><td>{formatAmount(point.actual)}</td></tr>)}</tbody>
     </table>

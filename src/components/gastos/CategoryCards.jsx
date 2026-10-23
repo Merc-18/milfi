@@ -25,7 +25,8 @@ export default function CategoryCards({ summary }) {
             : `Te quedan ${formatAmount(left.amount)} de ${formatAmount(category.allocation)}`}</p>
         {!!top.length && <ul className="space-y-1.5" aria-label={`Subcategorías con más gasto en ${category.name}`}>
           {top.map(item => <li key={item.name} className="text-xs">
-            <span className="flex justify-between gap-2"><span className="truncate">{item.name}</span><span className="tabular-nums">{formatAmount(item.amount)}</span></span>
+            <span className="flex justify-between gap-2">
+              <span className="truncate">{item.name}</span><span className="tabular-nums">{formatAmount(item.amount)}</span></span>
             <span className="mt-0.5 block h-1.5 rounded-full bg-acento" style={{ width: width(item.amount, top[0].amount) }} aria-hidden="true" />
           </li>)}
         </ul>}

@@ -68,7 +68,9 @@ export function pacePhrase(pace, formatAmount) {
   if (pace.status === 'no-allocation') return null;
   if (pace.status === 'future') return `Este mes aún no empieza: tendrás ${formatAmount(pace.allocation)} para ${pace.days} días.`;
   const side = pace.status === 'above' ? 'por encima' : 'por debajo';
-  if (pace.timing === 'past') return pace.status === 'on' ? 'Terminaste el mes al ritmo.' : `Terminaste el mes unos ${soles(pace.amount)} ${side} de lo asignado.`;
+  if (pace.timing === 'past') {
+    return pace.status === 'on' ? 'Terminaste el mes al ritmo.' : `Terminaste el mes unos ${soles(pace.amount)} ${side} de lo asignado.`;
+  }
   return pace.status === 'on' ? 'Vas al ritmo.' : `Vas unos ${soles(pace.amount)} ${side} del ritmo ideal.`;
 }
 

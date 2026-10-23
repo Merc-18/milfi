@@ -27,16 +27,20 @@ const COPY_REASON = {
 export default function FixedView({ summary, period, manage, persisted }) {
   const records = useStore(state => state.fiorellaDemoRecords);
   const groups = budgetGroups(summary);
-  const [open, setOpen] = useState(() => new Set(groups.filter(needsAttention).map(group => group.id)));
+  // Groups open by default while they need attention, also once saved data arrive;
+  // a group the user toggled or is editing keeps the user's choice.
+  const [chosen, setChosen] = useState(() => new Map());
+  const isOpen = group => chosen.get(group.id) ?? needsAttention(group);
+  const choose = (id, value) => setChosen(current => new Map(current).set(id, value));
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [editing, setEditing] = useState(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copying, setCopying] = useState(false);
   const plan = useMemo(() => copyPreviousBudgets(records, period, persisted ? 'real' : 'simulated'), [records, period, persisted]);
-  const toggle = id => setOpen(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const toggle = id => choose(id, !isOpen(groups.find(group => group.id === id)));
   const reveal = id => {
-    setOpen(current => new Set(current).add(id));
+    choose(id, true);
     requestAnimationFrame(() => {
       const section = document.getElementById(`gf-group-${id}`);
       section?.scrollIntoView({ block: 'start' });
@@ -45,7 +49,7 @@ export default function FixedView({ summary, period, manage, persisted }) {
   };
   const shown = onlyMissing ? groups.filter(group => group.rows.some(({ record }) => isMissing(record))) : groups;
   const rowProps = id => ({ period, manage, busy, editing: editing === id, onBusy: setBusy, onClose: () => setEditing(null), onSaved: setFeedback,
-    onEdit: target => { setFeedback(null); setEditing(target); } });
+    onEdit: target => { setFeedback(null); setEditing(target); choose(groups.find(group => group.rows.some(row => row.category.id === target)).id, true); } });
   const items = groups.map(group => ({ key: group.id, label: group.name, budget: group.budget, actual: group.actual,
     tone: usageStatus(group.actual ?? '0', group.budget) ?? 'neutral' }));
   return <div className="space-y-4" data-testid="fixed-expenses">
@@ -58,14 +62,15 @@ export default function FixedView({ summary, period, manage, persisted }) {
       <button type="button" aria-pressed={onlyMissing} onClick={() => setOnlyMissing(value => !value)}
         className={`${toolClass} ${onlyMissing ? 'bg-texto text-white' : ''}`}>Solo sin registrar</button>
       {manage && <button type="button" className={toolClass} disabled={plan.status !== 'ready' || busy} onClick={() => setCopying(true)}
-        aria-describedby={plan.status === 'ready' ? undefined : 'copy-reason'}><Copy size={16} aria-hidden="true" />Copiar presupuestos del mes anterior</button>}
+        aria-describedby={plan.status === 'ready' ? undefined : 'copy-reason'}>
+        <Copy size={16} aria-hidden="true" />Copiar presupuestos del mes anterior</button>}
     </div>
     {manage && plan.status !== 'ready' && <p id="copy-reason" className="text-xs text-texto-light">{COPY_REASON[plan.status](plan.from)}</p>}
     {feedback && <p role="status" className="text-sm rounded-xl bg-exito/60 px-3 py-2">{feedback}</p>}
     {summary.requiresRoundingDecision && <p className="text-xs">Fracciones de céntimo: se muestran exactas, sin redondear.</p>}
     {onlyMissing && !shown.length && <p className={cardClass}>Todo está registrado este mes.</p>}
     <div className="grid gap-3 items-start" data-testid="budget-groups">
-      {shown.map(group => <FixedGroup key={group.id} group={group} open={onlyMissing || open.has(group.id)} onToggle={toggle}
+      {shown.map(group => <FixedGroup key={group.id} group={group} open={onlyMissing || isOpen(group)} onToggle={toggle}
         onlyMissing={onlyMissing} rowProps={rowProps} />)}
     </div>
     {/* Stays mounted while open so the result survives the plan becoming empty. */}
