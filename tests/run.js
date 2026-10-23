@@ -18,3 +18,5 @@ import './persistedStores.test.js';
 import './realUse.test.js';
 import './fixedBudgets.test.js';
 import './status.test.js';
+import './variablePace.test.js';
+import './budgetCopy.test.js';

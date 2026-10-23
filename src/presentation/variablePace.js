@@ -1,0 +1,106 @@
+import { addAmounts, compareAmounts, percentageOf, subtractAmounts } from '../domain/amounts.js';
+import { formatShortDate } from './format.js';
+
+// Exact amount × whole number (percentageOf divides by 100).
+const times = (amount, count) => percentageOf(amount, count * 100);
+const leap = year => year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+export const daysInMonth = ({ year, month }) => [31, leap(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+const monthKey = ({ year, month }) => `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}`;
+
+/**
+ * Cumulative GV spending of one month, day by day, for 'salud', 'ocio' or 'all'.
+ * actual(d) = exact sum of the expenses dated up to day d; ideal(d) = allocation × d / days
+ * (drawn by the chart). Past months use the last day, the current month (today in
+ * Lima, 'YYYY-MM-DD') stops at today and a future month has no actual line.
+ */
+export function cumulativeVariableSeries(summary, period, categoryId = 'all', today) {
+  const days = daysInMonth(period);
+  const key = monthKey(period);
+  const timing = key < today.slice(0, 7) ? 'past' : key === today.slice(0, 7) ? 'current' : 'future';
+  const referenceDay = timing === 'past' ? days : timing === 'current' ? Number(today.slice(8, 10)) : 0;
+  const distribution = summary.calculation.status === 'calculated' ? summary.calculation.distribution : null;
+  const allocation = !distribution ? null : categoryId === 'all' ? distribution.variable.total : distribution.variable.categories[categoryId];
+  const daily = new Map();
+  for (const record of summary.variable) {
+    if (categoryId !== 'all' && record.categoryId !== categoryId) continue;
+    const day = Number(record.effectiveDate.slice(8, 10));
+    daily.set(day, addAmounts(daily.get(day) ?? '0', record.amount));
+  }
+  let running = '0';
+  const points = Array.from({ length: days }, (_, index) => {
+    const day = index + 1;
+    running = addAmounts(running, daily.get(day) ?? '0');
+    return { day, actual: day <= referenceDay ? running : null };
+  });
+  const actual = referenceDay ? points[referenceDay - 1].actual : '0';
+  return { days, timing, referenceDay, allocation, actual, points };
+}
+
+// Half-up division of a non-negative exact amount by a whole number, to whole soles.
+function roundedQuotient(amount, divisor) {
+  const [whole, fraction = ''] = amount.split('.');
+  const coefficient = BigInt(whole + fraction);
+  const denominator = 10n ** BigInt(fraction.length) * BigInt(divisor);
+  return ((2n * coefficient + denominator) / (2n * denominator)).toString();
+}
+
+/**
+ * Pace against the ideal line at the reference day t, exactly:
+ * gap × days = actual(t) × days − allocation × t. Within tolerance when
+ * |gap| < max(S/ 5, 5 % of the allocation). The amount is |gap| rounded half-up
+ * to whole soles, for display only. status: above | below | on | future | no-allocation
+ */
+export function variablePace(series) {
+  if (series.allocation === null) return { status: 'no-allocation' };
+  if (series.timing === 'future') return { status: 'future', allocation: series.allocation, days: series.days };
+  const spent = times(series.actual, series.days);
+  const ideal = times(series.allocation, series.referenceDay);
+  const above = compareAmounts(spent, ideal) > 0;
+  const gap = above ? subtractAmounts(spent, ideal) : subtractAmounts(ideal, spent);
+  const fivePercent = percentageOf(series.allocation, 5);
+  const tolerance = compareAmounts(fivePercent, '5') > 0 ? fivePercent : '5';
+  const within = compareAmounts(gap, times(tolerance, series.days)) < 0;
+  return { status: within ? 'on' : above ? 'above' : 'below', timing: series.timing, amount: roundedQuotient(gap, series.days) };
+}
+
+const soles = value => `S/ ${value.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+export function pacePhrase(pace, formatAmount) {
+  if (pace.status === 'no-allocation') return null;
+  if (pace.status === 'future') return `Este mes aún no empieza: tendrás ${formatAmount(pace.allocation)} para ${pace.days} días.`;
+  const side = pace.status === 'above' ? 'por encima' : 'por debajo';
+  if (pace.timing === 'past') return pace.status === 'on' ? 'Terminaste el mes al ritmo.' : `Terminaste el mes unos ${soles(pace.amount)} ${side} de lo asignado.`;
+  return pace.status === 'on' ? 'Vas al ritmo.' : `Vas unos ${soles(pace.amount)} ${side} del ritmo ideal.`;
+}
+
+/** Up to n subcategories with the most spending in a category, exact sums. */
+export function topSubcategories(records, categoryId, count = 3) {
+  const totals = new Map();
+  for (const record of records) {
+    const name = record.subcategory?.trim();
+    if (record.categoryId !== categoryId || !name) continue;
+    totals.set(name, addAmounts(totals.get(name) ?? '0', record.amount));
+  }
+  return [...totals].map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => compareAmounts(b.amount, a.amount) || a.name.localeCompare(b.name, 'es')).slice(0, count);
+}
+
+const shiftDay = (date, step) => {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + step);
+  return value.toISOString().slice(0, 10);
+};
+
+/** Expenses by day, newest first, headed "Hoy", "Ayer" or a short date. */
+export function groupByDay(records, today) {
+  const sorted = [...records].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate) || a.id.localeCompare(b.id));
+  const yesterday = shiftDay(today, -1);
+  const groups = [];
+  for (const record of sorted) {
+    const date = record.effectiveDate;
+    if (groups.at(-1)?.date !== date) {
+      groups.push({ date, label: date === today ? 'Hoy' : date === yesterday ? 'Ayer' : formatShortDate(date), records: [] });
+    }
+    groups.at(-1).records.push(record);
+  }
+  return groups;
+}
