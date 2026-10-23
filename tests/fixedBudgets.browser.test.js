@@ -29,6 +29,8 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
     const mount = async (identity = 'fiorella', data = fixture) => {
       await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture: data, identity, access: { fiorella: identity === 'fiorella' ? 'manage' : 'read', 'control-mf': identity === 'fiorella' ? 'read' : 'manage' }, path: '/fiorella/presupuestos', period: '2038-04' })})`);
       await browser.waitFor('document.querySelectorAll("[data-budget-id]").length === 19 && !document.body.textContent.includes("Cargando")');
+      // The old Presupuestos URL lands on the fixed view of Gastos.
+      assert.equal(await browser.evaluate('document.getElementById("gastos-tab-fijos")?.getAttribute("aria-selected")'), 'true');
     };
     const click = selector => browser.evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
     const edit = async id => { await click(`[data-budget-id="${id}"] button`); await browser.waitFor(`!!document.getElementById("budget-${id}")`); };
@@ -40,19 +42,27 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
 
     await context.test('all 19 rows visible at 390/768/1280; null, zero, excess and partial coverage stay distinct', async () => {
       assert.ok((await row('servicios-icloud')).includes('−S/ 12.005'));
-      assert.ok((await row('servicios-celular')).includes('S/ 0.00'));
-      assert.ok((await row('servicios-agua')).includes('—'));
-      assert.ok((await row('servicios-luz')).includes('—'));
+      assert.ok((await row('servicios-celular')).includes('S/ 0.00 de S/ 60.00'));
+      assert.ok((await row('servicios-agua')).includes('Gasto sin registrar, presupuesto S/ 60.00'));
+      assert.ok((await row('servicios-luz')).includes('S/ 31.50, presupuesto sin registrar'));
       assert.ok((await text('[data-testid=budget-summary-servicios]')).includes('parcial'));
+      // Only the group needing attention (missing and exceeded rows) starts open.
+      const expanded = () => browser.evaluate('Array.from(document.querySelectorAll("[aria-controls^=gf-rows-]")).filter(button => button.getAttribute("aria-expanded") === "true").map(button => button.getAttribute("aria-controls"))');
+      assert.deepEqual(await expanded(), ['gf-rows-servicios']);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("[data-budget-id]")).filter(el => !el.getBoundingClientRect().height).length'), 13);
+      await browser.evaluate('document.querySelectorAll("[aria-controls^=gf-rows-][aria-expanded=false]").forEach(button => button.click())');
+      await browser.waitFor('document.querySelectorAll("[aria-controls^=gf-rows-][aria-expanded=false]").length === 0');
       for (const width of [390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: width < 768 });
         await browser.evaluate('document.activeElement?.blur(); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-        const geometry = await browser.evaluate(`({width:innerWidth,document:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight,
+        // Compare with the layout viewport (clientWidth): at 768/1280 without mobile emulation this Chromium reserves
+        // 15px for a classic vertical scrollbar, so innerWidth is wider than the page can ever be.
+        const geometry = await browser.evaluate(`({width:document.documentElement.clientWidth,document:document.documentElement.scrollWidth,height:document.documentElement.scrollHeight,
           groups:document.querySelectorAll('[data-testid=budget-groups] > section').length,
           hidden:Array.from(document.querySelectorAll('[data-budget-id]')).filter(el=>!el.getBoundingClientRect().height || el.closest('details:not([open])')).length,
-          overflow:Array.from(document.querySelectorAll('[data-budget-id] [role=cell]')).some(el=>el.scrollWidth>el.clientWidth+1),
+          overflow:Array.from(document.querySelectorAll('[data-budget-id] *')).some(el=>el.scrollWidth>el.clientWidth+1),
           forms:document.querySelectorAll('main form').length})`);
-        assert.equal(geometry.document, width); assert.equal(geometry.groups, 5); assert.equal(geometry.hidden, 0); assert.equal(geometry.forms, 0); assert.equal(geometry.overflow, false);
+        assert.ok(geometry.document <= geometry.width, JSON.stringify(geometry)); assert.equal(geometry.groups, 5); assert.equal(geometry.hidden, 0); assert.equal(geometry.forms, 0); assert.equal(geometry.overflow, false);
         console.log('GF geometry', JSON.stringify(geometry));
         if (process.env.MILFI_CAPTURE_DIR) {
           await mkdir(process.env.MILFI_CAPTURE_DIR, { recursive: true });
@@ -61,7 +71,7 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
         }
         await edit('servicios-gas');
         assert.equal(await browser.evaluate('document.activeElement.id'), 'budget-servicios-gas');
-        assert.equal(await browser.evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector("main form").scrollWidth <= document.querySelector("main form").clientWidth + 1'), true);
+        assert.equal(await browser.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth && document.querySelector("main form").scrollWidth <= document.querySelector("main form").clientWidth + 1'), true);
         await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
         await browser.page('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape' });
         await browser.waitFor('!document.querySelector("main form")');
@@ -70,8 +80,8 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
         await browser.evaluate('window.scrollTo(0,0)');
       }
       await fill('fiorella-period', '2038-05');
-      await browser.waitFor('document.querySelector("[data-testid=budget-totals]").textContent.includes("Detalle completo")');
-      assert.ok((await text('[data-testid=budget-totals]')).includes('+S/ 19.19'));
+      await browser.waitFor('document.querySelector("[data-testid=budget-totals]").textContent.includes("19/19 subcategorías con presupuesto")');
+      assert.ok((await text('[data-testid=budget-totals]')).includes('S/ 19.19'));
       await fill('fiorella-period', '2038-04');
     });
 
@@ -141,8 +151,9 @@ test('compact GF budgets: responsive rows, editing, shared totals and read-only 
       assert.equal(after.fixed.length, 19);
       assert.equal(after.fixed.find(item => item.categoryId === 'servicios-gas').revision, before.fixed.find(item => item.categoryId === 'servicios-gas').revision + 2);
       const expenses = summarizeExpenses(after);
-      await click('a[href="/fiorella/gastos"]'); await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
       assert.ok((await text('[data-fixed-id=servicios-gas]')).includes('S/ 45.123'));
+      assert.ok((await text('[data-testid=expense-summary]')).includes(formatAmount(expenses.total.amount)));
+      await click('#gastos-tab-variables'); await browser.waitFor('!!document.querySelector("[data-testid=pace-chart]")');
       assert.ok((await text('[data-testid=expense-summary]')).includes(formatAmount(expenses.total.amount)));
       await click('a[href="/fiorella"]'); await browser.waitFor('!!document.querySelector("[data-testid=fixed-stat]")');
       assert.ok((await text('[data-testid=fixed-stat]')).includes(formatAmount(expenses.fixed.amount)));
