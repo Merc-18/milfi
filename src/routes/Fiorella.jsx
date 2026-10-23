@@ -193,7 +193,7 @@ export default function Fiorella() {
   const variableSpent = expenses.variable.amount ?? '0';
   const budgetAboveApplied = applied !== null && summary.budget.amount !== null && compareAmounts(summary.budget.amount, applied) > 0;
   const savings = savingsStatus(deposited, distribution?.savings.couple ?? null);
-  const savingsText = !distribution ? 'Sin plan del mes' : savings === 'ok' ? 'Plan alcanzado' : deposited == null ? 'Sin depósitos registrados' : 'Aún no alcanza el plan';
+  const savingsText = !distribution ? 'Sin plan del mes' : savings === 'ok' ? 'Plan alcanzado' : 'Aún no alcanza el plan';
   const edit = () => setEditing(true);
   return <div className="pb-10 space-y-4">
     <PageHeader title="Resumen"><PeriodPicker /></PageHeader>

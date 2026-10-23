@@ -12,12 +12,12 @@ const SECTIONS = [
   { to: '/fiorella/simulador', label: 'Metas', also: ['/fiorella/calculadora'] },
   { to: '/fiorella/historial', label: 'Historial', also: [] },
 ];
-const tabClass = active => `rounded-xl px-3 py-2 min-h-11 flex items-center ${active ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`;
+const tabClass = active => `rounded-xl px-2.5 sm:px-3 py-2 min-h-11 flex items-center ${active ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`;
 
 export default function FiorellaNav() {
   const { pathname } = useLocation();
   const [rules, setRules] = useState(false);
-  return <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 md:px-8">
+  return <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 md:px-8">
     <nav aria-label="Finanzas de Fiorella" className="min-w-0 flex-1 overflow-x-auto">
       <div className="flex gap-1 pb-2 text-sm whitespace-nowrap">
         {SECTIONS.map(({ to, label, also }) => {

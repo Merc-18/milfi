@@ -21,8 +21,9 @@ export default function Sheet({ open, onClose, title, children }) {
       opener.current?.focus?.();
     }
   }, [open]);
-  // React state is the source of truth: every way out asks the parent to close,
-  // so a quick reopen never races the native close event.
+  // React state is the source of truth: every way out asks the parent to close.
+  // The native close event is queued, so it may arrive after a quick reopen;
+  // it only counts when the dialog is really closed.
   const cancel = event => { event.preventDefault(); onClose(); };
   const trap = event => {
     if (event.key !== 'Tab') return;
@@ -33,7 +34,7 @@ export default function Sheet({ open, onClose, title, children }) {
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   };
   return <dialog ref={dialog} aria-labelledby={titleId} onCancel={cancel} onKeyDown={trap}
-    onClose={() => { if (open) onClose(); }}
+    onClose={() => { if (open && !dialog.current.open) onClose(); }}
     onClick={event => { if (event.target === dialog.current) onClose(); }}
     className="mt-auto mb-0 w-full max-w-full max-h-[90dvh] rounded-t-[28px] bg-fondo p-0 text-texto shadow-soft backdrop:bg-texto/40 sm:m-auto sm:max-w-lg sm:rounded-[24px]">
     {open && <div className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] space-y-4">
