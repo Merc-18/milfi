@@ -18,9 +18,9 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
   const rows = [
     ['Tipo', kindName(record.kind)], ['Destino', purposeName(record.purpose)],
     ...(record.kind === 'deposit' ? [['Aportante', personName(record.contributorId)]] : []),
-    ['Monto', controlMoney(record.amount, record.currency)], ['Fecha', record.effectiveDate ?? 'Sin fecha'],
-    ['Mes', record.period ? formatPeriod(record.period) : 'Sin mes'],
-    ...(savings ? [['Mes del plan', record.planPeriod ? formatPeriod(record.planPeriod) : 'Sin mes de plan']] : []),
+    ['Monto', controlMoney(record.amount, record.currency)], [record.kind === 'deposit' ? 'Fecha de recepción' : 'Fecha del retiro', record.effectiveDate ?? 'Sin fecha'],
+    ['Mes recibido', record.period ? formatPeriod(record.period) : 'Sin mes'],
+    ...(savings ? [['Mes del plan asignado', record.planPeriod ? formatPeriod(record.planPeriod) : 'Sin asignación confirmada']] : []),
     ['Estado', statusName(entry.status)],
     ['Registrado por', excel ? 'Cargado del Excel' : personName(record.actorId)],
     ['Procedencia', excel ? `Excel: ${record.provenance.sheet}!${record.provenance.operation?.amountRef ?? ''}`

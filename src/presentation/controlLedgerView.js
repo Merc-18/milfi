@@ -32,6 +32,14 @@ export function savingsBalance(entries) {
 const keyOf = period => periodKey(period);
 const nextMonth = ({ year, month }) => month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 
+/** Control comparison only: the usual original plan period for a receipt month. */
+export function previousPlanPeriod(receiptPeriod) {
+  if (!isValidPeriod(receiptPeriod)) return null;
+  const previous = receiptPeriod.month === 1
+    ? { year: receiptPeriod.year - 1, month: 12 } : { year: receiptPeriod.year, month: receiptPeriod.month - 1 };
+  return isValidPeriod(previous) ? previous : null;
+}
+
 /**
  * Monthly steps of the PEN savings balance, from the first counted movement to
  * the last one (or the selected month if later): each savings deposit raises it,
@@ -86,23 +94,31 @@ const byCurrency = records => {
 };
 
 /**
- * One row per month with Control activity or assigned savings, newest first:
- * expenses deposited, savings deposited (period = M), Fiorella's plan, savings
- * covered (plan month = M), its light and withdrawals by currency.
+ * Receipt-month rows, newest first. Movements keep their actual period. Only
+ * the comparison uses the original plan for R - 1; coverage queries that exact
+ * original period, including explicit assignments received in other months.
+ * Plan values may carry { amount, projected }; legacy amount strings also work.
  */
 export function monthlyRows(entries, plans = new Map()) {
   const counted = entries.filter(counts).map(entry => entry.record);
-  const months = new Map([...plans.keys()].map(key => [key, { year: Number(key.slice(0, 4)), month: Number(key.slice(5, 7)) }]));
+  const months = new Map();
+  const addMonth = period => { if (isValidPeriod(period)) months.set(keyOf(period), period); };
+  const addPlanReceipt = period => { if (isValidPeriod(period)) addMonth(nextMonth(period)); };
+  for (const key of plans.keys()) addPlanReceipt({ year: Number(key.slice(0, 4)), month: Number(key.slice(5, 7)) });
   for (const record of counted) {
-    for (const period of [movementMonth(record), isSavingsDeposit(record) ? record.planPeriod : null]) if (period) months.set(keyOf(period), period);
+    addMonth(movementMonth(record));
+    if (isSavingsDeposit(record)) addPlanReceipt(record.planPeriod);
   }
   return [...months.keys()].sort().reverse().map(key => {
     const inMonth = counted.filter(record => movementMonth(record) && keyOf(movementMonth(record)) === key);
     const expenses = inMonth.filter(record => record.kind === 'deposit' && record.purpose === 'expenses' && record.contributorId === 'milton');
     const savings = inMonth.filter(isSavingsDeposit);
-    const covered = coveredSavings(entries, months.get(key));
-    const plan = plans.get(key) ?? null;
-    return { key, period: months.get(key), expenses: byCurrency(expenses), savings: byCurrency(savings), plan, covered,
+    const referencePeriod = previousPlanPeriod(months.get(key));
+    const reference = referencePeriod ? plans.get(keyOf(referencePeriod)) : null;
+    const covered = referencePeriod ? coveredSavings(entries, referencePeriod) : null;
+    const plan = typeof reference === 'string' ? reference : reference?.amount ?? null;
+    return { key, period: months.get(key), referencePeriod, projected: reference?.projected === true,
+      expenses: byCurrency(expenses), savings: byCurrency(savings), plan, covered,
       light: planLight(covered, plan), withdrawals: byCurrency(inMonth.filter(record => record.kind === 'withdrawal')) };
   });
 }

@@ -564,8 +564,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await balance()).includes('PEN 100.00'));
       const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr")).map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
       assert.ok(rows.find(row => row.key === '2043-07').cells[2].includes('100.00'));
-      assert.equal(rows.find(row => row.key === '2043-07').cells[4], '—');
-      assert.ok(rows.find(row => row.key === '2043-06').cells[4].includes('100.00'));
+      assert.ok(rows.find(row => row.key === '2043-07').cells[4].includes('100.00'));
+      assert.ok(rows.find(row => row.key === '2043-07').cells[3].includes('Plan: junio de 2043'));
+      assert.equal(rows.some(row => row.key === '2043-06'), false, 'the original plan month is not an invented receipt month');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 0);
       await enter({ amount: '20', kind: 'withdrawal', description: 'Retiro inventado', date: '2043-07-12' });
       await accept();
@@ -587,6 +588,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('Array.from(document.querySelectorAll("[data-ledger-id] button")).find(button => button.textContent.includes("100.00")).click()');
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
       assert.ok((await browser.evaluate('document.querySelector("dialog[open]").textContent')).includes('Operación'));
+      const references = await browser.evaluate('document.querySelector("dialog[open] [data-testid=movement-detail]").textContent');
+      assert.ok(references.includes('Fecha de recepción') && references.includes('2043-07-10'));
+      assert.ok(references.includes('Mes recibido') && references.includes('julio de 2043'));
+      assert.ok(references.includes('Mes del plan asignado') && references.includes('junio de 2043'));
       await clickText('Editar'); await browser.waitFor('!!document.getElementById("control-amount")');
       assert.equal(await browser.evaluate('!!document.getElementById("control-actor") || !!document.getElementById("control-operation") || !!document.getElementById("control-period")'), false);
       await fill('control-amount', '150'); await submitForm('Movimiento de Control');

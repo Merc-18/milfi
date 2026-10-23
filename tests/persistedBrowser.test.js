@@ -145,6 +145,20 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       const summary = await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent');
       assert.ok(summary.includes('PEN 22.50') && summary.includes('por revisar'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=balance-chart]")'));
+      const table = await browser.evaluate(`({
+        heads: Array.from(document.querySelectorAll('[data-testid=control-monthly] thead th')).map(cell => cell.textContent),
+        noteCount: document.querySelectorAll('#monthly-explanation').length,
+        note: document.getElementById('monthly-explanation').textContent,
+        describedBy: document.querySelector('[data-testid=control-monthly] table').getAttribute('aria-describedby'),
+        projected: document.querySelector('[data-testid=control-monthly] [data-month="2031-04"] td:nth-child(4)').textContent,
+        projectedReceived: document.querySelector('[data-testid=control-monthly] [data-month="2031-04"] td:nth-child(3)').textContent,
+      })`);
+      assert.deepEqual(table.heads, ['Mes recibido', 'Gastos depositados', 'Ahorro depositado', 'Ahorro previsto', 'Ahorro asignado', 'Estado', 'Retiros']);
+      assert.equal(table.noteCount, 1);
+      assert.ok(table.note.includes('Los ingresos planificados por Fiorella para un mes suelen recibirse al siguiente.'));
+      assert.equal(table.describedBy, 'monthly-explanation');
+      assert.ok(table.projected.includes('Proyectado') && table.projected.includes('Plan: marzo de 2031'));
+      assert.equal(table.projectedReceived, '—');
       assert.ok(await browser.evaluate('!document.getElementById("control-amount")') && !(await text()).includes('preimportación'));
       const cards = () => browser.evaluate('document.querySelectorAll("[data-ledger-id]").length');
       assert.equal(await cards(), 2);
@@ -163,16 +177,16 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!!document.getElementById("review-plan")');
       await fill('review-plan', '2031-01'); await click('Guardar mes del plan');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      const january = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).find(row => row.dataset.month === '2031-01').textContent`);
-      assert.ok(january.includes('22.50') && january.includes('Parcial'), january);
+      const february = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).find(row => row.dataset.month === '2031-02').textContent`);
+      assert.ok(february.includes('22.50') && february.includes('Parcial') && february.includes('Plan: enero de 2031'), february);
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-ledger-id] button')).find(button => button.textContent.includes('22.50')).click()`);
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
       await click('Cambiar mes del plan'); await browser.waitFor('!!document.getElementById("review-plan")');
       assert.equal(await browser.evaluate('document.getElementById("review-plan").value'), '2031-01');
       await fill('review-plan', '2031-02'); await click('Guardar mes del plan');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'amarillo');
-      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-01"] [data-light]').dataset.light`), 'gris');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-03"] [data-light]').dataset.light`), 'amarillo');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'gris');
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 22.50'));
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-amount")');

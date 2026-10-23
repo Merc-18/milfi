@@ -45,7 +45,7 @@ export default function ControlFinanzas() {
   const [notice, setNotice] = useState('');
   const entries = useMemo(() => inspectLedger(records), [records]);
   const plans = useMemo(() => new Map(fiorellaEvolution(withFixedCap(fiorella), persisted ? 'real' : 'simulated')
-    .filter(row => row.couplePlanned != null).map(row => [row.key, row.couplePlanned])), [fiorella, persisted]);
+    .filter(row => row.couplePlanned != null).map(row => [row.key, { amount: row.couplePlanned, projected: row.projected }])), [fiorella, persisted]);
   const balance = savingsBalance(entries);
   const series = balanceSeries(entries, period);
   const rows = monthlyRows(entries, plans);

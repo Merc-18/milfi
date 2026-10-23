@@ -44,7 +44,7 @@ test('semáforo del plan: completo, parcial, pendiente y sin plan; deposits of s
   assert.equal(coveredSavings(entries, nov), '500');
   const rows = monthlyRows(entries, new Map([['2030-11', '500'], ['2030-12', '300']]));
   assert.deepEqual(rows.map(row => [row.key, row.savings[0]?.amount, row.plan, row.covered, row.light.word]),
-    [['2030-12', '350', '300', '100', 'Parcial'], ['2030-11', '250', '500', '500', 'Completo']]);
+    [['2031-01', undefined, '300', '100', 'Parcial'], ['2030-12', '350', '500', '500', 'Completo'], ['2030-11', '250', null, null, 'Sin plan']]);
 });
 
 test('reasons in plain language, with suggestions to confirm and the inverted-date warning', () => {
@@ -72,6 +72,6 @@ test('monthly columns include plan-only months and Gastos (Milton) excludes othe
     entry({ purpose: 'expenses', contributorId: 'fiorella', amount: '99' }), entry({ amount: '50' }, 'imported', ['UNRESOLVED_MONEY'])],
   new Map([['2030-11', '100'], ['2030-12', '150']]));
   assert.deepEqual(rows.map(row => [row.key, row.expenses, row.covered, row.light.word]), [
-    ['2030-12', [], null, 'Pendiente'], ['2030-11', [{ currency: 'PEN', amount: '10.1' }], null, 'Pendiente']]);
+    ['2031-01', [], null, 'Pendiente'], ['2030-12', [], null, 'Pendiente'], ['2030-11', [{ currency: 'PEN', amount: '10.1' }], null, 'Sin plan']]);
   assert.equal(savingsBalance([entry({ amount: '50' }, 'imported', ['UNRESOLVED_MONEY'])]).amount, '0');
 });

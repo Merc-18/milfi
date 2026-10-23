@@ -157,10 +157,14 @@ La sección global **«Por revisar (19)»** reúne:
 - 11 depósitos de ahorro cargados sin asignación de mes del plan.
 
 Asignar el plan no cambia el estado de revisión ni el saldo: esos 11 ahorros ya
-cuentan como depósitos. «Ahorro depositado» usa el mes de entrada (`period`);
-«Cubierto» usa `plan_year/plan_month`, aunque el dinero entrara otro mes. Hasta
-asignar los planes, «Cubierto» estará sin depósitos asignados. El semáforo compara
-lo cubierto con el plan guardado de Fiorella; si no existe, muestra «Sin plan».
+cuentan como depósitos. «Ahorro depositado» usa el mes de entrada (`period`). En la fila del mes recibido R,
+«Ahorro previsto» muestra el plan original de Fiorella de R − 1, identificado por
+su mes y marcado «Proyectado» cuando corresponda. «Ahorro asignado» solo suma
+depósitos PEN con `plan_year/plan_month` explícitos para ese plan original, aunque
+el dinero entrara otro mes. Hasta asignarlos se muestra «Sin asignación confirmada».
+El semáforo compara lo asignado con ese plan original; si no existe, muestra
+«Sin plan». Este [ajuste de presentación de Control](CONTROL_DESFASE_MENSUAL.md)
+conserva todos los periodos originales y no cambia Finanzas de Fiorella.
 
 El saldo en soles es **depósitos de ahorro PEN menos retiros PEN**, contando solo
 movimientos sin motivos pendientes. Los retiros USD se muestran aparte. Una

@@ -29,3 +29,4 @@ import './contrast.test.js';
 import './controlImport.test.js';
 import './ledgerMemory.test.js';
 import './controlLedgerView.test.js';
+import './controlMonthlyOffset.test.js';
