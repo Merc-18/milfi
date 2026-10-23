@@ -1,0 +1,21 @@
+-- ADMIN ONLY · Template. Run in the Supabase SQL editor (as the project owner)
+-- AFTER creating the two users in Authentication > Users (invite, no public
+-- sign-up). Replace the placeholders locally; never commit real identifiers.
+-- App users cannot execute private.assign_member: it is revoked from them.
+
+begin;
+
+insert into public.households (name) values ('<NOMBRE_DEL_HOGAR>') returning id;
+-- Copy the returned id into <HOUSEHOLD_ID> below.
+
+select private.assign_member('<UUID_USUARIO_FIORELLA>', '<HOUSEHOLD_ID>', 'fiorella', 'Fiorella');
+select private.assign_member('<UUID_USUARIO_MILTON>', '<HOUSEHOLD_ID>', 'milton', 'Milton');
+
+-- Expected: fiorella → fiorella:manage, control-mf:read
+--           milton   → fiorella:read,   control-mf:manage
+select p.identity, m.module, m.access
+from public.module_permissions m join public.profiles p using (user_id)
+where m.household_id = '<HOUSEHOLD_ID>'
+order by 1, 2;
+
+commit;

@@ -1,93 +1,71 @@
-import { useStore } from '../store/useStore';
-import { Calendar, ChevronDown } from 'lucide-react';
-import { useState } from 'react';
+import { useStore } from '../store/useStore.js';
+import { formatAmount, formatPeriod } from '../presentation/format.js';
+import DistributionDetails from '../components/DistributionDetails.jsx';
+import StatusNotice from '../components/StatusNotice.jsx';
+import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
+import { fiorellaHistory } from '../domain/fiorellaSession.js';
 
-const nombresMeses = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const labels = { income: 'Ingreso', appliedFixedExpense: 'GF aplicado', budgetAmount: 'Presupuesto GF', actualAmount: 'Gasto GF', amount: 'Importe GV', description: 'Descripción', effectiveDate: 'Fecha', categoryId: 'Categoría' };
+const categoryName = id => {
+  const category = FIXED_SUBCATEGORIES.find(item => item.id === id);
+  return category ? `${FIXED_CATEGORIES.find(group => group.id === category.parentId).name} / ${category.name}` : id === 'salud' ? 'Salud' : 'Ocio';
+};
+const show = (field, value) => value == null ? 'Sin registrar' : ['description', 'effectiveDate'].includes(field) ? value : field === 'categoryId' ? categoryName(value) : formatAmount(value);
+
+function DemoRecord({ record, persisted }) {
+  const title = record.kind === 'monthly-plan' ? 'Datos mensuales' : record.kind === 'fixed-budget' ? `GF · ${categoryName(record.categoryId)}` : `GV · ${categoryName(record.categoryId)}`;
+  return <article className="bg-white p-4 rounded-2xl text-sm space-y-2">
+    <h4 className="font-bold">{title} · {persisted ? 'Guardado' : 'Demostración'}</h4>
+    <dl>{Object.entries(labels).filter(([field]) => Object.hasOwn(record, field)).map(([field, label]) => <div key={field} className="py-1"><dt>{label}</dt><dd className="font-bold break-words">{show(field, record[field])}</dd></div>)}</dl>
+    <p>Revisión {record.revision} · {persisted ? 'Guardado en MilFi' : 'Solo esta sesión'}</p>
+  </article>;
+}
 
 export default function Historial() {
-  const ingresos = useStore(state => state.ingresosMensuales);
-  const [expandedId, setExpandedId] = useState(null);
-
-  const toggleExpand = (id) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
-
+  const simulations = useStore(state => state.simulations);
+  const records = useStore(state => state.fiorellaDemoRecords);
+  const events = useStore(state => state.fiorellaDemoEvents);
+  const persisted = useStore(state => !!state.remote);
+  const groups = fiorellaHistory(records, events, simulations, persisted ? 'real' : 'simulated');
   return (
-    <div className="animate-in fade-in duration-500 pb-10">
-      <header className="mb-6 mt-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-texto">Historial</h1>
-          <p className="text-texto-light text-sm font-semibold">Tus registros pasados</p>
+    <div className="pb-10">
+      <header className="my-6"><h1 className="text-2xl font-bold">Historial y simulaciones</h1></header>
+      <StatusNotice title="Historial real aún no importado"><p>La plantilla original contiene importes simulados. Los registros reales se incorporarán cuando recibamos y validemos el Excel actualizado de Fiorella.</p></StatusNotice>
+      {persisted ? <>
+        <h2 className="font-bold text-lg mb-2">Registros guardados por periodo</h2>
+        <p className="text-sm mb-4">Ingresos, presupuestos y gastos guardados en MilFi, con el historial de cambios que registra la base de datos.</p>
+        {!records.length && <p className="text-sm mb-5">Todavía no hay registros guardados.</p>}
+      </> : <>
+        <h2 className="font-bold text-lg mb-2">Registros de demostración por periodo</h2>
+        <p className="text-sm mb-4">Ingresos, presupuestos y gastos de prueba; no son registros reales. Los cambios solo duran esta sesión y se pierden al recargar.</p>
+        {!records.length && <p className="text-sm mb-5">Sin registros de demostración en esta sesión.</p>}
+      </>}
+      {groups.filter(group => group.records.length).map(group => <section key={group.key} className="space-y-3 mb-6" data-demo-period={group.key}>
+        <h3 className="font-bold capitalize">{formatPeriod(group.period)}</h3>
+        {group.records.map(record => <DemoRecord key={record.id} record={record} persisted={persisted} />)}
+        <h4 className="font-bold">{persisted ? 'Historial de cambios' : 'Cambios de esta sesión'}</h4>
+        {group.events.map(event => <article key={event.id} className="text-sm bg-secundario/20 p-4 rounded-2xl">
+          <p className="font-bold">{event.action === 'created' ? 'Registro creado' : 'Registro actualizado'} · Revisión {event.revision}</p>
+          <time dateTime={event.occurredAt}>{new Date(event.occurredAt).toLocaleString('es-PE', { timeZone: 'America/Lima' })}</time>
+          {Object.entries(labels).filter(([field]) => Object.hasOwn(event.after, field) && event.before?.[field] !== event.after[field]).map(([field, label]) => <p key={field} className="break-words mt-2">{label}: {show(field, event.before?.[field])} → {show(field, event.after[field])}</p>)}
+          {event.similarExpenseAcknowledged && <p className="mt-2">Se indicó expresamente que es otro gasto con datos coincidentes.</p>}
+        </article>)}
+      </section>)}
+      <h2 className="font-bold text-lg mb-2">Simulaciones de esta sesión</h2>
+      <p className="text-sm mb-5">Son ejemplos independientes. No representan ingresos ni ahorros reales y se pierden al recargar.</p>
+      {simulations.length === 0 ? <p className="text-sm bg-white p-5 rounded-[24px] shadow-soft">Todavía no guardaste simulaciones en esta sesión.</p> : (
+        <div className="space-y-4">
+          {groups.filter(group => group.simulations.length).map(group => <section key={group.key} className="space-y-4">
+            <h3 className="font-bold capitalize">{formatPeriod(group.period)}</h3>
+            {group.simulations.map(simulation => (
+            <details key={simulation.id} className="bg-white p-5 rounded-[24px] shadow-soft">
+              <summary className="cursor-pointer font-bold"><span className="capitalize">{formatPeriod(simulation.period)}</span> · {formatAmount(simulation.distribution.income)}<span className="block text-sm font-normal mt-1">Simulación · Ver distribución</span></summary>
+              <div className="mt-4"><DistributionDetails distribution={simulation.distribution} /></div>
+              <p className="text-sm mt-3">Importes exactos, sin redondear.{simulation.requiresRoundingDecision && ' Contiene fracciones de céntimo pendientes de criterio monetario.'}</p>
+            </details>
+          ))}</section>)}
         </div>
-        <div className="bg-white px-4 py-2 rounded-xl shadow-soft font-bold text-texto flex items-center gap-2">
-          <Calendar size={18} /> 2026
-        </div>
-      </header>
-
-      <div className="space-y-4">
-        {ingresos.length === 0 ? (
-          <p className="text-center text-texto-light mt-10 font-medium">No hay registros aún.</p>
-        ) : (
-          ingresos.map((ingreso) => (
-            <div key={ingreso.id} className="bg-white rounded-[24px] shadow-soft overflow-hidden border border-transparent hover:border-secundario transition-colors">
-              <div 
-                onClick={() => toggleExpand(ingreso.id)}
-                className="p-5 flex justify-between items-center cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="bg-secundario/30 w-14 h-14 rounded-[18px] flex flex-col items-center justify-center text-texto">
-                    <span className="text-sm font-bold leading-none">{nombresMeses[ingreso.mes]}</span>
-                    <span className="text-[10px] font-bold opacity-70 mt-1">{ingreso.año}</span>
-                  </div>
-                  <div>
-                    <p className="font-bold text-xl text-texto leading-none mb-1.5">S/ {ingreso.monto_ingresado.toLocaleString('es-PE')}</p>
-                    <p className="text-xs font-bold text-green-800 bg-exito/50 px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1">
-                      Pareja S/ {ingreso.ahorro_pareja.toLocaleString('es-PE')} 💚
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-fondo p-2 rounded-full">
-                   <ChevronDown size={20} strokeWidth={3} className={`text-texto-light transition-transform ${expandedId === ingreso.id ? 'rotate-180' : ''}`} />
-                </div>
-              </div>
-
-              {/* Detalle Expandible */}
-              {expandedId === ingreso.id && (
-                <div className="px-5 pb-6 pt-3 border-t border-fondo bg-fondo/30 text-sm animate-in slide-in-from-top-2">
-                  <div className="space-y-3 mt-1">
-                    <div className="flex justify-between text-texto bg-principal/20 p-2.5 rounded-xl font-bold">
-                      <span>🌸 Gasto Fijo</span>
-                      <span>S/ {ingreso.snapshot.gfFinal.toLocaleString('es-PE')}</span>
-                    </div>
-                    
-                    <div className="bg-acento/10 p-2.5 rounded-xl border border-acento/20">
-                      <div className="flex justify-between text-texto font-bold mb-2">
-                        <span>🍑 Variables</span>
-                        <span>S/ {ingreso.snapshot.gv.total.toLocaleString('es-PE')}</span>
-                      </div>
-                      <div className="pl-3 space-y-1.5 text-xs font-semibold text-texto-light border-l-2 border-acento ml-1">
-                         <div className="flex justify-between"><span>Salud</span><span>S/ {ingreso.snapshot.gv.salud?.toLocaleString('es-PE')}</span></div>
-                         <div className="flex justify-between"><span>Gustos</span><span>S/ {ingreso.snapshot.gv.gustos?.toLocaleString('es-PE')}</span></div>
-                         <div className="flex justify-between"><span>Ropa</span><span>S/ {ingreso.snapshot.gv.ropa?.toLocaleString('es-PE')}</span></div>
-                      </div>
-                    </div>
-
-                    <div className="bg-exito/10 p-2.5 rounded-xl border border-exito/20">
-                       <div className="flex justify-between text-texto font-bold mb-2">
-                          <span>💚 Ahorro Total</span>
-                          <span>S/ {ingreso.snapshot.ahorro.total.toLocaleString('es-PE')}</span>
-                       </div>
-                       <div className="pl-3 space-y-1.5 text-xs font-semibold text-texto-light border-l-2 border-exito ml-1">
-                         <div className="flex justify-between"><span>Personal</span><span>S/ {ingreso.snapshot.ahorro.personal.toLocaleString('es-PE')}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+      )}
     </div>
   );
 }

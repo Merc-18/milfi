@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "test": "node tests/run.js",
+    "test:browser": "npm run build && node tests/browser.test.js",
+    "preview": "vite preview",
+    "check:control-structure": "node scripts/check-control-structure.mjs",
+    "check:live": "node scripts/rls-live-check.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "@tailwindcss/postcss": "^4.2.4",
     "autoprefixer": "^10.5.0",
     "framer-motion": "^12.38.0",
@@ -23,6 +28,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.11",
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

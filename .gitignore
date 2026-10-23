@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Private financial sources and local credentials never belong in Git.
+*.xlsx
+*.xls
+*.xlsm
+*.xlsb
+datos_privados/
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
