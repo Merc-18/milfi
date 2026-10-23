@@ -48,6 +48,21 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(config.includes('Ocio'));
     assert.equal((config.match(/50% de variables/g) ?? []).length, 2);
 
+    // Four Fiorella tabs; each stays current on the pages it opens.
+    const fiorellaTabs = html => html.match(/<nav aria-label="Finanzas de Fiorella".*?<\/nav>/)[0];
+    const current = html => [...fiorellaTabs(html).matchAll(/<a [^>]*aria-current="page"[^>]*href="([^"]+)"|<a [^>]*href="([^"]+)"[^>]*aria-current="page"/g)]
+      .map(match => match[1] ?? match[2]);
+    const tabs = fiorellaTabs(renderPath('/fiorella'));
+    assert.deepEqual([...tabs.matchAll(/>([^<]+)<\/a>/g)].map(match => match[1]), ['Resumen', 'Gastos', 'Metas', 'Historial']);
+    for (const [path, tab] of [['/fiorella', '/fiorella'], ['/fiorella/gastos', '/fiorella/gastos'], ['/fiorella/presupuestos', '/fiorella/gastos'],
+      ['/fiorella/simulador', '/fiorella/simulador'], ['/fiorella/calculadora', '/fiorella/simulador'], ['/fiorella/historial', '/fiorella/historial']]) {
+      assert.deepEqual(current(renderPath(path)), [tab], path);
+    }
+    assert.deepEqual(current(renderPath('/fiorella/configuracion')), []);
+    assert.ok(renderPath('/fiorella/gastos').includes('href="/fiorella/presupuestos"'));
+    assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
+    assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
+
     // Both modules use the same month switcher (the shared month is checked in Chromium).
     assert.ok(renderPath('/control').includes('aria-label="Mes anterior"'), 'Control uses the same month switcher');
 

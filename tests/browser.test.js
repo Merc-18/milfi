@@ -25,6 +25,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate(`document.querySelector('a[href="${path}"]').click()`);
       await browser.waitFor(`location.pathname === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
+    // Calculadora and Presupuestos left the tab bar: they open from Metas and Gastos.
+    const openCalculator = async () => { await clickLink('/fiorella/simulador', 'Simulador y metas'); await clickLink('/fiorella/calculadora', 'Simular distribución'); };
+    const openBudgets = async () => { await clickLink('/fiorella/gastos', 'Gastos'); await clickLink('/fiorella/presupuestos', 'Presupuestos GF'); };
     const editBudget = async categoryId => {
       await browser.evaluate(`document.querySelector('[data-budget-id="${categoryId}"] button').click()`);
       await browser.waitFor(`!!document.getElementById("budget-${categoryId}")`);
@@ -67,7 +70,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         assert.ok(control.includes('no hay un saldo confirmado'));
         await clickLink('/fiorella', 'Finanzas de Fiorella');
         await clickLink('/fiorella/historial', 'Historial');
-        if (income === '4000.01') await clickLink('/fiorella/calculadora', 'Simular distribución');
+        if (income === '4000.01') await openCalculator();
       }
       assert.equal(await browser.evaluate('document.querySelectorAll("details").length'), 2);
       await browser.evaluate('document.querySelector("summary").click()');
@@ -75,7 +78,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     });
 
     await context.test('deficit and zero-surplus operations stay blocked with no extra history', async () => {
-      await clickLink('/fiorella/calculadora', 'Simular distribución');
+      await openCalculator();
       for (const income of ['1000', '1500']) {
         await fill('simulation-income', income);
         await browser.waitFor('document.body.textContent.includes("Tratamiento pendiente de aprobación")');
@@ -295,7 +298,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       }
       await browser.evaluate('document.querySelector("[data-testid=projection]").scrollIntoView({block:"start"})');
       await capture('11-proyeccion-escritorio.png');
-      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await openBudgets();
       await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '80');
       assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');

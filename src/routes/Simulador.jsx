@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Calculator } from 'lucide-react';
 import { sessionResultMessage } from '../presentation/fiorellaSession.js';
 
 const persistenceCodes = new Set(['STALE_REVISION', 'DUPLICATE', 'FORBIDDEN', 'CONSTRAINT_VIOLATION', 'SESSION_EXPIRED', 'NOT_FOUND_OR_FORBIDDEN', 'NOT_CONNECTED', 'PERSISTENCE_ERROR']);
@@ -121,7 +123,10 @@ export default function Simulador() {
   const label = (record, index) => `Escenario ${scenarios.length - index} · ${formatPeriod(record.period)} · Ingreso ${formatAmount(record.distribution.income)} · GF ${formatAmount(record.distribution.fixedExpense)}`;
   const goalDone = message => { setFeedback(message); setEditing(null); setGeneration(value => value + 1); };
   return <div className="pb-10 space-y-5 break-words">
-    <header className="my-6"><h1 className="font-bold text-2xl">Simulador y metas de ahorro</h1><p className="text-sm mt-2">Finanzas de Fiorella · Planificación hipotética</p></header>
+    <header className="my-6 flex flex-wrap items-end justify-between gap-3">
+      <div><h1 className="font-bold text-2xl">Simulador y metas de ahorro</h1><p className="text-sm mt-2">Finanzas de Fiorella · Planificación hipotética</p></div>
+      <Link to="/fiorella/calculadora" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-2 min-h-11 text-sm"><Calculator size={16} aria-hidden="true" />Simular distribución</Link>
+    </header>
     {persisted ? <Help title="Escenarios hipotéticos"><p>Los escenarios solo duran esta sesión. Escenarios y metas no son ingresos, saldos ni depósitos reales y no cambian tus registros GF/GV.</p></Help>
       : <StatusNotice title="Escenarios hipotéticos · Solo esta sesión"><p>Los escenarios y metas no son ingresos, saldos ni depósitos reales. No se trasladan a Control Finanzas M&F. Se pierden al recargar y no cambian tus registros de demostración GF/GV.</p></StatusNotice>}
     {!!savedGoals.length && <section className="space-y-3" data-testid="saved-goals"><h2 className="font-bold text-xl">Metas de Fiorella</h2>

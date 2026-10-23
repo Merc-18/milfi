@@ -1,7 +1,7 @@
 import { sessionCommand, sessionResultMessage, useDemoLabel, useFiorellaPeriod, usePersisted } from '../presentation/fiorellaSession.js';
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Pencil } from 'lucide-react';
+import { Pencil, SlidersHorizontal } from 'lucide-react';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
@@ -76,7 +76,8 @@ function FixedExpenses({ summary, manage }) {
   return <section className="space-y-3" aria-label="Gastos fijos">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h2 className="font-bold text-lg">Gastos fijos (GF){demo}</h2>
-      {manage && <Link to="/fiorella/presupuestos" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-2 min-h-11 text-sm"><Pencil size={16} aria-hidden="true" />Editar gasto fijo</Link>}
+      <Link to="/fiorella/presupuestos" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-2 min-h-11 text-sm">
+        {manage ? <><Pencil size={16} aria-hidden="true" />Editar gasto fijo</> : <><SlidersHorizontal size={16} aria-hidden="true" />Ver presupuestos</>}</Link>
     </div>
     <p className="text-xs text-texto-light">Total real del mes por subcategoría, sin fecha individual.</p>
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 items-start" data-testid="fixed-expenses">

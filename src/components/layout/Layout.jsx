@@ -3,16 +3,12 @@ import { Home, Flower2, Users, UserRound } from 'lucide-react';
 import { useEffect } from 'react';
 import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
+import FiorellaNav from '../FiorellaNav.jsx';
 
 const MODULES = [
   { to: '/', icon: Home, label: 'Inicio', end: true },
   { to: '/fiorella', icon: Flower2, label: 'Fiorella', end: false },
   { to: '/control', icon: Users, label: 'Control M&F', end: false },
-];
-// Daily tasks first; planning and reference pages last.
-const FIORELLA_SECTIONS = [
-  ['/fiorella', 'Panel'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/presupuestos', 'Presupuestos'],
-  ['/fiorella/historial', 'Historial'], ['/fiorella/simulador', 'Metas'], ['/fiorella/calculadora', 'Simular'], ['/fiorella/configuracion', 'Reglas'],
 ];
 
 export default function Layout() {
@@ -32,14 +28,7 @@ export default function Layout() {
           <NavLink to="/acceso" className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
             <UserRound size={18} aria-hidden="true" />Acceso</NavLink>
         </div>
-        {pathname.startsWith('/fiorella') && (
-          <nav aria-label="Finanzas de Fiorella" className="mx-auto max-w-6xl overflow-x-auto px-4 md:px-8">
-            <div className="flex gap-1 pb-2 text-sm whitespace-nowrap">
-              {FIORELLA_SECTIONS.map(([to, label]) => <NavLink key={to} to={to} end
-                className={({ isActive }) => `rounded-xl px-3 py-2 min-h-11 flex items-center ${isActive ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`}>{label}</NavLink>)}
-            </div>
-          </nav>
-        )}
+        {pathname.startsWith('/fiorella') && <FiorellaNav />}
       </header>
 
       <main className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-4 pb-32 md:px-8 md:pb-12">
