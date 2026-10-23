@@ -1,4 +1,5 @@
-import { addAmounts, compareAmounts, percentageOf } from '../domain/amounts.js';
+import { addAmounts, compareAmounts, percentageOf, subtractAmounts } from '../domain/amounts.js';
+import { formatAmount } from './format.js';
 import { moneyDifference } from '../domain/fiorellaSession.js';
 import { summarizeExpenses } from '../domain/fiorellaDashboard.js';
 
@@ -41,3 +42,25 @@ export function remainingToSpend(summary) {
   const limit = addAmounts(allocated, applied);
   return { ...moneyDifference(sum('remaining'), sum('over')), spent, limit, tone: usageStatus(spent, limit) };
 }
+
+export const USAGE_TEXT = { ok: 'Vas bien', aviso: 'Cerca del límite', neutral: 'Sin gasto' };
+// Missing data is stated as the action that completes it.
+export const MISSING = {
+  'missing-income': 'Registra el ingreso del mes',
+  'missing-fixed': 'Registra el GF aplicado',
+  deficit: 'El ingreso no cubre el GF aplicado',
+  'zero-surplus': 'No queda sobrante para repartir este mes',
+};
+export const MISSING_READ = {
+  'missing-income': 'Falta registrar el ingreso del mes.',
+  'missing-fixed': 'Falta registrar el GF aplicado.',
+  deficit: 'El ingreso no cubre el GF aplicado.',
+  'zero-surplus': 'No queda sobrante para repartir este mes.',
+};
+// Badge for spent vs limit; an excess always carries its "−" amount.
+export function usageBadge(spent, limit) {
+  const tone = usageStatus(spent, limit);
+  if (!tone) return null;
+  return { tone, text: tone === 'excedido' ? `Exceso: −${formatAmount(subtractAmounts(spent, limit))}` : USAGE_TEXT[tone] };
+}
+
