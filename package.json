@@ -8,10 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "test": "node tests/run.js",
-    "test:browser": "npm run build && node tests/browser.test.js && node tests/persistedBrowser.test.js",
+    "test:browser": "npm run build && node tests/browser.test.js && node tests/persistedBrowser.test.js && node tests/fixedBudgets.browser.test.js",
     "preview": "vite preview",
     "check:control-structure": "node scripts/check-control-structure.mjs",
-    "check:live": "node scripts/rls-live-check.mjs"
+    "check:live": "node scripts/rls-live-check.mjs",
+    "test:budgets": "node --test tests/fixedBudgets.test.js tests/fixedBudgets.browser.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.118.0",

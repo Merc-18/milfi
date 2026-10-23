@@ -25,7 +25,14 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate(`document.querySelector('a[href="${path}"]').click()`);
       await browser.waitFor(`location.pathname === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
+    const editBudget = async categoryId => {
+      await browser.evaluate(`document.querySelector('[data-budget-id="${categoryId}"] button').click()`);
+      await browser.waitFor(`!!document.getElementById("budget-${categoryId}")`);
+    };
     const fill = async (id, value) => {
+      if (/^(budget|actual)-/.test(id) && !await browser.evaluate(`!!document.getElementById(${JSON.stringify(id)})`)) {
+        await editBudget(id.replace(/^(budget|actual)-/, ''));
+      }
       await browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     };
 
@@ -119,9 +126,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.body.textContent.includes("S/ 5.10")');
       await fill('actual-servicios-gas', '110.05'); await submitForm('Presupuesto servicios-gas');
       await browser.waitFor('document.body.textContent.includes("S/ 10.05")');
-      assert.ok((await visibleText()).includes('S/ 1,500.00'));
+      assert.ok((await visibleText()).includes('GF aplicado a la distribución'));
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('02-presupuestos-movil.png');
+      await editBudget('servicios-gas');
       await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
       await capture('06-formulario-gf-movil.png');
     });
@@ -213,11 +221,11 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('fiorella-period', '2040-01');
       await fill('budget-servicios-gas', '80'); await submitForm('Presupuesto servicios-gas');
       await fill('actual-servicios-celular', '30'); await submitForm('Presupuesto servicios-celular');
-      assert.ok((await visibleText()).includes('Sin diferencia global GF: información incompleta. 0/19'));
+      assert.ok((await visibleText()).includes('Cobertura 0/19 con ambos importes'));
       assert.doesNotMatch(await visibleText(), /Diferencia a favor: S\/ 50\.00/);
       await fill('actual-servicios-gas', '90'); await submitForm('Presupuesto servicios-gas');
-      assert.ok((await visibleText()).includes('Exceso: −S/ 10.00'));
-      assert.ok((await visibleText()).includes('Sin diferencia global GF: información incompleta. 1/19'));
+      assert.ok((await visibleText()).includes('−S/ 10.00'));
+      assert.ok((await visibleText()).includes('Cobertura 1/19 con ambos importes'));
       await fill('fiorella-period', '');
       assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '');
       assert.equal(await browser.evaluate('document.querySelectorAll("[role=alert]").length'), 0);
@@ -225,9 +233,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('document.getElementById("fiorella-period").focus(); document.getElementById("fiorella-period").blur()');
       await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("AAAA-MM")');
       await fill('fiorella-period', '2040-02');
+      await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '');
       await fill('fiorella-period', '2040-01');
-      await browser.evaluate('Array.from(document.querySelectorAll("p")).find(p => p.textContent.startsWith("Sin diferencia global GF")).scrollIntoView({block:"start"})');
+      await browser.evaluate('document.querySelector("[data-testid=budget-totals]").scrollIntoView({block:"start"})');
       await capture('08-gf-incompleto-movil.png');
     });
 
@@ -287,6 +296,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('document.querySelector("[data-testid=projection]").scrollIntoView({block:"start"})');
       await capture('11-proyeccion-escritorio.png');
       await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '80');
       assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');
       await clickLink('/control', 'Control Finanzas');
