@@ -12,6 +12,8 @@ export function useFiorellaPeriod() {
 
 /** True while records are loaded from and saved to Supabase (authorized session). */
 export const usePersisted = () => useStore(state => !!state.remote);
+/** " · demo" while showing session examples; nothing with real data. */
+export const useDemoLabel = () => useStore(state => state.remote ? '' : ' · demo');
 
 const errors = {
   POSSIBLE_DUPLICATE_EXPENSE: 'Ya existe un gasto con los mismos datos. Revisa la lista o indica explícitamente que se trata de otro gasto.',

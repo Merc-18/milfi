@@ -15,3 +15,4 @@ import './auth.test.js';
 import './repositories.test.js';
 import './persistence.test.js';
 import './persistedStores.test.js';
+import './realUse.test.js';

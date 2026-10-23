@@ -13,13 +13,13 @@ export default function Home() {
         <Link to="/fiorella" className="block bg-white p-6 rounded-[24px] shadow-soft border-2 border-principal/40 hover:border-principal">
           <Flower2 size={28} className="mb-3" aria-hidden="true" />
           <h2 className="text-xl font-bold mb-2">Finanzas de Fiorella</h2>
-          <p className="text-sm mb-4">Plantilla configurada · Historial real aún no importado</p>
+          <p className="text-sm mb-4">Panel mensual · Presupuestos GF · Gastos GV · Metas</p>
           <span className="inline-flex items-center gap-2 font-bold text-sm">Abrir módulo <ChevronRight size={18} aria-hidden="true" /></span>
         </Link>
         <Link to="/control" className="block bg-secundario/30 p-6 rounded-[24px] shadow-soft border-2 border-transparent hover:border-secundario">
           <Users size={28} className="mb-3" aria-hidden="true" />
           <h2 className="text-xl font-bold mb-2">Control Finanzas M&F</h2>
-          <p className="text-sm mb-4">Depósitos y retiros reales · Importación pendiente</p>
+          <p className="text-sm mb-4">Depósitos para gastos y ahorro · Retiros</p>
           <span className="inline-flex items-center gap-2 font-bold text-sm">Abrir módulo <ChevronRight size={18} aria-hidden="true" /></span>
         </Link>
       </div>

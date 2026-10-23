@@ -155,7 +155,7 @@ test('screens: routes and management controls follow the loaded module access', 
     setSession('ready', APPROVED_ACCESS.fiorella);
     let html = render('/control');
     assert.ok(html.includes('Solo consulta') && !html.includes('Registrar ejemplo temporal') && !html.includes('Abrir preimportación'));
-    assert.ok(render('/control/preimportacion').includes('tarea de administración'));
+    assert.ok(render('/control/preimportacion').includes('Página no encontrada'));
     html = render('/fiorella');
     assert.ok(html.includes('Registrar datos del mes') && !html.includes('Solo consulta'));
     setSession('ready', APPROVED_ACCESS.milton);

@@ -28,9 +28,13 @@ export function inspectLedger(records) {
     const source = record?.provenance?.type;
     if (source === 'control-excel') {
       // Evidence captures are not stored, so imported rows are shown with the
-      // decision they were imported with, never re-declared as verified.
+      // decision they were imported with, never re-declared as verified. Rows
+      // loaded without a "prepared" decision stay pending with what is missing.
       const decision = (record.preimportDecisions ?? []).at(-1) ?? null;
-      return { record, errors: [], pendingReasons: [], status: 'imported', review: decision, staleReviews: 0 };
+      if (decision?.decision === 'prepared') return { record, errors: [], pendingReasons: [], status: 'imported', review: decision, staleReviews: 0 };
+      const missing = inspection.pendingReasons.filter(reason => !['MISSING_CONFIRMED_HOUSEHOLD', 'SOURCE_NOT_VERIFIED'].includes(reason));
+      if (record.amount === '0') missing.push('ZERO_AMOUNT_POLICY_PENDING');
+      return { record, errors: [], pendingReasons: [...new Set(missing.length ? missing : ['IMPORT_REVIEW_REQUIRED'])], status: 'pending', review: null, staleReviews: 0 };
     }
     const errors = [...inspection.errors];
     if (source !== 'control-manual' || record.origin !== 'real' || record.validationStatus !== 'pending') errors.push('LEDGER_SOURCE_REQUIRED');
@@ -97,12 +101,12 @@ export function prepareControlEntryReview(input, records = []) {
     reason: input.reason.trim(), evidence_reference: input.evidenceReference.trim() } };
 }
 
-/** Reviewed manual movements per currency/kind/destination; never a balance. */
+/** Reviewed movements (manual or imported as prepared) per currency/kind/destination; never a balance. */
 export function summarizeLedger(entries, period) {
   if (!isValidPeriod(period)) return { status: 'invalid', groups: [], entries: [] };
   const selected = entries.filter(entry => entry.record.period?.year === period.year && entry.record.period?.month === period.month);
   const groups = new Map();
-  for (const { record } of selected.filter(entry => entry.status === 'reviewed')) {
+  for (const { record } of selected.filter(entry => entry.status === 'reviewed' || entry.status === 'imported')) {
     const contributorId = record.kind === 'deposit' ? record.contributorId : null;
     const key = json([record.currency, record.kind, record.purpose, contributorId]);
     const group = groups.get(key) ?? { currency: record.currency, kind: record.kind, purpose: record.purpose, contributorId, total: '0', count: 0 };

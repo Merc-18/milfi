@@ -45,5 +45,8 @@ const explanations = {
   WITHDRAWAL_PURPOSE_POLICY_PENDING: 'El tratamiento de retiros para gastos está pendiente de aprobación; se conserva fuera del resumen revisado.',
   DEMO_DATE_REQUIRED: 'Falta la fecha de la operación demostrativa.',
   DECLARED_RECORDER_REQUIRED: 'Falta declarar quién registra el ejemplo.',
+  MISSING_CONFIRMED_PERIOD: 'Falta definir el mes al que corresponde.',
+  MISSING_WITHDRAWAL_DATE: 'Falta la fecha del retiro.',
+  IMPORT_REVIEW_REQUIRED: 'Cargado del Excel sin todos sus campos resueltos: pendiente de revisión.',
 };
 export const controlExplanation = code => explanations[code] ?? 'Los datos o su procedencia requieren revisión. No se aplicó el cambio.';

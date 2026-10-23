@@ -8,7 +8,7 @@ import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import ScenarioEditor from '../components/ScenarioEditor.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
-import { AmountStatus, buttonClass, cardClass, fieldClass, MoneyInput } from '../components/FiorellaSession.jsx';
+import { AmountStatus, buttonClass, cardClass, fieldClass, Help, MoneyInput } from '../components/FiorellaSession.jsx';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
 import { compareGoalCapacity, compareScenarios, estimateSavingsGoal, projectScenarios } from '../domain/savingsPlanning.js';
 
@@ -91,10 +91,26 @@ function GoalCard({ goal, selected, onEdit }) {
   </article>;
 }
 
+const goalStatus = { active: '🟢 Activa', paused: 'En pausa', achieved: 'Lograda', cancelled: 'Cancelada' };
+
+// Goals kept by Fiorella (loaded from her workbook): plans with their original attributes, never deposits.
+function SavedGoal({ goal }) {
+  const estimate = estimateSavingsGoal(goal);
+  return <article className={`${cardClass} text-sm space-y-1`} data-goal-id={goal.id}>
+    <p className="flex flex-wrap justify-between gap-2"><span className="font-bold text-base break-words">{goal.title}</span><span>{goalStatus[goal.status] ?? goal.status}</span></p>
+    <p>Objetivo: <strong className="break-all">{formatAmount(goal.target)}</strong> · {goal.months} meses{goal.deadlineLabel ? ` · Fecha límite: ${goal.deadlineLabel}` : ''}</p>
+    {estimate.status === 'estimated' && <p>Aporte mensual: <strong><ExactRatio value={estimate.monthlyContribution} /></strong></p>}
+    {goal.notes && <p className="break-words">{goal.notes}</p>}
+  </article>;
+}
+
 export default function Simulador() {
   const manage = canManage(useModuleAccess('fiorella'));
   const scenarios = useStore(state => state.simulations);
-  const goals = useStore(state => state.savingsGoals);
+  const allGoals = useStore(state => state.savingsGoals);
+  const persisted = useStore(state => !!state.remote);
+  const savedGoals = allGoals.filter(goal => goal.origin === 'real');
+  const goals = allGoals.filter(goal => goal.origin !== 'real');
   const [left, setLeft] = useState(''); const [right, setRight] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [editing, setEditing] = useState(null); const [generation, setGeneration] = useState(0);
@@ -106,7 +122,10 @@ export default function Simulador() {
   const goalDone = message => { setFeedback(message); setEditing(null); setGeneration(value => value + 1); };
   return <div className="pb-10 space-y-5 break-words">
     <header className="my-6"><h1 className="font-bold text-2xl">Simulador y metas de ahorro</h1><p className="text-sm mt-2">Finanzas de Fiorella · Planificación hipotética</p></header>
-    <StatusNotice title="Escenarios hipotéticos · Solo esta sesión"><p>Los escenarios y metas no son ingresos, saldos ni depósitos reales. No se trasladan a Control Finanzas M&F. Se pierden al recargar y no cambian tus registros de demostración GF/GV.</p></StatusNotice>
+    {persisted ? <Help title="Escenarios hipotéticos"><p>Los escenarios solo duran esta sesión. Escenarios y metas no son ingresos, saldos ni depósitos reales y no cambian tus registros GF/GV.</p></Help>
+      : <StatusNotice title="Escenarios hipotéticos · Solo esta sesión"><p>Los escenarios y metas no son ingresos, saldos ni depósitos reales. No se trasladan a Control Finanzas M&F. Se pierden al recargar y no cambian tus registros de demostración GF/GV.</p></StatusNotice>}
+    {!!savedGoals.length && <section className="space-y-3" data-testid="saved-goals"><h2 className="font-bold text-xl">Metas de Fiorella</h2>
+      {savedGoals.map(goal => <SavedGoal key={goal.id} goal={goal} />)}</section>}
     {feedback && <p role="status" className="text-sm">{feedback}</p>}
     <details className={cardClass} open><summary className="font-bold cursor-pointer">Crear escenarios de ingreso y GF</summary>
       <ScenarioEditor embedded onSaved={() => setFeedback('Escenario hipotético disponible para comparar. Solo dura esta sesión.')} />
@@ -138,9 +157,9 @@ export default function Simulador() {
       </div> : <p role={projection.status === 'blocked' ? 'alert' : undefined} className="text-sm">{messages[projection.reason]}</p>}
     </section>
     {manage ? <GoalForm key={`${editing ?? 'new'}:${generation}`} record={goals.find(goal => goal.id === editing)} onDone={goalDone} onCancel={() => goalDone('Edición de meta cancelada.')} /> : <ReadOnlyNotice>Tu usuario puede consultar las finanzas personales de Fiorella, pero no crear, editar ni eliminar sus registros.</ReadOnlyNotice>}
-    <section className="space-y-4"><h2 className="font-bold text-xl">Metas hipotéticas de esta sesión</h2>
+    <section className="space-y-4"><h2 className="font-bold text-xl">Metas hipotéticas{persisted ? '' : ' de esta sesión'}</h2>
       <p className="text-sm">Cada meta se evalúa por separado. No se reserva ni reparte ahorro entre metas, ni se supone que la misma capacidad cubra todas a la vez.</p>
-      {!goals.length && <p className={cardClass}>Todavía no registraste metas hipotéticas. No se han importado metas de ejemplo del Excel.</p>}
+      {!goals.length && <p className={cardClass}>Todavía no registraste metas hipotéticas.</p>}
       {goals.map(goal => <GoalCard key={goal.id} goal={goal} selected={selected} onEdit={manage ? () => setEditing(goal.id) : null} />)}
     </section>
   </div>;

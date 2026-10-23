@@ -5,7 +5,6 @@ import Fiorella from './Fiorella.jsx';
 import Calculadora from './Calculadora.jsx';
 import Historial from './Historial.jsx';
 import ControlFinanzas from './ControlFinanzas.jsx';
-import ControlPreimportacion from './ControlPreimportacion.jsx';
 import Acceso from './Acceso.jsx';
 import Configuracion from './Configuracion.jsx';
 import PresupuestosGF from './PresupuestosGF.jsx';
@@ -26,7 +25,6 @@ export default function AppRoutes() {
         <Route path="fiorella/simulador" element={<Simulador />} />
         <Route path="acceso" element={<Acceso />} />
         <Route path="control" element={<ControlFinanzas />} />
-        <Route path="control/preimportacion" element={<ControlPreimportacion />} />
         <Route path="calculadora" element={<Navigate to="/fiorella/calculadora" replace />} />
         <Route path="historial" element={<Navigate to="/fiorella/historial" replace />} />
         <Route path="configuracion" element={<Navigate to="/fiorella/configuracion" replace />} />
