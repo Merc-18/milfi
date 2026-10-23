@@ -28,6 +28,10 @@ retiros nunca se asumen: se resuelven solo con un archivo de decisiones del prop
 (`supabase/admin/control-decisiones.json.example`). Lo que no quede resuelto se carga
 **pendiente de revisión** y se muestra así en la app, fuera de los totales.
 
+Para el Excel de Control, sigue la [guía detallada de UX Fase 4](CARGA_CONTROL_FASE_4.md),
+que incluye las decisiones aprobadas, los recuentos, la migración del mes de plan
+y la reversión por lote.
+
 ## Procedimiento
 
 Requisitos: migración `20261024100000_milfi_real_use.sql` aplicada en Supabase y

@@ -1,14 +1,15 @@
 # MilFi 2.0
 
 Aplicación React + Vite + Zustand para Finanzas de Fiorella y Control Finanzas M&F.
-La Fase 3.1 incorpora registro, revisión e historial demostrativo de Control M&F,
-independiente de los formularios GF/GV, escenarios y metas de Fiorella. La Fase 3.2
-añade la lectura local del Excel de Control y una preimportación revisable que no
-escribe en el historial real. La Fase 4.1 prepara Supabase Auth y PostgreSQL con RLS
-(migraciones en `supabase/`), sin conectar todavía los formularios. Sin un proyecto
-configurado la app funciona en modo demostración local: los datos duran solo la
-sesión y se pierden al recargar. Todavía no administra dinero real ni ofrece autenticación
-o sincronización.
+La Fase 4 de UX reúne el libro de Control, el saldo de ahorro en soles, los
+meses de plan y la revisión de movimientos cargados del Excel. Con una cuenta
+configurada utiliza Supabase Auth y PostgreSQL con RLS. Sin configuración, la
+demo mantiene sus movimientos en la pestaña y los pierde al recargar.
+
+La [entrega de UX Fase 4](docs/UX_FASE_4.md) recoge reglas, recuentos y pruebas.
+La [guía de carga de Control](docs/CARGA_CONTROL_FASE_4.md) explica los comandos
+para aplicar la migración, preparar las decisiones privadas, ensayar, cargar y
+revertir un lote. La entrega no ejecuta esos pasos contra la base real.
 
 ## Estado de los datos
 
@@ -129,4 +130,5 @@ documenta Control M&F temporal, contratos, pruebas, capturas y decisiones pendie
 La [entrega de Fase 3.2](docs/FASE_3_2.md) documenta el lector local, la preimportación,
 los casos soportados y las decisiones pendientes. La [entrega de Fase 4.1](docs/FASE_4_1.md)
 documenta el esquema, las políticas RLS, la autenticación, las pruebas con PostgreSQL
-simulado y la configuración necesaria de Supabase. El trabajo queda detenido para su revisión.
+simulado y la configuración necesaria de Supabase. La evolución actual se documenta
+en [UX Fase 4](docs/UX_FASE_4.md).
