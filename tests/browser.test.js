@@ -226,6 +226,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await openMonthly(); await fill('monthly-fixed', '1500'); await submitForm('Datos mensuales');
       await browser.waitFor('document.querySelector("[data-testid=remaining]").textContent.includes("S/ 1,962.254")');
       await closeSheet();
+      // Home shows the same live figure for the selected month.
+      await clickLink('/', 'MilFi');
+      assert.ok((await visibleText()).includes('S/ 1,962.254'));
+      await clickLink('/fiorella', 'Resumen');
     });
 
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {

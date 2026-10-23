@@ -68,6 +68,11 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
     assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
 
+    // Home: name, one line and one live figure per module, without "·" lists.
+    const home = renderPath('/');
+    for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Movimientos pendientes de revisión']) assert.ok(home.includes(text), text);
+    assert.doesNotMatch(home.match(/<main.*<\/main>/s)[0], / · /);
+
     // The summary answers "how am I doing" without the old KPI grid or details.
     const summary = renderPath('/fiorella');
     for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) assert.ok(summary.includes(`data-testid="${id}"`), id);
