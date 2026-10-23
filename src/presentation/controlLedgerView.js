@@ -5,7 +5,7 @@ import { isValidDate, isValidPeriod } from '../domain/models.js';
 // Read-only views of the Control ledger. Only reviewed movements count (manual
 // "reviewed" or imported "imported" with nothing left to review); pending ones
 // are counted apart. Currencies are never mixed nor converted.
-export const counts = entry => entry.status === 'reviewed' || entry.status === 'imported';
+export const counts = entry => (entry.status === 'reviewed' || entry.status === 'imported') && !entry.pendingReasons?.length && !entry.errors?.length;
 const sum = values => values.reduce(addAmounts, '0');
 const monthOfDate = date => isValidDate(date) ? { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) } : null;
 /** The month a movement belongs to: its period, else the month of its date. */
@@ -92,13 +92,13 @@ const byCurrency = records => {
  */
 export function monthlyRows(entries, plans = new Map()) {
   const counted = entries.filter(counts).map(entry => entry.record);
-  const months = new Map();
+  const months = new Map([...plans.keys()].map(key => [key, { year: Number(key.slice(0, 4)), month: Number(key.slice(5, 7)) }]));
   for (const record of counted) {
     for (const period of [movementMonth(record), isSavingsDeposit(record) ? record.planPeriod : null]) if (period) months.set(keyOf(period), period);
   }
   return [...months.keys()].sort().reverse().map(key => {
     const inMonth = counted.filter(record => movementMonth(record) && keyOf(movementMonth(record)) === key);
-    const expenses = inMonth.filter(record => record.kind === 'deposit' && record.purpose === 'expenses');
+    const expenses = inMonth.filter(record => record.kind === 'deposit' && record.purpose === 'expenses' && record.contributorId === 'milton');
     const savings = inMonth.filter(isSavingsDeposit);
     const covered = coveredSavings(entries, months.get(key));
     const plan = plans.get(key) ?? null;
@@ -166,8 +166,8 @@ export function reviewReasons(entry, entries = []) {
   return { reasons: [...new Set(reasons)], suggestion };
 }
 
-/** Everything that needs a person: pending rows, savings without plan month, suspicious dates. */
+/** Tasks for a person: pending rows and savings without a plan month. Date warnings stay informational. */
 export function reviewQueue(entries) {
   return entries.map(entry => ({ entry, ...reviewReasons(entry, entries) }))
-    .filter(item => item.entry.status === 'pending' || item.reasons.length);
+    .filter(item => item.entry.status === 'pending' || (counts(item.entry) && isSavingsDeposit(item.entry.record) && !item.entry.record.planPeriod));
 }

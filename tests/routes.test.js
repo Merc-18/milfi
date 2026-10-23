@@ -28,7 +28,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/gastos', 'Ritmo del mes'],
       // Simulador and Calculadora redirect here (checked in Chromium).
       ['/fiorella/metas', 'Registra el ingreso del mes para estimar tus metas'],
-      ['/control', 'Historial real pendiente de importación'],
+      ['/control', 'Saldo de ahorro según lo registrado'],
       // No Excel upload screen for end users: the history is loaded once, administratively.
       ['/control/preimportacion', 'Página no encontrada'],
       ['/not-a-page', 'Página no encontrada'],
@@ -47,9 +47,10 @@ test('module routes render with real-history notices and no simulated financial 
       if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
       assert.doesNotMatch(html, /Demostración temporal/, path);
     }
-    assert.doesNotMatch(renderPath('/control'), /S\/\s*[\d]/);
+    assert.ok(renderPath('/control').includes('PEN 0.00'));
     assert.doesNotMatch(renderPath('/control'), /Aportes de Milton|solo Fiorella|únicamente Fiorella/);
-    for (const field of ['aportante', 'destino', 'usuario que lo registra']) assert.ok(renderPath('/control').includes(field));
+    assert.ok(renderPath('/control').includes('Registrar movimiento'));
+    assert.doesNotMatch(renderPath('/control'), /control-actor|control-source|control-operation/);
     assert.doesNotMatch(renderPath('/'), /S\/\s*[\d]/);
     const config = renderPath('/fiorella/configuracion');
     assert.ok(config.includes('Salud'));

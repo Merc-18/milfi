@@ -75,7 +75,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         ['/fiorella/calculadora', '/fiorella/metas?simular', 'Metas'],
         ['/historial', '/fiorella/historial', 'Historial'],
         ['/configuracion', '/fiorella/configuracion', 'Configuración oficial'],
-        ['/fondo-comun', '/control', 'Control Finanzas M&F'],
+        ['/fondo-comun', '/control', 'Control M&F'],
         // Presupuestos is now the fixed view of Gastos.
         ['/fiorella/presupuestos', '/fiorella/gastos?tipo=fijos', 'Gastos'],
       ];
@@ -108,10 +108,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/fiorella/historial', 'Historial');
       assert.ok((await visibleText()).includes('Todavía no hay registros.'));
       assert.doesNotMatch(await visibleText(), /Simulaciones de esta sesión|4,000\.01|600\.0024/);
-      await clickLink('/control', 'Control Finanzas M&F');
+      await clickLink('/control', 'Control M&F');
       const control = await browser.evaluate('document.body.textContent');
       assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
-      assert.ok(control.includes('no hay un saldo confirmado'));
+      assert.ok(control.includes('Saldo de ahorro según lo registrado'));
     });
 
     await context.test('the "¿y si…?" explains deficit, zero surplus and the GF cap without a split', async () => {
@@ -137,8 +137,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.body?.textContent.includes("Aún no tienes metas.")');
       // The demo is explained once, by the header badge.
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
-      await clickLink('/control', 'Control Finanzas M&F');
-      assert.ok(await browser.evaluate('document.body.textContent.includes("no hay un saldo confirmado")'));
+      await clickLink('/control', 'Control M&F');
+      assert.ok(await browser.evaluate('document.body.textContent.includes("Saldo de ahorro según lo registrado")'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -327,7 +327,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         return [card.dataset.light, getComputedStyle(card).color, card.querySelector('[data-testid=' + id + '-state]')?.textContent]; })`);
       assert.deepEqual(lights.map(([light]) => light), ['excedido', 'ok', 'neutral']);
       assert.equal(lights[0][1], 'rgb(255, 255, 255)', 'white text on the red card');
-      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Aún no alcanza el plan']);
+      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Pendiente']);
       await capture('28-resumen-semaforo-movil.png');
       // Historial: the month-by-month table is always visible at the top with a word next to each light.
       await clickLink('/fiorella/historial', 'Historial');
@@ -359,10 +359,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       }
       await clickLink('/fiorella', 'Resumen'); await capture('05-resumen-escritorio.png');
       await browser.evaluate('document.querySelector("main").scrollTop = document.querySelector("main").scrollHeight');
-      await clickLink('/control', 'Control Finanzas M&F');
+      await clickLink('/control', 'Control M&F');
       assert.equal(await browser.evaluate('document.querySelector("main").scrollTop'), 0);
-      assert.doesNotMatch(await visibleText(), /S\/\s*\d|5432|Ejemplo sintético/);
-      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
+      assert.doesNotMatch(await visibleText(), /5432|Ejemplo sintético/);
+      assert.ok((await visibleText()).includes('Saldo de ahorro según lo registrado'));
     });
 
     await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
@@ -522,8 +522,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '80');
       assert.equal(await browser.evaluate('document.getElementById("actual-servicios-gas").value'), '90');
-      await clickLink('/control', 'Control Finanzas');
-      assert.doesNotMatch(await visibleText(), /S\/\s*\d|Viaje inventado|Auto inventado/);
+      await clickLink('/control', 'Control M&F');
+      assert.doesNotMatch(await visibleText(), /Viaje inventado|Auto inventado/);
       await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/metas', 'Metas');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 2);
       await browser.page('Page.reload');
@@ -531,147 +531,135 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 0);
       assert.deepEqual(browser.exceptions, []);
     });
-    const chooseControl = async (id, value) => browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); input.value = ${JSON.stringify(value)}; input.dispatchEvent(new Event('change', {bubbles:true})); })()`);
-    const enterControl = async ({ amount = '0.1', currency = 'PEN', contributor = 'fiorella', purpose = 'expenses', actor = 'milton', kind = 'deposit', date = '2043-07-10', description = 'Ejemplo Control A', source = 'Referencia ficticia A' } = {}) => {
-      await chooseControl('control-kind', kind); await fill('control-date', date); await fill('control-amount', amount); await fill('control-currency', currency);
-      await chooseControl('control-contributor', contributor); await chooseControl('control-purpose', purpose); await chooseControl('control-actor', actor);
-      await fill('control-description', description); await fill('control-source', source);
+    const clickText = async text => browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(text)}).click()`);
+    const select = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    const balance = () => testText('control-balance');
+    const count = () => browser.evaluate('document.querySelectorAll("[data-ledger-id]").length');
+    const enter = async ({amount = '100', kind = 'deposit', purpose = 'savings', date = '2043-07-10', plan = '2043-06', description = ''} = {}) => {
+      await clickText('Registrar movimiento');
+      await browser.waitFor('!!document.querySelector("dialog[open] #control-amount")');
+      await browser.evaluate(`document.getElementById('control-kind-${kind}').click()`);
+      if (kind === 'deposit') await browser.evaluate(`document.getElementById('control-purpose-${purpose}').click()`);
+      await fill('control-date', date); await fill('control-amount', amount);
+      if (kind === 'deposit' && purpose === 'savings') await fill('control-plan', plan);
+      if (description) await fill('control-description', description);
+      await submitForm('Movimiento de Control');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
     };
-    const openControlReview = async index => {
-      await browser.evaluate(`document.querySelectorAll('[data-control-id]')[${index}].querySelectorAll('button')[1].click()`);
-      await browser.waitFor('!!document.getElementById("control-reviewer")');
-      await browser.waitFor(`(() => { const top = document.querySelector('form[aria-label="Revisión demostrativa de Control"]').getBoundingClientRect().top; return top >= -1 && top < innerHeight / 2; })()`);
-      await chooseControl('control-reviewer', 'milton');
-      await fill('control-review-reason', 'Verificación explícita de los datos inventados de esta operación');
-      await fill('control-review-reference', 'Referencia sintética vinculada a esta operación');
+    const accept = async () => {
+      await browser.evaluate('document.querySelector("[data-review-id] button").click()');
+      await browser.waitFor('!!document.getElementById("review-reference")');
+      await fill('review-reference', 'Voucher inventado');
+      await submitForm('Revisar movimiento');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
     };
-    const reviewControl = async index => { await openControlReview(index); await submitForm('Revisión demostrativa de Control'); };
-    const controlSummary = () => browser.evaluate('document.querySelector("[data-testid=control-summary]").textContent');
-    const controlCount = () => browser.evaluate('document.querySelectorAll("[data-control-id]").length');
 
-    await context.test('Control registers separate contributor/destination/recorder and reviews only demonstrative money', async () => {
-      await clickLink('/control', 'Control Finanzas M&F');
+    await context.test('Control demo: register, review, savings balance, arrival month versus plan month and withdrawals', async () => {
+      await clickLink('/control', 'Control M&F');
       await fill('control-selected-period', '2043-07');
-      assert.equal(await controlCount(), 0);
-      await enterControl(); await submitForm('Movimiento demostrativo de Control');
-      await browser.waitFor('document.querySelectorAll("[data-control-id]").length === 1');
-      assert.ok((await visibleText()).includes('Aportante: Fiorella · Destino: Gastos'));
-      assert.ok((await visibleText()).includes('Registrado por: Milton (declarado)'));
-      assert.doesNotMatch(await controlSummary(), /PEN 0\.10/);
-      await reviewControl(0);
-      await browser.waitFor('document.querySelector("[data-control-id]").dataset.controlState === "reviewed"');
-      assert.ok((await controlSummary()).includes('PEN 0.10'));
-      await browser.evaluate('document.getElementById("control-kind").form.scrollIntoView({block:"start"})');
-      await capture('16-control-formulario-movil.png');
-      assert.ok((await visibleText()).includes('Nunca confirmado'));
-      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
-      await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
-      await capture('12-control-resumen-movil.png');
-    });
-
-    await context.test('Control value duplicates need an explicit distinct-operation explanation', async () => {
-      await enterControl(); await submitForm('Movimiento demostrativo de Control');
-      await browser.waitFor('document.body.textContent.includes("Hay otra operación con los mismos datos")');
-      assert.equal(await controlCount(), 1);
-      await fill('control-distinct', 'Segundo depósito ficticio independiente con valores coincidentes');
-      await submitForm('Movimiento demostrativo de Control');
-      await browser.waitFor('document.querySelectorAll("[data-control-id]").length === 2');
-      assert.ok((await controlSummary()).includes('PEN 0.10'));
-    });
-
-    await context.test('Control keeps PEN/USD and independent withdrawals apart, with unknown currency pending', async () => {
-      await enterControl({ amount: '8', currency: 'USD', contributor: 'milton', purpose: 'savings', actor: 'fiorella', date: '2043-07-11', description: 'Depósito USD sintético' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      await enterControl({ amount: '5', kind: 'withdrawal', contributor: '', purpose: 'savings', date: '2043-07-12', description: 'Retiro sintético independiente' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      const totals = await controlSummary();
-      assert.ok(totals.includes('USD 8.00')); assert.ok(totals.includes('PEN 5.00')); assert.ok(totals.includes('PEN 0.10'));
-      assert.doesNotMatch(totals, /13\.10|−|\b3\.10/);
-      await enterControl({ amount: '4', currency: '', date: '2043-07-13', description: 'Moneda desconocida sintética' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("moneda pendiente")`);
-      assert.equal(await browser.evaluate('document.querySelector("[data-control-id]").dataset.controlState'), 'pending');
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Cerrar revisión").click()');
-      assert.doesNotMatch(await controlSummary(), /4\.00/);
-      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
-      await capture('13-control-monedas-movil.png');
-    });
-
-    await context.test('Control edits invalidate reviews, retain original evidence and expose before/after audit', async () => {
-      await browser.evaluate('Array.from(document.querySelectorAll("[data-control-id]")).find(card => card.textContent.includes("Ejemplo Control A") && card.dataset.controlState === "reviewed").querySelector("button").click()');
-      await browser.waitFor(`(() => { const top = document.querySelector('form[aria-label="Movimiento demostrativo de Control"]').getBoundingClientRect().top; return top >= -1 && top < innerHeight / 2; })()`);
-      await fill('control-amount', '0.2'); await submitForm('Movimiento demostrativo de Control');
-      await browser.waitFor('document.body.textContent.includes("Revisión anterior desactualizada")');
-      assert.doesNotMatch(await controlSummary(), /PEN 0\.10|PEN 0\.20/);
-      assert.ok((await visibleText()).includes('Antes: Depósito'));
-      assert.ok((await visibleText()).includes('Después: Depósito'));
-      const index = await browser.evaluate('Array.from(document.querySelectorAll("[data-control-id]")).findIndex(card => card.textContent.includes("Revisión anterior desactualizada"))');
-      await reviewControl(index);
-      await browser.waitFor('document.querySelector("[data-testid=control-summary]").textContent.includes("PEN 0.20")');
-      await browser.evaluate(`document.querySelectorAll('[data-control-id]')[${index}].scrollIntoView({block:"start"})`);
-      await capture('14-control-revision-movil.png');
-    });
-
-    await context.test('Control requires explicit cross-period assignment and keeps unapproved withdrawal/rounding pending', async () => {
-      await fill('control-selected-period', '2043-08'); assert.equal(await controlCount(), 0);
-      await enterControl({ amount: '3', date: '2043-07-31', description: 'Imputación interperiodo sintética' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("Fecha y periodo son distintos")`);
-      await capture('17-control-revision-formulario-movil.png');
-      assert.doesNotMatch(await controlSummary(), /PEN 3\.00/);
-      await browser.evaluate('document.getElementById("control-review-period").click()');
-      await submitForm('Revisión demostrativa de Control');
-      await browser.waitFor('document.querySelector("[data-testid=control-summary]").textContent.includes("PEN 3.00")');
-      await enterControl({ amount: '2', kind: 'withdrawal', contributor: '', purpose: 'expenses', date: '2043-08-02', description: 'Tratamiento pendiente sintético' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("retiros para gastos")`);
-      assert.doesNotMatch(await controlSummary(), /PEN 2\.00/);
-      await chooseControl('control-review-decision', 'rejected'); await submitForm('Revisión demostrativa de Control');
-      await browser.waitFor('document.querySelector("[data-control-id]").dataset.controlState === "rejected"');
-      await enterControl({ amount: '0.001', date: '2043-08-03', description: 'Fracción de céntimo sintética' });
-      await submitForm('Movimiento demostrativo de Control'); await reviewControl(0);
-      await browser.waitFor(`document.querySelector('form[aria-label="Revisión demostrativa de Control"] [role=alert]')?.textContent.includes("fracciones de céntimo")`);
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Cerrar revisión").click()');
-      assert.doesNotMatch(await controlSummary(), /0\.001/);
-    });
-
-    await context.test('Control filters month/year/status, fits mobile/desktop and stays separate across module navigation', async () => {
-      await chooseControl('control-status', 'pending'); assert.equal(await controlCount(), 1);
-      await chooseControl('control-status', 'rejected'); assert.equal(await controlCount(), 1);
-      await chooseControl('control-status', 'reviewed'); assert.equal(await controlCount(), 1);
-      await chooseControl('control-status', 'confirmed'); assert.equal(await controlCount(), 0);
-      assert.ok((await visibleText()).includes('Ninguna demostración es un movimiento confirmado'));
-      await chooseControl('control-status', 'all');
-      for (const width of [320, 390, 768, 1280]) {
-        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
-        const sizes = await browser.evaluate('({width:innerWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
-        assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
-        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
-      }
-      await browser.evaluate('document.querySelector("[data-testid=control-summary]").scrollIntoView({block:"start"})');
-      await capture('15-control-escritorio.png');
-      await fill('control-selected-period', '2044-08'); assert.equal(await controlCount(), 0);
-      await fill('control-selected-period', '2043-07'); assert.equal(await controlCount(), 5);
-      await clickLink('/fiorella', 'Resumen');
-      assert.doesNotMatch(await visibleText(), /Ejemplo Control|Depósito USD sintético|PEN 0\.20/);
-      await clickLink('/fiorella/historial', 'Historial');
-      assert.doesNotMatch(await visibleText(), /Ejemplo Control|Moneda desconocida|Retiro sintético/);
-      await clickLink('/control', 'Control Finanzas M&F');
-      assert.equal(await controlCount(), 5);
-      await browser.page('Page.reload');
-      await browser.waitFor('document.querySelector("[data-testid=control-counts]")?.textContent.includes("Depósitos registrados de demo: 0")');
-      assert.equal(await controlCount(), 0);
-      assert.ok((await visibleText()).includes('Sin cambios en esta sesión'));
-      assert.ok((await visibleText()).includes('no hay un saldo confirmado'));
+      assert.equal(await count(), 0);
+      await enter();
+      assert.ok((await balance()).includes('PEN 0.00') && (await balance()).includes('1 movimiento por revisar'));
+      await accept();
+      assert.ok((await balance()).includes('PEN 100.00'));
+      const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr")).map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
+      assert.ok(rows.find(row => row.key === '2043-07').cells[2].includes('100.00'));
+      assert.equal(rows.find(row => row.key === '2043-07').cells[4], '—');
+      assert.ok(rows.find(row => row.key === '2043-06').cells[4].includes('100.00'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 0);
+      await enter({ amount: '20', kind: 'withdrawal', description: 'Retiro inventado', date: '2043-07-12' });
+      await accept();
+      assert.ok((await balance()).includes('PEN 80.00'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 1);
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=balance-chart] svg circle title").textContent')).includes('Retiro inventado'));
+      // USD is recorded separately and never subtracted from the PEN balance.
+      await clickText('Registrar movimiento');
+      await browser.waitFor('!!document.getElementById("control-amount")');
+      await browser.evaluate('document.getElementById("control-kind-withdrawal").click()');
+      await fill('control-amount', '7.5'); await select('control-currency', 'USD');
+      await fill('control-date', '2043-07-13'); await fill('control-description', 'Retiro USD inventado');
+      await submitForm('Movimiento de Control'); await browser.waitFor('!document.querySelector("dialog[open]")'); await accept();
+      assert.ok((await balance()).includes('PEN 80.00') && (await balance()).includes('US$ 7.50'));
       assert.deepEqual(browser.exceptions, []);
+    });
+
+    await context.test('Control edit invalidates review, duplicate needs a reason, rejected rows stay outside balance', async () => {
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-ledger-id] button")).find(button => button.textContent.includes("100.00")).click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
+      assert.ok((await browser.evaluate('document.querySelector("dialog[open]").textContent')).includes('Operación'));
+      await clickText('Editar'); await browser.waitFor('!!document.getElementById("control-amount")');
+      assert.equal(await browser.evaluate('!!document.getElementById("control-actor") || !!document.getElementById("control-operation") || !!document.getElementById("control-period")'), false);
+      await fill('control-amount', '150'); await submitForm('Movimiento de Control');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      assert.ok((await balance()).includes('−PEN 20.00'));
+      await accept(); assert.ok((await balance()).includes('PEN 130.00'));
+      await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
+      await browser.evaluate('document.getElementById("control-purpose-savings").click()');
+      await fill('control-amount', '150'); await fill('control-date', '2043-07-10'); await fill('control-plan', '2043-06');
+      await submitForm('Movimiento de Control');
+      await browser.waitFor('!!document.getElementById("control-distinct")');
+      assert.equal(await count(), 3);
+      await fill('control-distinct', 'Otro depósito inventado con voucher distinto'); await submitForm('Movimiento de Control');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      await browser.evaluate('document.querySelector("[data-review-id] button").click()');
+      await browser.waitFor('!!document.getElementById("review-rejected")');
+      await browser.evaluate('document.getElementById("review-rejected").click()');
+      await fill('review-reason', 'Registro inventado descartado'); await submitForm('Revisar movimiento');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      assert.ok((await balance()).includes('PEN 130.00'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-review-id]").length'), 0);
+    });
+
+    await context.test('Control filters, responsive screens and form; state survives navigation and clears on reload', async () => {
+      await clickText('Retiros'); assert.equal(await count(), 2);
+      await clickText('Depósitos'); assert.equal(await count(), 2);
+      await clickText('Por revisar'); assert.equal(await count(), 0);
+      await clickText('Todos'); assert.equal(await count(), 4);
+      for (const width of [320, 360, 390, 768, 1280]) {
+        await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
+        const fits = await browser.evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1');
+        assert.equal(fits, true, `Control fits ${width}`);
+        await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
+        assert.equal(await browser.evaluate('document.querySelector("dialog[open]").scrollWidth <= document.querySelector("dialog[open]").clientWidth + 1'), true);
+        assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
+        await closeSheet();
+      }
+      await capture('30-control-fase4.png');
+      await fill('control-selected-period', '2043-08'); assert.equal(await count(), 0);
+      await fill('control-selected-period', '2043-07'); assert.equal(await count(), 4);
+      await clickLink('/fiorella', 'Resumen'); assert.doesNotMatch(await visibleText(), /Retiro inventado|PEN 130.00/);
+      await clickLink('/control', 'Control M&F'); assert.equal(await count(), 4);
+      await browser.page('Page.reload');
+      await browser.waitFor('!!document.querySelector("[data-testid=control-balance]") && !document.body.textContent.includes("Cargando")');
+      assert.equal(await count(), 0); assert.ok((await balance()).includes('PEN 0.00'));
+      assert.deepEqual(browser.exceptions, []);
+    });
+
+    await context.test('fixed form choices stay on one line at 360px; an own goal can be deleted', async () => {
+      await browser.page('Emulation.setDeviceMetricsOverride', { width: 360, height: 844, deviceScaleFactor: 1, mobile: true });
+      await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/gastos', 'Gastos'); await clickText('Registrar gasto');
+      await browser.waitFor('!!document.getElementById("gasto-tipo-fijo")');
+      await browser.evaluate('document.getElementById("gasto-tipo-fijo").click()');
+      const labels = await browser.evaluate('Array.from(document.querySelectorAll("label[for^=gf-mode]")).map(el => ({text: el.textContent, height: el.clientHeight, line: parseFloat(getComputedStyle(el).lineHeight)}))');
+      assert.deepEqual(labels.map(item => item.text), ['Sumar', 'Reemplazar']);
+      assert.ok(labels.every(item => item.height < item.line * 3), JSON.stringify(labels));
+      await closeSheet();
+      await clickLink('/fiorella/metas', 'Metas'); await clickText('Nueva meta');
+      await browser.waitFor('!!document.getElementById("goal-title")');
+      await fill('goal-title', 'Meta para eliminar'); await fill('goal-target', '100'); await fill('goal-months', '2');
+      await submitForm('Meta de ahorro'); await browser.waitFor('!document.querySelector("dialog[open]")');
+      await browser.evaluate('document.querySelector("[data-goal-id] button").click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
+      await clickText('Eliminar'); await clickText('Confirmar eliminación');
+      await browser.waitFor('!document.querySelector("dialog[open]") && !document.querySelector("[data-goal-id]")');
+      assert.ok((await visibleText()).includes('Meta eliminada.'));
     });
 
     await context.test('one month is kept across modules and sheets close with Esc returning focus', async () => {
       await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
       await clickLink('/fiorella', 'Resumen');
       await fill('fiorella-period', '2047-03');
-      await clickLink('/control', 'Control Finanzas M&F');
+      await clickLink('/control', 'Control M&F');
       assert.equal(await browser.evaluate('document.getElementById("control-selected-period").value'), '2047-03');
       await browser.evaluate('document.querySelector("[aria-label=\'Mes siguiente\']").click()');
       await browser.waitFor('document.getElementById("control-selected-period").value === "2047-04"');
@@ -706,7 +694,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await capture('26-cabecera-320.png');
       assert.equal(await browser.evaluate('document.querySelectorAll("#login-email, #login-password").length'), 0);
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));
-      await clickLink('/control', 'Control Finanzas M&F');
+      await clickLink('/control', 'Control M&F');
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));
       assert.deepEqual(await browser.evaluate('({local: localStorage.length, session: sessionStorage.length})'), { local: 0, session: 0 });
       assert.deepEqual(browser.exceptions, []);

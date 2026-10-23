@@ -156,7 +156,7 @@ test('screens: routes and management controls follow the loaded module access', 
     setSession('ready', APPROVED_ACCESS.fiorella);
     assert.ok(!render('/fiorella').includes('data-testid="demo-mode"'), 'no demo badge with a session');
     let html = render('/control');
-    assert.ok(html.includes('Solo consulta') && !html.includes('Registrar ejemplo temporal') && !html.includes('Abrir preimportación'));
+    assert.ok(html.includes('Solo consulta') && !html.includes('Registrar movimiento') && !html.includes('Abrir preimportación'));
     assert.ok(render('/control/preimportacion').includes('Página no encontrada'));
     html = render('/fiorella');
     assert.ok(html.includes('Registra el ingreso del mes') && !html.includes('Registrar gasto') && !html.includes('Solo consulta'));
@@ -169,12 +169,12 @@ test('screens: routes and management controls follow the loaded module access', 
     assert.doesNotMatch(render('/fiorella/gastos?tipo=fijos'), /Copiar presupuestos|aria-label="Editar /);
     assert.doesNotMatch(render('/fiorella/gastos'), />Registrar gasto</);
     assert.doesNotMatch(render('/fiorella/metas'), />Nueva meta<|>Editar<|Eliminar|Registra el ingreso del mes</);
-    assert.ok(render('/control').includes('Registrar ejemplo temporal'));
+    assert.ok(render('/control').includes('Registrar movimiento'));
     setSession('ready', { fiorella: 'none', 'control-mf': 'read' });
     assert.ok(render('/fiorella').includes('Sin permiso para este módulo'));
     setSession('no-access', { fiorella: 'none', 'control-mf': 'none' });
     assert.ok(render('/control').includes('Sin permisos asignados'));
-    for (const status of ['signed-out', 'expired']) { setSession(status); assert.ok(!render('/control').includes('Control Finanzas M&amp;F</h1>'), status); }
+    for (const status of ['signed-out', 'expired']) { setSession(status); assert.ok(!render('/control').includes('Control M&amp;F</h1>'), status); }
     setSession('initializing');
     assert.ok(render('/fiorella').includes('Verificando la sesión'));
   } finally {

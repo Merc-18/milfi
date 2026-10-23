@@ -5,7 +5,7 @@ import { balanceSeries, coveredSavings, monthlyRows, planLight, reviewQueue, rev
 // Invented entries (record + ledger status), as inspectLedger returns them.
 let sequence = 0;
 const entry = (fields, status = 'reviewed', pendingReasons = []) => ({ status, pendingReasons, record: { id: `m${++sequence}`, kind: 'deposit', purpose: 'savings',
-  currency: 'PEN', amount: '100', period: { year: 2030, month: 11 }, effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
+  currency: 'PEN', contributorId: 'fiorella', amount: '100', period: { year: 2030, month: 11 }, effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
 const nov = { year: 2030, month: 11 };
 const dec = { year: 2030, month: 12 };
 const jan = { year: 2031, month: 1 };
@@ -63,4 +63,15 @@ test('reasons in plain language, with suggestions to confirm and the inverted-da
     excel({ kind: 'withdrawal', row: 3, effectiveDate: '2031-02-20' }, { date: '47169' })];
   assert.deepEqual(rows.map(item => reviewReasons(item, rows).reasons.includes('La fecha puede tener día y mes invertidos')), [false, true, false]);
   assert.equal(reviewQueue([...rows, noPlan, entry({ planPeriod: nov })]).length, 4);
+  const reviewedWarning = { ...rows[1], status: 'reviewed' };
+  assert.equal(reviewQueue([rows[0], reviewedWarning, rows[2]]).some(item => item.entry === reviewedWarning), false, 'the inverted date is only a notice');
+});
+
+test('monthly columns include plan-only months and Gastos (Milton) excludes other contributors', () => {
+  const rows = monthlyRows([entry({ purpose: 'expenses', contributorId: 'milton', amount: '10.1' }),
+    entry({ purpose: 'expenses', contributorId: 'fiorella', amount: '99' }), entry({ amount: '50' }, 'imported', ['UNRESOLVED_MONEY'])],
+  new Map([['2030-11', '100'], ['2030-12', '150']]));
+  assert.deepEqual(rows.map(row => [row.key, row.expenses, row.covered, row.light.word]), [
+    ['2030-12', [], null, 'Pendiente'], ['2030-11', [{ currency: 'PEN', amount: '10.1' }], null, 'Pendiente']]);
+  assert.equal(savingsBalance([entry({ amount: '50' }, 'imported', ['UNRESOLVED_MONEY'])]).amount, '0');
 });

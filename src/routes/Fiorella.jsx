@@ -9,10 +9,11 @@ import { useStore } from '../store/useStore.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
 import { formatAmount, formatShortPeriod } from '../presentation/format.js';
 import { controlMoney } from '../presentation/control.js';
-import { MISSING, MISSING_READ, remainingToSpend, savingsStatus, USAGE_TEXT, usageBadge } from '../presentation/status.js';
+import { MISSING, MISSING_READ, remainingToSpend, USAGE_TEXT, usageBadge } from '../presentation/status.js';
+import { coveredSavings, planLight } from '../presentation/controlLedgerView.js';
 import { addAmounts, compareAmounts } from '../domain/amounts.js';
 import { inspectLedger } from '../domain/controlLedger.js';
-import { fiorellaEvolution, registeredSavingsDeposits, summarizeExpenses } from '../domain/fiorellaDashboard.js';
+import { fiorellaEvolution, summarizeExpenses } from '../domain/fiorellaDashboard.js';
 import { withFixedCap } from '../presentation/fixedCap.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
 import Badge from '../components/ui/Badge.jsx';
@@ -85,7 +86,7 @@ function DistributionChart({ summary, remaining, deposited, manage, onEdit }) {
           <dd className="tabular-nums break-all">Real {id === 'savings' && deposited == null ? 'sin depósitos' : formatAmount(real[id])}</dd>
         </div>)}
       </dl>} />}
-    {calculated && <p className="text-xs text-texto-light">Real: gastado hasta hoy y ahorro depositado en Control (PEN). Lo no usado queda en blanco.</p>}
+    {calculated && <p className="text-xs text-texto-light">Real: gastado hasta hoy y ahorro asignado a este mes en Control (PEN). Lo no usado queda en blanco.</p>}
     <Sheet open={detail} onClose={() => setDetail(false)} title="Distribución del mes">
       {distribution && <DistributionDetails distribution={distribution} />}
     </Sheet>
@@ -132,19 +133,18 @@ export default function Fiorella() {
   const ledger = useLedgerStore(state => state.records);
   const [editing, setEditing] = useState(false);
   const evolution = useMemo(() => fiorellaEvolution(withFixedCap(records), persisted ? 'real' : 'simulated'), [records, persisted]);
-  const deposits = useMemo(() => registeredSavingsDeposits(inspectLedger(ledger), period, 'fiorella'), [ledger, period]);
+  const entries = useMemo(() => inspectLedger(ledger), [ledger]);
   const remaining = remainingToSpend(summary);
   const expenses = summarizeExpenses(summary);
   const applied = summary.monthly?.appliedFixedExpense ?? null;
   const distribution = summary.calculation.status === 'calculated' ? summary.calculation.distribution : null;
-  // Couple savings are compared in soles only; other currencies are listed apart.
-  const deposited = persisted ? deposits.groups.find(group => group.currency === 'PEN')?.total ?? null : null;
-  const otherDeposits = persisted ? deposits.groups.filter(group => group.currency !== 'PEN') : [];
+  // Couple savings: deposits ASSIGNED to this month's plan in Control (PEN, reviewed), whenever they came in.
+  const deposited = coveredSavings(entries, period);
+  const waiting = entries.filter(entry => entry.status === 'pending' && entry.record.kind === 'deposit' && entry.record.purpose === 'savings').length;
   const fixedSpent = summary.actual.amount ?? '0';
   const variableSpent = expenses.variable.amount ?? '0';
   const budgetAboveApplied = applied !== null && summary.budget.amount !== null && compareAmounts(summary.budget.amount, applied) > 0;
-  const savings = savingsStatus(deposited, distribution?.savings.couple ?? null);
-  const savingsText = !distribution ? 'Sin plan del mes' : savings === 'ok' ? 'Plan alcanzado' : 'Aún no alcanza el plan';
+  const savings = planLight(deposited, distribution?.savings.couple ?? null);
   const edit = () => setEditing(true);
   return <div className="pb-10 space-y-4">
     <PageHeader title="Resumen"><PeriodPicker /></PageHeader>
@@ -163,11 +163,10 @@ export default function Fiorella() {
           detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${expenses.variable.count} gasto(s)` : 'Sin asignación del mes'}
           badges={[usageBadge(variableSpent, distribution?.variable.total ?? null)].filter(Boolean)} />
         <StatLink lit to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
-          value={deposited == null ? 'Sin depósitos' : controlMoney(deposited, 'PEN')}
+          value={deposited == null ? 'Sin depósitos asignados' : controlMoney(deposited, 'PEN')}
           detail={[distribution && `de ${formatAmount(distribution.savings.couple)} planificado`,
-            ...otherDeposits.map(group => `también ${controlMoney(group.total, group.currency)}`),
-            persisted && deposits.pending > 0 && `${deposits.pending} pendiente(s) de revisión en Control`].filter(Boolean).join(' · ')}
-          badges={[{ tone: savings, text: savingsText }]} />
+            waiting > 0 && `${waiting} por revisar en Control`].filter(Boolean).join(', ')}
+          badges={[{ tone: savings.tone, text: savings.word }]} />
       </div>
     </div>
     <div className="grid gap-4 lg:grid-cols-2">

@@ -8,14 +8,16 @@ import AppRoutes from '../../src/routes/AppRoutes.jsx';
 import { SessionViewContext } from '../../src/presentation/moduleAccess.js';
 import { useStore } from '../../src/store/useStore.js';
 import { useLedgerStore } from '../../src/store/ledgerStore.js';
+import { createMemoryControlPersistence } from '../../src/application/memoryControlPersistence.js';
 import { usePeriodStore } from '../../src/store/periodStore.js';
 
 let root = null;
 window.mountMilfi = async ({ fixture, identity, access, path, period }) => {
   root?.unmount();
-  const persistence = { householdId: fixture.householdId,
+  const control = createMemoryControlPersistence({ householdId: fixture.householdId, actor: identity, initialRecords: fixture.control.records });
+  const persistence = { ...control, householdId: fixture.householdId,
     loadFiorella: async () => structuredClone(fixture.fiorella), loadFiorellaHistory: async () => ({ ok: true, events: [] }),
-    loadControl: async () => structuredClone(fixture.control), loadControlHistory: async () => ({ ok: true, events: [] }) };
+    loadControl: control.loadControl, loadControlHistory: control.loadControlHistory };
   usePeriodStore.getState().selectPeriod(period);
   root = createRoot(document.getElementById('root'));
   root.render(<SessionViewContext.Provider value={{ mode: 'auth', status: 'ready', access }}>

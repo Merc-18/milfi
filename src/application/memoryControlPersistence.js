@@ -1,8 +1,8 @@
 // In-memory stand-in for the Control persistence used by the demo (no account):
 // the same ledger domain and screens, nothing leaves the browser tab and a reload
 // starts empty. Revisions and the change history behave like the database.
-export function createMemoryControlPersistence({ householdId = 'demo-household', actor = 'milton' } = {}) {
-  let records = [];
+export function createMemoryControlPersistence({ householdId = 'demo-household', actor = 'milton', initialRecords = [] } = {}) {
+  let records = structuredClone(initialRecords);
   let events = [];
   let sequence = 0;
   const now = () => new Date().toISOString();

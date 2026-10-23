@@ -45,7 +45,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       const body = await text();
       assert.doesNotMatch(body, /· demo|Demostración de esta sesión|Historial real aún no importado|Datos guardados en MilFi|Modo demo/);
       assert.ok(body.includes('S/ 3,000.00'), 'income of the month');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent.includes("PEN 22.50")'), 'savings deposited in Control');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent.includes("Sin depósitos asignados")'), 'savings deposited in Control');
       assert.ok(await browser.evaluate('!!document.querySelector("[aria-label=\'Editar ingreso del mes\']")'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=couple-savings-chart] svg[role=img]")'));
       assert.equal(await fits(), true);
@@ -141,17 +141,57 @@ test('saved data: dashboards, filters and goals render without demo labels and r
 
     await context.test('Control: separate operations, pending outside totals, filters; Fiorella only reads', async () => {
       await mount('fiorella', '/control', '2031-01');
-      await browser.waitFor('!!document.querySelector("[data-testid=control-summary]")');
-      const summary = await browser.evaluate('document.querySelector("[data-testid=control-summary]").textContent');
-      assert.ok(summary.includes('Depósitos para ahorro') && summary.includes('PEN 22.50') && summary.includes('pendientes de revisión'));
-      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=control-evolution]")'));
+      await browser.waitFor('!!document.querySelector("[data-testid=control-balance]")');
+      const summary = await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent');
+      assert.ok(summary.includes('PEN 22.50') && summary.includes('por revisar'));
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=balance-chart]")'));
       assert.ok(await browser.evaluate('!document.getElementById("control-amount")') && !(await text()).includes('preimportación'));
       const cards = () => browser.evaluate('document.querySelectorAll("[data-ledger-id]").length');
       assert.equal(await cards(), 2);
-      await browser.evaluate('(() => { const select = document.getElementById("control-status"); select.value = "pending"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      await browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Por revisar').click()`);
       await browser.waitFor('document.querySelectorAll("[data-ledger-id]").length === 1');
       assert.equal(await fits(), true);
       await capture('datos-02-control.png');
+    });
+
+    await context.test('imported dollar suggestion needs confirmation, plan assignment preserves imported status and updates the light', async () => {
+      await mount('milton', '/control', '2031-01');
+      const fill = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById('${id}'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const click = async label => browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`);
+      // Synthetic savings row imported as prepared, with no plan month yet.
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('Falta el mes del plan') && row.textContent.includes('22.50')).querySelector('button').click()`);
+      await browser.waitFor('!!document.getElementById("review-plan")');
+      await fill('review-plan', '2031-01'); await click('Guardar mes del plan');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      const january = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).find(row => row.dataset.month === '2031-01').textContent`);
+      assert.ok(january.includes('22.50') && january.includes('Parcial'), january);
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-ledger-id] button')).find(button => button.textContent.includes('22.50')).click()`);
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
+      await click('Cambiar mes del plan'); await browser.waitFor('!!document.getElementById("review-plan")');
+      assert.equal(await browser.evaluate('document.getElementById("review-plan").value'), '2031-01');
+      await fill('review-plan', '2031-02'); await click('Guardar mes del plan');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'amarillo');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-01"] [data-light]').dataset.light`), 'gris');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 22.50'));
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
+      await browser.waitFor('!!document.getElementById("review-amount")');
+      assert.equal(await browser.evaluate('document.getElementById("review-amount").value'), '7.5');
+      // The old fixture decided PEN for every value; the owner template tested elsewhere leaves this blank.
+      await fill('review-reference', 'Extracto inventado');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 22.50'), 'opening the suggestion cannot change totals');
+      await browser.evaluate('document.getElementById("review-rejected").click()');
+      await fill('review-reason', 'No corresponde: prueba inventada'); await click('Rechazar');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      assert.equal(await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).some(row => row.textContent.includes('confirma el importe en US$'))`), false);
+      // Another invented withdrawal has no source date: both date and period can be completed.
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('Falta la fecha del retiro')).querySelector('button').click()`);
+      await browser.waitFor('!!document.getElementById("review-date")');
+      await fill('review-date', '2031-02-20'); await fill('review-period', '2031-02');
+      await fill('review-reference', 'Voucher inventado con fecha'); await click('Aceptar');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 19.50'));
+      assert.deepEqual(browser.exceptions, []);
     });
 
     await context.test('Milton reads Fiorella without forms and manages Control', async () => {
@@ -172,6 +212,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
       assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => ["Editar", "Eliminar"].includes(button.textContent))'), false);
       await mount('milton', '/control', '2031-01');
+      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === \"Registrar movimiento\").click()');
       await browser.waitFor('!!document.getElementById("control-amount")');
       assert.deepEqual(browser.exceptions, []);
     });

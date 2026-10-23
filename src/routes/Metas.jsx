@@ -34,6 +34,9 @@ export default function Metas() {
   const [form, setForm] = useState(null);
   const [monthly, setMonthly] = useState(false);
   const [feedback, setFeedback] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [removing, setRemoving] = useState(false);
   const current = parsePeriodInput(currentPeriodInput());
   const origin = persisted ? 'real' : 'simulated';
   const capacity = useMemo(() => couplePlanCapacity(records, period, origin), [records, period, origin]);
@@ -50,7 +53,7 @@ export default function Metas() {
   const finished = goals.filter(isFinished);
   const goal = goals.find(item => item.id === opened) ?? null;
   const editing = form === 'new' ? null : goals.find(item => item.id === form) ?? null;
-  const card = item => <GoalCard key={item.id} goal={item} plan={plans.get(item.id)} onOpen={setOpened} />;
+  const card = item => <GoalCard key={item.id} goal={item} plan={plans.get(item.id)} onOpen={id => { setOpened(id); setDeleting(false); setDeleteError(''); }} />;
   return <div className="pb-10 space-y-4">
     <PageHeader title="Metas"><PeriodPicker /></PageHeader>
     <SessionNotice />
@@ -80,6 +83,20 @@ export default function Metas() {
     <Sheet wide open={!!goal} onClose={() => setOpened(null)} title={goal?.title ?? ''}>
       {goal && <GoalDetail key={`${goal.id}:${goal.revision}:${input}`} goal={goal} capacity={capacity} base={base} current={current}
         editable={manage && goal.origin !== 'real'} onEdit={() => { setOpened(null); setForm(goal.id); }} />}
+      {goal && manage && goal.origin !== 'real' && <div className="mt-4 space-y-3">
+        {deleting ? <>
+          <p className="text-sm">¿Eliminar «{goal.title}»?</p>
+          <button type="button" className={quietClass} disabled={removing} onClick={async () => {
+            setRemoving(true); setDeleteError('');
+            const result = await useStore.getState().deleteSavingsGoal(goal);
+            setRemoving(false);
+            if (result.ok) { setOpened(null); setDeleting(false); setFeedback('Meta eliminada.'); }
+            else setDeleteError('No se pudo eliminar la meta. Vuelve a intentarlo.');
+          }}>Confirmar eliminación</button>
+          <button type="button" className={quietClass} disabled={removing} onClick={() => setDeleting(false)}>Cancelar</button>
+        </> : <button type="button" className={quietClass} onClick={() => setDeleting(true)}>Eliminar</button>}
+        {deleteError && <p role="alert" className="text-sm">{deleteError}</p>}
+      </div>}
     </Sheet>
     {manage && <Sheet open={form !== null} onClose={() => setForm(null)} title={editing ? 'Editar meta' : 'Nueva meta'}>
       <GoalForm key={form ?? 'closed'} record={editing} capacity={capacity.amount} onCancel={() => setForm(null)}

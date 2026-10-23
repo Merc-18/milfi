@@ -6,7 +6,8 @@ export const purposeName = purpose => ({ expenses: 'Gastos', savings: 'Ahorro' }
 // Review states as palette tones; the label always states the state in words.
 export const statusTone = status => ({ pending: 'aviso', invalid: 'aviso', rejected: 'excedido' }[status] ?? 'neutral');
 export const kindName = kind => kind === 'deposit' ? 'Depósito' : 'Retiro';
-export const statusName = status => ({ reviewed: 'Demo revisada', pending: 'Demo pendiente de revisión', rejected: 'Demo rechazada', invalid: 'Demo inválida' }[status] ?? 'Pendiente');
+export const statusName = status => ({ reviewed: 'Revisado', imported: 'Cargado del Excel', pending: 'Por revisar', rejected: 'Rechazado', invalid: 'Inválido' }[status]
+  ?? 'Por revisar');
 
 // Currency is always explicit. Preserve every decimal digit, without Number/rounding.
 export function controlMoney(amount, currency) {
@@ -50,5 +51,11 @@ const explanations = {
   MISSING_CONFIRMED_PERIOD: 'Falta definir el mes al que corresponde.',
   MISSING_WITHDRAWAL_DATE: 'Falta la fecha del retiro.',
   IMPORT_REVIEW_REQUIRED: 'Cargado del Excel sin todos sus campos resueltos: pendiente de revisión.',
+  MISSING_PLAN_PERIOD: 'Elige a qué mes del plan corresponde el depósito de ahorro.',
+  INVALID_PLAN_PERIOD: 'El mes del plan no es válido.',
+  SAVINGS_DEPOSIT_REQUIRED: 'Solo los depósitos de ahorro tienen mes del plan.',
+  INVALID_CORRECTION: 'Ese dato no se puede corregir aquí.',
+  INVALID_PERIOD: 'Elige un mes válido.',
+  IMPORTED_MOVEMENT_REQUIRED: 'Este movimiento no viene del Excel.',
 };
 export const controlExplanation = code => explanations[code] ?? 'Los datos o su procedencia requieren revisión. No se aplicó el cambio.';

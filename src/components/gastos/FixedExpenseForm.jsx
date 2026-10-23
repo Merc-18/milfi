@@ -9,7 +9,7 @@ import { useStore } from '../../store/useStore.js';
 import { buttonClass, fieldClass, MoneyInput } from '../FiorellaSession.jsx';
 import { segmentClass, segmentGroupClass } from './formStyles.js';
 
-const MODES = [['add', 'Sumar al total del mes'], ['replace', 'Reemplazar el total']];
+const MODES = [['add', 'Sumar'], ['replace', 'Reemplazar']];
 
 // A fixed expense has no date: it adds to (or replaces) the month's total of one
 // subcategory in the selected month, keeping its budget exactly as it is.
