@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FINANCIAL_RULES } from '../../domain/financialRules.js';
 import { sessionCommand, sessionResultMessage, usePersisted } from '../../presentation/fiorellaSession.js';
 import { formatPeriod, todayInLima } from '../../presentation/format.js';
@@ -30,6 +30,9 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
   const [duplicate, setDuplicate] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const retry = useRef(null);
+  // The warning may sit below the fold of the sheet: bring its action into view.
+  useEffect(() => { if (duplicate) retry.current?.focus(); }, [duplicate]);
   // Any change after a duplicate warning asks again from scratch.
   const edit = setter => value => { setter(value); setDuplicate(false); };
   const send = async allowSimilar => {
@@ -83,7 +86,7 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
     </details>
     {duplicate && <div role="alert" className={`${noticeClass()} space-y-2`} data-testid="duplicate-warning">
       <p className="font-bold">Ya hay un gasto igual ese día.</p>
-      <button type="button" className={buttonClass} disabled={saving} onClick={() => send(true)}>Guardar de todas formas</button>
+      <button ref={retry} type="button" className={buttonClass} disabled={saving} onClick={() => send(true)}>Guardar de todas formas</button>
     </div>}
     {error && <p role="alert" className={noticeClass()}>{error}</p>}
     <div className="flex flex-wrap items-center gap-3">

@@ -210,6 +210,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.querySelector("dialog[open] [data-testid=duplicate-warning]")?.textContent.includes("Ya hay un gasto igual ese día")');
       assert.equal(await rows(), 3);
       assert.equal(await browser.evaluate('document.querySelectorAll("#gv-similar").length'), 0);
+      assert.equal(await browser.evaluate('document.activeElement.textContent'), 'Guardar de todas formas');
       await capture('19-duplicado-movil.png');
       await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Guardar de todas formas").click()');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');

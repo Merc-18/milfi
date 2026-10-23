@@ -12,7 +12,7 @@ const SECTIONS = [
   { to: '/fiorella/simulador', label: 'Metas', also: ['/fiorella/calculadora'] },
   { to: '/fiorella/historial', label: 'Historial', also: [] },
 ];
-const tabClass = active => `rounded-xl px-2.5 sm:px-3 py-2 min-h-11 flex items-center ${active ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`;
+const tabClass = active => `rounded-xl px-2 sm:px-3 py-2 min-h-11 flex items-center ${active ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`;
 
 export default function FiorellaNav() {
   const { pathname } = useLocation();
