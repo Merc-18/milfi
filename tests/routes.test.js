@@ -24,8 +24,9 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/calculadora', 'Solo simulación'],
       ['/fiorella/historial', 'Todavía no hay registros.'],
       ['/fiorella/configuracion', 'Configuración oficial'],
-      ['/fiorella/presupuestos', 'Presupuestos GF'],
-      ['/fiorella/gastos', 'Gastos'],
+      // Presupuestos is the fixed view of Gastos (its redirect is checked in Chromium).
+      ['/fiorella/gastos?tipo=fijos', 'Reservado (GF aplicado)'],
+      ['/fiorella/gastos', 'Ritmo del mes'],
       ['/fiorella/simulador', 'Escenarios hipotéticos'],
       ['/control', 'Historial real pendiente de importación'],
       // No Excel upload screen for end users: the history is loaded once, administratively.
@@ -59,18 +60,25 @@ test('module routes render with real-history notices and no simulated financial 
       .map(match => match[1] ?? match[2]);
     const tabs = fiorellaTabs(renderPath('/fiorella'));
     assert.deepEqual([...tabs.matchAll(/>([^<]+)<\/a>/g)].map(match => match[1]), ['Resumen', 'Gastos', 'Metas', 'Historial']);
-    for (const [path, tab] of [['/fiorella', '/fiorella'], ['/fiorella/gastos', '/fiorella/gastos'], ['/fiorella/presupuestos', '/fiorella/gastos'],
+    for (const [path, tab] of [['/fiorella', '/fiorella'], ['/fiorella/gastos', '/fiorella/gastos'], ['/fiorella/gastos?tipo=fijos', '/fiorella/gastos'],
       ['/fiorella/simulador', '/fiorella/simulador'], ['/fiorella/calculadora', '/fiorella/simulador'], ['/fiorella/historial', '/fiorella/historial']]) {
       assert.deepEqual(current(renderPath(path)), [tab], path);
     }
     assert.deepEqual(current(renderPath('/fiorella/configuracion')), []);
-    assert.ok(renderPath('/fiorella/gastos').includes('href="/fiorella/presupuestos"'));
+    // Gastos has two views from ?tipo= (variables by default) and no "Todos" filter.
+    const viewOf = html => html.match(/role="tab" aria-selected="true"[^>]*>([^<]+)</)?.[1] ?? html.match(/aria-selected="true"[^>]*>([^<]+)</)[1];
+    assert.equal(viewOf(renderPath('/fiorella/gastos')), 'Variables');
+    assert.equal(viewOf(renderPath('/fiorella/gastos?tipo=fijos')), 'Fijos');
+    assert.equal(viewOf(renderPath('/fiorella/gastos?tipo=otro')), 'Variables');
+    assert.ok(renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="budget-groups"') && !renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="pace-chart"'));
+    assert.doesNotMatch(renderPath('/fiorella/gastos'), />Todos</);
+    assert.ok(renderPath('/fiorella/gastos').includes('Aún no hay gastos variables en'));
     assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
     assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
 
     // Visible spelling fixed; the official label (matched against the Excel) and the id stay.
-    assert.ok(renderPath('/fiorella/presupuestos').includes('Carbohidratos') && !renderPath('/fiorella/presupuestos').includes('Carbohidrados'));
-    assert.ok(renderPath('/fiorella/gastos').includes('Carbohidratos'));
+    const fixedView = renderPath('/fiorella/gastos?tipo=fijos');
+    assert.ok(fixedView.includes('Carbohidratos') && !fixedView.includes('Carbohidrados'));
     const { FIXED_SUBCATEGORIES } = await server.ssrLoadModule('/src/domain/fiorellaCategories.js');
     assert.equal(FIXED_SUBCATEGORIES.find(category => category.id === 'comida-carbohidrados').name, 'Carbohidrados');
     // The preimport screen was removed; nothing links to it.
@@ -85,8 +93,9 @@ test('module routes render with real-history notices and no simulated financial 
     const summary = renderPath('/fiorella');
     for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) assert.ok(summary.includes(`data-testid="${id}"`), id);
     assert.doesNotMatch(summary, /data-testid="monthly-summary"|data-testid="monthly-evolution"|Sin registrar|<details/);
-    assert.ok(summary.includes('href="/fiorella/presupuestos"') && summary.includes('href="/fiorella/gastos?nuevo"'));
-    assert.ok(!renderPath('/fiorella/gastos').includes('href="/fiorella/gastos?nuevo"'), 'no floating button over the expense form');
+    assert.ok(summary.includes('href="/fiorella/gastos?tipo=fijos"') && summary.includes('href="/fiorella/gastos?nuevo"'));
+    assert.ok(!summary.includes('href="/fiorella/presupuestos"'), 'links go straight to the fixed view');
+    assert.ok(renderPath('/fiorella/gastos').includes('href="/fiorella/gastos?nuevo"'), 'the floating button also opens the sheet on Gastos');
     assert.ok(!renderPath('/control').includes('href="/fiorella/gastos?nuevo"'), 'floating button only in Fiorella');
 
     // Both modules use the same month switcher (the shared month is checked in Chromium).

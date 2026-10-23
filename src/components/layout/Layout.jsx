@@ -17,8 +17,8 @@ const MODULES = [
 export default function Layout() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
-  // Quick entry for Fiorella's managers; on Gastos the form is already on the page.
-  const quickExpense = canManage(useModuleAccess('fiorella')) && pathname.startsWith('/fiorella') && pathname !== '/fiorella/gastos';
+  // Quick entry for Fiorella's managers; on Gastos it opens the page's expense sheet.
+  const quickExpense = canManage(useModuleAccess('fiorella')) && pathname.startsWith('/fiorella');
 
   return (
     <div className="min-h-dvh w-full bg-fondo">

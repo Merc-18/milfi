@@ -4,11 +4,11 @@ import { Info } from 'lucide-react';
 import Sheet from './ui/Sheet.jsx';
 import RulesContent from './RulesContent.jsx';
 
-// Four tabs; each stays active on the pages it opens (Gastos → Presupuestos,
-// Metas → Calculadora). Rules are reference: an info button opens them.
+// Four tabs; each stays active on the pages it opens (Metas → Calculadora;
+// Presupuestos redirects to Gastos). Rules are reference: an info button opens them.
 const SECTIONS = [
   { to: '/fiorella', label: 'Resumen', also: [] },
-  { to: '/fiorella/gastos', label: 'Gastos', also: ['/fiorella/presupuestos'] },
+  { to: '/fiorella/gastos', label: 'Gastos', also: [] },
   { to: '/fiorella/simulador', label: 'Metas', also: ['/fiorella/calculadora'] },
   { to: '/fiorella/historial', label: 'Historial', also: [] },
 ];

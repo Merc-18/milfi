@@ -16,6 +16,8 @@ export default function Sheet({ open, onClose, title, children }) {
     if (open && !node.open) {
       opener.current = document.activeElement;
       node.showModal();
+      // A field marked data-autofocus gets the first focus instead of the close button.
+      node.querySelector('[data-autofocus]')?.focus();
     } else if (!open && node.open) {
       node.close();
       opener.current?.focus?.();

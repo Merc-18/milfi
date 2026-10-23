@@ -6,6 +6,4 @@ export const TONE_CLASS = Object.freeze({
   neutral: 'bg-secundario text-texto',
   excedido: 'bg-excedido text-white',
 });
-// Fill for bars and chart marks in the same tone.
-export const TONE_FILL = Object.freeze({ ok: 'bg-exito', aviso: 'bg-acento', neutral: 'bg-secundario', excedido: 'bg-excedido' });
 export const noticeClass = (tone = 'aviso') => `rounded-xl px-3 py-2 text-sm ${TONE_CLASS[tone]}`;

@@ -160,10 +160,14 @@ test('screens: routes and management controls follow the loaded module access', 
     assert.ok(render('/control/preimportacion').includes('Página no encontrada'));
     html = render('/fiorella');
     assert.ok(html.includes('Registra el ingreso del mes') && html.includes('href="/fiorella/gastos?nuevo"') && !html.includes('Solo consulta'));
+    html = render('/fiorella/gastos?tipo=fijos');
+    assert.ok(html.includes('Copiar presupuestos del mes anterior') && html.includes('no tiene presupuestos.'), 'copy is shown but explains why it is off');
     setSession('ready', APPROVED_ACCESS.milton);
     html = render('/fiorella');
     assert.ok(html.includes('Solo consulta') && html.includes('Falta registrar el ingreso del mes') && !html.includes('Registra el ingreso del mes') && !html.includes('href="/fiorella/gastos?nuevo"'));
-    for (const path of ['/fiorella/gastos', '/fiorella/presupuestos', '/fiorella/simulador']) assert.ok(render(path).includes('Solo consulta'), path);
+    for (const path of ['/fiorella/gastos', '/fiorella/gastos?tipo=fijos', '/fiorella/simulador']) assert.ok(render(path).includes('Solo consulta'), path);
+    assert.doesNotMatch(render('/fiorella/gastos?tipo=fijos'), /Copiar presupuestos|aria-label="Editar /);
+    assert.doesNotMatch(render('/fiorella/gastos'), />Registrar gasto</);
     assert.ok(render('/control').includes('Registrar ejemplo temporal'));
     setSession('ready', { fiorella: 'none', 'control-mf': 'read' });
     assert.ok(render('/fiorella').includes('Sin permiso para este módulo'));

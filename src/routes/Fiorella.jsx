@@ -155,7 +155,7 @@ export default function Fiorella() {
         <DistributionChart summary={summary} remaining={remaining} deposited={deposited} manage={manage} onEdit={edit} />
       </div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 content-start min-w-0">
-        <StatLink to="/fiorella/presupuestos" testId="fixed-stat" title="Gastos fijos" value={formatAmount(fixedSpent)}
+        <StatLink to="/fiorella/gastos?tipo=fijos" testId="fixed-stat" title="Gastos fijos" value={formatAmount(fixedSpent)}
           detail={applied === null ? 'Sin GF aplicado' : `de ${formatAmount(applied)} aplicado · ${summary.actual.registered}/${summary.actual.expected} con gasto`}
           badges={[usageBadge(fixedSpent, applied), budgetAboveApplied && { tone: 'aviso', text: 'Presupuesto mayor al GF aplicado' }].filter(Boolean)} />
         <StatLink to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
