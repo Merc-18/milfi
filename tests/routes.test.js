@@ -68,6 +68,14 @@ test('module routes render with real-history notices and no simulated financial 
     assert.ok(renderPath('/fiorella/simulador').includes('href="/fiorella/calculadora"'));
     assert.ok(renderPath('/fiorella/historial').includes('aria-label="Reglas de Fiorella"'));
 
+    // Visible spelling fixed; the official label (matched against the Excel) and the id stay.
+    assert.ok(renderPath('/fiorella/presupuestos').includes('Carbohidratos') && !renderPath('/fiorella/presupuestos').includes('Carbohidrados'));
+    assert.ok(renderPath('/fiorella/gastos').includes('Carbohidratos'));
+    const { FIXED_SUBCATEGORIES } = await server.ssrLoadModule('/src/domain/fiorellaCategories.js');
+    assert.equal(FIXED_SUBCATEGORIES.find(category => category.id === 'comida-carbohidrados').name, 'Carbohidrados');
+    // The preimport screen was removed; nothing links to it.
+    assert.ok(!renderPath('/control').includes('/control/preimportacion'));
+
     // Home: name, one line and one live figure per module, without "·" lists.
     const home = renderPath('/');
     for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Movimientos pendientes de revisión']) assert.ok(home.includes(text), text);

@@ -7,12 +7,13 @@ import { fieldClass } from '../components/FiorellaSession.jsx';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
+import { displayName } from '../presentation/categoryLabels.js';
 
 const labels = { income: 'Ingreso', appliedFixedExpense: 'GF aplicado', budgetAmount: 'Presupuesto GF', actualAmount: 'Gasto GF', amount: 'Importe GV', description: 'Descripción', effectiveDate: 'Fecha', categoryId: 'Categoría', subcategory: 'Subcategoría', notes: 'Notas' };
 const textFields = ['description', 'effectiveDate', 'subcategory', 'notes'];
 const categoryName = id => {
   const category = FIXED_SUBCATEGORIES.find(item => item.id === id);
-  return category ? `${FIXED_CATEGORIES.find(group => group.id === category.parentId).name} / ${category.name}` : id === 'salud' ? 'Salud' : 'Ocio';
+  return category ? `${FIXED_CATEGORIES.find(group => group.id === category.parentId).name} / ${displayName(category)}` : id === 'salud' ? 'Salud' : 'Ocio';
 };
 const show = (field, value) => value == null ? 'Sin registrar' : textFields.includes(field) ? value : field === 'categoryId' ? categoryName(value) : formatAmount(value);
 const PAGE = 15;

@@ -13,6 +13,7 @@ import { noticeClass } from '../presentation/tones.js';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
 import { buttonClass, cardClass, Comparison, fieldClass, Help, Kpi, MoneyInput, PageHeader, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
 import PeriodPicker from '../components/PeriodPicker.jsx';
+import { displayName } from '../presentation/categoryLabels.js';
 
 const PAGE = 15;
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
@@ -83,7 +84,7 @@ function FixedExpenses({ summary, manage }) {
         <p className="flex justify-between gap-2 font-bold"><span>{group.name}</span><span>{amountOrMissing(group.actual)}</span></p>
         <ul className="mt-2 divide-y divide-secundario/60">
           {group.rows.map(({ category, record }) => <li key={category.id} className="flex justify-between gap-3 py-1.5" data-fixed-id={category.id}>
-            <span className="min-w-0 truncate">{category.name}</span>
+            <span className="min-w-0 truncate">{displayName(category)}</span>
             <span className={record?.actualAmount == null ? 'text-texto-light' : 'font-bold'}>{amountOrMissing(record?.actualAmount)}</span>
           </li>)}
         </ul>

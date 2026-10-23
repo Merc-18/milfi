@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import ControlLedgerView from './ControlLedgerView.jsx';
 import { useLedgerStore } from '../store/ledgerStore.js';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
@@ -60,9 +59,6 @@ function ControlDemoView() {
     <header className="my-6"><h1 className="text-2xl font-bold mb-2">Control Finanzas M&F</h1><p className="text-sm">Administración prevista: Milton · Consulta de ambos</p></header>
     <StatusNotice title="Historial real pendiente de importación"><p>El Excel de Control contiene operaciones reales. Todavía no se ha importado ningún movimiento; no hay un saldo confirmado para mostrar.</p></StatusNotice>
     {!manage && <ReadOnlyNotice>Tu usuario puede consultar Control Finanzas M&F, pero no registrar, editar, revisar ni preimportar movimientos.</ReadOnlyNotice>}
-    {manage && <section className={cardClass}><h2 className="font-bold text-lg">Preimportación del Excel de Control</h2>
-      <p className="text-sm">Lee localmente un Excel de Control y revisa sus movimientos antes de una importación futura. No escribe en el historial real.</p>
-      <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>}
     <section className={cardClass}>
       <h2 className="font-bold text-sm">Periodo de consulta</h2>
       <PeriodPicker id="control-selected-period" onChange={() => { setEditing(null); setReviewing(null); setNotice(''); }} />

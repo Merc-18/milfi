@@ -13,6 +13,7 @@ import Badge from '../components/ui/Badge.jsx';
 import { noticeClass } from '../presentation/tones.js';
 import { buttonClass, cardClass, Help, Kpi, MoneyInput, PageHeader, SessionNotice } from '../components/FiorellaSession.jsx';
 import PeriodPicker from '../components/PeriodPicker.jsx';
+import { displayName } from '../presentation/categoryLabels.js';
 
 function Difference({ comparison }) {
   const { status, amount } = comparison;
@@ -39,7 +40,7 @@ function BudgetEditor({ category, record, period, onCancel, onSaved, onBusy }) {
     setSaving(true); onBusy(true); setError(null);
     try {
       const result = await save(sessionCommand('fixed-budget', period, base, { categoryId: category.id, budgetAmount: budget, actualAmount: actual }));
-      if (result.ok) onSaved(`Guardado · ${category.name}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
+      if (result.ok) onSaved(`Guardado · ${displayName(category)}.${persisted ? ` ${sessionResultMessage(result, persisted)}` : ''}`);
       else setError(sessionResultMessage(result, persisted));
     } catch {
       setError(sessionResultMessage({ errors: ['PERSISTENCE_ERROR'] }, persisted));
@@ -51,7 +52,7 @@ function BudgetEditor({ category, record, period, onCancel, onSaved, onBusy }) {
   return <form ref={form} onSubmit={submit} aria-label={`Presupuesto ${category.id}`} aria-busy={saving} className="rounded-xl bg-fondo p-3 space-y-3 my-2"
     onKeyDown={event => { if (event.key === 'Escape' && !locked.current) { event.preventDefault(); onCancel(); } }}>
     <fieldset disabled={saving} className="space-y-3">
-      <legend className="text-sm font-bold">Editar {category.name}</legend>
+      <legend className="text-sm font-bold">Editar {displayName(category)}</legend>
       <div className="grid grid-cols-2 gap-3">
         <MoneyInput id={`budget-${category.id}`} label="Presupuesto (S/)" value={budget} onChange={setBudget} />
         <MoneyInput id={`actual-${category.id}`} label="Real (S/)" value={actual} onChange={setActual} />
@@ -83,11 +84,11 @@ function BudgetRow({ category, record, period, manage, editing, busy, onEdit, on
   }, [editing, busy]);
   return <div data-budget-id={category.id}>
     <div role="row" className={`${rowGrid} items-center border-t border-secundario/60 py-1 text-xs`}>
-      <div role="rowheader" className="col-span-2 sm:col-span-1 font-bold min-w-0 [overflow-wrap:anywhere]">{category.name}</div>
+      <div role="rowheader" className="col-span-2 sm:col-span-1 font-bold min-w-0 [overflow-wrap:anywhere]">{displayName(category)}</div>
       {[['Presupuesto', amount(record?.budgetAmount)], ['Real', amount(record?.actualAmount)], ['Diferencia', <Difference key="difference" comparison={moneyDifference(record?.budgetAmount ?? null, record?.actualAmount ?? null)} />]].map(([label, value]) =>
         <div role="cell" key={label} className={`${amountClass} row-start-2 sm:row-start-auto`}><span className="block sm:hidden text-[10px] text-texto-light mb-1">{label}</span>{value}</div>)}
       <div role="cell" className="col-start-3 row-start-1 sm:col-start-auto sm:row-start-auto text-right">
-        {manage && <button ref={editButton} type="button" aria-label={`Editar ${category.name}`} aria-expanded={editing} aria-controls={editing ? `editor-${category.id}` : undefined}
+        {manage && <button ref={editButton} type="button" aria-label={`Editar ${displayName(category)}`} aria-expanded={editing} aria-controls={editing ? `editor-${category.id}` : undefined}
           disabled={busy} className="min-h-11 min-w-11 underline font-bold disabled:opacity-40" onClick={() => onEdit(category.id)}>Editar</button>}
       </div>
     </div>
