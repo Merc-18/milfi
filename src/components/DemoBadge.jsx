@@ -11,7 +11,7 @@ export default function DemoBadge() {
   if (mode !== 'demo') return null;
   return <>
     <button type="button" data-testid="demo-mode" aria-haspopup="dialog" onClick={() => setOpen(true)}
-      className="min-h-11 rounded-full bg-acento px-3 text-xs font-bold hover:bg-principal">Modo demo</button>
+      className="min-h-11 whitespace-nowrap rounded-full bg-acento px-3 text-xs font-bold hover:bg-principal">Modo demo</button>
     <Sheet open={open} onClose={() => setOpen(false)} title="Modo demo">
       <p className="text-sm">Estás usando MilFi sin una cuenta conectada: lo que registres son datos de prueba y se borran al recargar la página. Para guardar información real, inicia sesión desde Acceso.</p>
       <Link to="/acceso" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center font-bold underline">Ir a Acceso</Link>

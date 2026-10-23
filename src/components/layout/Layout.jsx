@@ -24,7 +24,7 @@ export default function Layout() {
   return (
     <div className="min-h-dvh w-full bg-fondo">
       <header className="sticky top-0 z-40 border-b border-secundario/70 bg-fondo/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 md:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-2 sm:gap-4 md:px-8">
           <div className="flex min-w-0 flex-col">
             <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11">
               <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
@@ -36,7 +36,7 @@ export default function Layout() {
               className={({ isActive }) => `flex items-center gap-2 rounded-xl px-4 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
               <item.icon size={18} aria-hidden="true" />{item.label}</NavLink>)}
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
           <DemoBadge />
           <NavLink to="/acceso" className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
             <UserRound size={18} aria-hidden="true" />Acceso</NavLink>
