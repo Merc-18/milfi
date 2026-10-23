@@ -31,12 +31,14 @@ const USAGE_TEXT = { ok: 'Vas bien', aviso: 'Cerca del límite', neutral: 'Sin g
 const MISSING = {
   'missing-income': 'Registra el ingreso del mes',
   'missing-fixed': 'Registra el GF aplicado',
-  deficit: 'Revisa el ingreso: no cubre el GF',
+  deficit: 'El ingreso no cubre el GF aplicado',
+  'zero-surplus': 'No queda sobrante para repartir este mes',
 };
 const MISSING_READ = {
   'missing-income': 'Falta registrar el ingreso del mes.',
   'missing-fixed': 'Falta registrar el GF aplicado.',
   deficit: 'El ingreso no cubre el GF aplicado.',
+  'zero-surplus': 'No queda sobrante para repartir este mes.',
 };
 const SEGMENTS = [['fixed', 'Gastos fijos', 'fill-principal', 'bg-principal'], ['variable', 'Gastos variables', 'fill-acento', 'bg-acento'], ['savings', 'Ahorro', 'fill-exito', 'bg-exito']];
 

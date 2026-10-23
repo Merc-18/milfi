@@ -22,14 +22,16 @@ export function savingsStatus(deposited, planned) {
  * "Te queda por gastar": (GV asignado − GV gastado) + (GF aplicado − GF real).
  * The applied GF is the limit, so it matches the distribution's surplus; an
  * unregistered GF actual counts as nothing spent yet. The result may be negative.
- * status: missing-income | missing-fixed | deficit | remaining | over | equal
+ * status: missing-income | missing-fixed | deficit | zero-surplus | remaining | over | equal
  */
 export function remainingToSpend(summary) {
   const income = summary.monthly?.income ?? null;
   const applied = summary.monthly?.appliedFixedExpense ?? null;
   if (income === null) return { status: 'missing-income', amount: null };
   if (applied === null) return { status: 'missing-fixed', amount: null };
-  if (summary.calculation.status !== 'calculated') return { status: 'deficit', amount: null };
+  if (summary.calculation.status !== 'calculated') {
+    return { status: summary.calculation.reason === 'ZERO_SURPLUS_POLICY_PENDING' ? 'zero-surplus' : 'deficit', amount: null };
+  }
   const allocated = summary.calculation.distribution.variable.total;
   const variableSpent = summarizeExpenses(summary).variable.amount ?? '0';
   const fixedSpent = summary.actual.amount ?? '0';

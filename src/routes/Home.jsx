@@ -10,7 +10,8 @@ import { useLedgerStore } from '../store/ledgerStore.js';
 import { useControlStore } from '../store/controlStore.js';
 
 const cardClass = 'block p-6 rounded-[24px] shadow-soft border-2';
-const MISSING = { 'missing-income': 'Falta el ingreso del mes', 'missing-fixed': 'Falta el GF aplicado', deficit: 'El ingreso no cubre el GF' };
+const MISSING = { 'missing-income': 'Falta el ingreso del mes', 'missing-fixed': 'Falta el GF aplicado', deficit: 'El ingreso no cubre el GF aplicado',
+  'zero-surplus': 'No queda sobrante para repartir este mes' };
 
 function ModuleCard({ to, icon, title, description, label, value, className }) {
   return <Link to={to} className={`${cardClass} ${className}`}>

@@ -42,6 +42,7 @@ test('remaining to spend uses the applied GF as limit and tells what is missing'
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '', appliedFixedExpense: '1200' }])), { status: 'missing-income', amount: null });
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '' }])), { status: 'missing-fixed', amount: null });
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1000', appliedFixedExpense: '1500' }])), { status: 'deficit', amount: null });
+  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1499.99', appliedFixedExpense: '1500' }])), { status: 'deficit', amount: null });
   // Complete: GV 40 % of 2,500 = 1,000; nothing spent yet and no GF actual registered.
   assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '4000', appliedFixedExpense: '1500' }])),
     { status: 'remaining', amount: '2500', spent: '0', limit: '2500', tone: 'ok' });
@@ -50,6 +51,12 @@ test('remaining to spend uses the applied GF as limit and tells what is missing'
     ['fixed-budget', { categoryId: 'servicios-gas', budgetAmount: '2000', actualAmount: '120.10' }],
     ['variable-expense', { categoryId: 'salud', effectiveDate: '2045-03-04', description: 'Inventado', amount: '30.005' }]);
   assert.deepEqual(remainingToSpend(partial), { status: 'remaining', amount: '2349.895', spent: '150.105', limit: '2500', tone: 'ok' });
+});
+
+test('remaining to spend tells zero surplus apart from a deficit', () => {
+  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1500', appliedFixedExpense: '1500' }])), { status: 'zero-surplus', amount: null });
+  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '1500.00', appliedFixedExpense: '1500' }])), { status: 'zero-surplus', amount: null });
+  assert.deepEqual(remainingToSpend(monthWith(['monthly-plan', { income: '0', appliedFixedExpense: '0' }])), { status: 'zero-surplus', amount: null });
 });
 
 test('remaining to spend can be negative when overspending exceeds what is left elsewhere', () => {
