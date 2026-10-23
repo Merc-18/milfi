@@ -19,7 +19,9 @@ export default function GoalPath({ target, capacity, months, termMonths, alterna
   const milestones = [...new Set([1, termMonths, months, alternative?.months, end].filter(Boolean))].sort((a, b) => a - b);
   const summary = `${label}: objetivo ${formatAmount(target)}`
     + (months ? `, con ${formatAmount(capacity)} al mes llegas en el mes ${months} (${monthLabel(months)})` : '')
-    + (termMonths ? `, plazo en el mes ${termMonths}` : '') + '.';
+    + (termMonths ? `, plazo en el mes ${termMonths}` : '')
+    + (alternative?.months
+      ? `; con ${formatAmount(alternative.capacity)} llegarías en el mes ${alternative.months} (${monthLabel(alternative.months)})` : '') + '.';
   return <figure className="space-y-2">
     <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="h-44 w-full overflow-visible" role="img" aria-label={summary}>
       <line x1="0" x2={WIDTH} y1={HEIGHT} y2={HEIGHT} className="stroke-secundario" strokeWidth="1" vectorEffect="non-scaling-stroke" />
@@ -31,10 +33,13 @@ export default function GoalPath({ target, capacity, months, termMonths, alterna
       {alternative?.months && <polyline points={line(alternative.capacity)} fill="none" className="stroke-texto" strokeWidth="2" strokeDasharray="1 4"
         strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
       {months && <circle cx={x(months)} cy={y(Number(target))} r="4" className="fill-exito stroke-texto" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
+      {alternative?.months && <circle cx={x(alternative.months)} cy={y(Number(target))} r="4" className="fill-white stroke-texto" strokeWidth="1.5"
+        strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />}
     </svg>
     <div className="flex justify-between gap-2 text-[11px] text-texto-light" aria-hidden="true">
       <span>{monthLabel(1)}</span>
       {months && <span className="font-bold text-texto">Llegada: {monthLabel(months)}</span>}
+      {alternative?.months && <span className="font-bold text-texto">Con el «¿y si…?»: {monthLabel(alternative.months)}</span>}
       <span>{monthLabel(end)}</span>
     </div>
     <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-hidden="true">
