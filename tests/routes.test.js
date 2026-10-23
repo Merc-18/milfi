@@ -42,13 +42,14 @@ test('module routes render with real-history notices and no simulated financial 
       // One demo explanation, in the header badge; no repeated notices or suffixes.
       assert.equal((html.match(/data-testid="demo-mode"/g) ?? []).length, 1, path);
       // Build code in the header on every page, labelled with the commit.
-      assert.match(html, /data-testid="build-stamp" title="Versión (\d{14}) \(commit [^)]+\)" aria-label="Versión \1 \(commit [^)]+\)">\1<\/span>/, path);
+      assert.ok(html.includes('data-testid="build-stamp"') && html.includes('Actualizado:') && html.includes('data-testid="commit-version"'), path);
       // Control's inner texts are revised in a later phase; only its demo notice goes now.
       if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
       assert.doesNotMatch(html, /Demostración temporal/, path);
     }
     assert.ok(renderPath('/control').includes('PEN 0.00'));
-    assert.doesNotMatch(renderPath('/control'), /Aportes de Milton|solo Fiorella|únicamente Fiorella/);
+    assert.ok(renderPath('/control').includes('Aportes de Milton') && renderPath('/control').includes('Aportes de Fiorella'));
+    assert.doesNotMatch(renderPath('/control'), /solo Fiorella|únicamente Fiorella/);
     assert.ok(renderPath('/control').includes('Registrar movimiento'));
     assert.doesNotMatch(renderPath('/control'), /control-actor|control-source|control-operation/);
     assert.doesNotMatch(renderPath('/'), /S\/\s*[\d]/);

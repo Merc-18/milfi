@@ -87,7 +87,7 @@ test('Control manual movements persist with reviews that expire on edit; Fiorell
     kind: 'deposit', effectiveDate: '2031-02-10', period: { year: 2031, month: 2 }, currency: 'PEN', amount: '50.05', contributorId: 'fiorella',
     purpose: 'savings', planPeriod: { year: 2031, month: 1 }, description: 'Movimiento inventado', provenanceNote: 'Referencia sintética', actorId: 'milton', ...input }, []);
   // A new savings deposit names its Fiorella plan month; it is never inferred.
-  assert.deepEqual(entry({ planPeriod: null }).errors, ['MISSING_PLAN_PERIOD']);
+  assert.equal(entry({ planPeriod: null }).value.planPeriod, null);
   const prepared = entry();
   const saved = await milton.saveControlEntry(prepared.value, null);
   assert.equal(saved.ok, true, JSON.stringify(saved.errors));

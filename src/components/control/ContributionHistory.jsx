@@ -1,24 +1,27 @@
 import { controlMoney, personName, purposeName } from '../../presentation/control.js';
 import { formatPeriod } from '../../presentation/format.js';
 
-export default function ContributionHistory({ groups }) {
+const money = (amount, currency) => amount === null ? '—' : controlMoney(amount, currency);
+export default function ContributionHistory({ people, selected }) {
   return <section className="rounded-[24px] bg-white p-4 shadow-soft space-y-3" aria-labelledby="contributions-title" data-testid="control-contributions">
-    <h2 id="contributions-title" className="font-bold">Historial acumulado de aportes</h2>
-    <p id="contributions-note" className="text-sm text-texto-light">Depósitos revisados por persona, moneda, mes recibido y destino. El acumulado conserva los aportes realizados; los retiros se muestran aparte.</p>
-    {!groups.length ? <p className="text-sm">Aún no hay aportes revisados.</p> : <div className="grid gap-3 lg:grid-cols-2">
-      {groups.map(group => <section key={group.key} className="rounded-xl border border-secundario p-3 space-y-2" data-contribution-group={group.key}>
-        <h3 className="font-bold text-sm">{personName(group.contributorId)} · {group.currency} · {purposeName(group.purpose)}</h3>
-        <p className="font-bold tabular-nums">Total aportado: {controlMoney(group.total, group.currency)}</p>
-        <div className="overflow-x-auto"><table className="w-full text-xs sm:text-sm" aria-describedby="contributions-note">
-          <caption className="sr-only">Aportes de {personName(group.contributorId)} en {group.currency} para {purposeName(group.purpose)}</caption>
-          <thead><tr className="text-left"><th scope="col" className="py-2">Mes recibido</th><th scope="col">Aportado</th><th scope="col">Acumulado</th></tr></thead>
-          <tbody>{group.months.map(month => <tr key={month.key} className="border-t border-secundario" data-contribution-month={month.key}>
-            <th scope="row" className="py-2 text-left font-normal">{formatPeriod(month.period)}</th>
-            <td className="tabular-nums px-2">{controlMoney(month.amount, group.currency)}</td>
-            <td className="tabular-nums">{controlMoney(month.cumulative, group.currency)}</td>
-          </tr>)}</tbody>
-        </table></div>
+    <h2 id="contributions-title" className="font-bold">Aportes por persona</h2>
+    <p className="text-sm text-texto-light">Recibido en {formatPeriod(selected)} y acumulado histórico. Un compromiso es un acuerdo, no dinero depositado. Los pendientes quedan fuera de los totales.</p>
+    <div className="grid gap-4 lg:grid-cols-2">{people.map(person => <section key={person.contributorId} className="space-y-3 min-w-0" data-contribution-person={person.contributorId}>
+      <h3 className="font-bold">Aportes de {personName(person.contributorId)}</h3>
+      {person.unknownCurrencyPending > 0 && <p className="text-sm">{person.unknownCurrencyPending} aporte(s) con moneda por confirmar.</p>}
+      {person.currencies.map(item => <section key={item.currency} className="border border-secundario rounded-xl p-3 space-y-2" data-contribution-currency={item.currency}>
+        <h4 className="font-bold text-sm">{item.currency === 'PEN' ? 'SOLES (PEN)' : 'DÓLARES (USD)'}</h4>
+        {item.destinations.every(dest => dest.total === null) && <p className="text-sm">Sin aportes {item.currency} confirmados</p>}
+        {item.pending > 0 && <p className="text-sm">{item.pending} aporte(s) por revisar, fuera de los totales.</p>}
+        {item.destinations.filter(dest => dest.total !== null || dest.commitment !== null).map(dest => <div key={dest.purpose} className="text-sm space-y-1" data-contribution-group={`${person.contributorId}:${item.currency}:${dest.purpose}`}>
+          <h5 className="font-bold">{purposeName(dest.purpose)}</h5>
+          <dl className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 tabular-nums">
+            {[['Compromiso del mes', dest.commitment], ['Habitual registrado', dest.regular], ['Extraordinario registrado', dest.extra],
+              ['Sin clasificación del mes', dest.unclassified], ['Total aportado del mes', dest.monthly], ['Acumulado histórico', dest.total]].map(([name, amount]) => <div key={name} className="contents">
+                <dt>{name}</dt><dd className="text-right font-bold">{money(amount, item.currency)}</dd></div>)}
+          </dl>
+        </div>)}
       </section>)}
-    </div>}
+    </section>)}</div>
   </section>;
 }

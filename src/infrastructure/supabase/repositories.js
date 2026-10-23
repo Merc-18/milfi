@@ -5,6 +5,7 @@
 
 const AUDIT = 'revision, created_by, updated_by, created_at, updated_at';
 export const COLUMNS = Object.freeze({
+  control_contribution_commitments: `id, household_id, period_year, period_month, contributor_identity, currency, purpose, amount::text, note, ${AUDIT}`,
   fiorella_monthly_plans: `id, household_id, period_year, period_month, income::text, applied_fixed_expense::text, plan_status, provenance, rules_version, currency, origin, validation_status, ${AUDIT}`,
   fiorella_fixed_budgets: `id, household_id, period_year, period_month, category_id, budget_amount::text, actual_amount::text, provenance, currency, origin, validation_status, ${AUDIT}`,
   fiorella_variable_expenses: `id, household_id, period_year, period_month, category_id, subcategory, effective_date, description, amount::text, notes, distinct_operation_reason, provenance, source_ref, currency, origin, validation_status, ${AUDIT}`,
@@ -53,6 +54,12 @@ export function controlMovementFromRow(row, reviews = []) {
     evidenceReviews: typed('evidence'), preimportResolutions: typed('resolution'), preimportDecisions: typed('decision'), demoReviews: typed('demo'), manualReviews: typed('manual'),
     createdAt: isoTime(row.created_at), updatedAt: isoTime(row.updated_at) };
 }
+
+export const commitmentToRow = (record, householdId) => ({ household_id: householdId, period_year: record.period.year,
+  period_month: record.period.month, contributor_identity: record.contributorId, currency: record.currency,
+  purpose: record.purpose, amount: record.amount, note: record.note });
+export const commitmentFromRow = row => ({ id: row.id, period: period(row), contributorId: row.contributor_identity,
+  currency: row.currency, purpose: row.purpose, amount: money(row.amount), note: row.note, revision: row.revision });
 
 // ── Finanzas de Fiorella ─────────────────────────────────────────────────────
 // Same record shape as the session domain (fiorellaSession.js), marked real.

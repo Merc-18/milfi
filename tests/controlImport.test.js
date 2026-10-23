@@ -81,8 +81,8 @@ const manual = (input, records = []) => prepareControlEntry({ id: input.id ?? cr
   kind: 'deposit', effectiveDate: '2031-03-02', period: { year: 2031, month: 3 }, currency: 'PEN', amount: '120', contributorId: 'fiorella',
   purpose: 'savings', description: '', provenanceNote: 'Registrado en MilFi', actorId: 'milton', ...input }, records);
 
-test('a new savings deposit needs its plan month (never inferred); others carry none', () => {
-  assert.deepEqual(manual({}).errors, ['MISSING_PLAN_PERIOD']);
+test('a new savings deposit may leave its plan unassigned (never inferred); others carry none', () => {
+  assert.equal(manual({}).value.planPeriod, null);
   assert.deepEqual(manual({ planPeriod: { year: 2031, month: 2 } }).value.planPeriod, { year: 2031, month: 2 });
   assert.equal(manual({ purpose: 'expenses', contributorId: 'milton', planPeriod: { year: 2031, month: 2 } }).value.planPeriod, null);
   assert.deepEqual(manual({ planPeriod: { year: 2031, month: 13 } }).errors, ['INVALID_PLAN_PERIOD']);

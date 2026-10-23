@@ -1,3 +1,4 @@
+import { contributionParts } from '../domain/controlContributions.js';
 import { addAmounts, compareAmounts, subtractAmounts } from '../domain/amounts.js';
 import { periodKey } from '../domain/fiorellaSession.js';
 import { isValidDate, isValidPeriod } from '../domain/models.js';
@@ -79,11 +80,13 @@ export function contributionHistory(entries) {
       || !record.currency || !movementMonth(record)) continue;
     const key = [record.contributorId, record.currency, record.purpose].join(':');
     if (!groups.has(key)) groups.set(key, { key, contributorId: record.contributorId, currency: record.currency,
-      purpose: record.purpose, total: '0', count: 0, months: new Map() });
+      purpose: record.purpose, total: '0', regular: '0', extra: '0', unclassified: '0', count: 0, months: new Map() });
     const group = groups.get(key);
     const period = movementMonth(record);
     const monthKey = keyOf(period);
-    const month = group.months.get(monthKey) ?? { key: monthKey, period, amount: '0', count: 0 };
+    const month = group.months.get(monthKey) ?? { key: monthKey, period, amount: '0', regular: '0', extra: '0', unclassified: '0', count: 0 };
+    const parts = contributionParts(record);
+    for (const field of ['regular', 'extra', 'unclassified']) { month[field] = addAmounts(month[field], parts[field]); group[field] = addAmounts(group[field], parts[field]); }
     month.amount = addAmounts(month.amount, record.amount); month.count += 1;
     group.months.set(monthKey, month);
     group.total = addAmounts(group.total, record.amount); group.count += 1;
@@ -96,6 +99,28 @@ export function contributionHistory(entries) {
     }).reverse();
     return { ...group, months };
   });
+}
+
+/** Always render both people and currencies. A missing amount is absence of
+ * eligible deposits, not a zero movement. Agreements never enter actual totals. */
+export function personContributions(entries, period, commitments = []) {
+  const groups = contributionHistory(entries);
+  return ['milton', 'fiorella'].map(contributorId => ({ contributorId,
+    unknownCurrencyPending: entries.filter(entry => entry.status === 'pending' && entry.record.kind === 'deposit'
+      && entry.record.contributorId === contributorId && !entry.record.currency).length,
+    currencies: ['PEN', 'USD'].map(currency => ({ currency,
+      pending: entries.filter(entry => entry.status === 'pending' && entry.record.kind === 'deposit'
+        && entry.record.contributorId === contributorId && entry.record.currency === currency).length,
+      destinations: ['expenses', 'savings'].map(purpose => {
+        const group = groups.find(item => item.contributorId === contributorId && item.currency === currency && item.purpose === purpose);
+        const month = group?.months.find(item => item.key === keyOf(period));
+        const commitment = commitments.find(item => item.contributorId === contributorId && item.currency === currency && item.purpose === purpose
+          && keyOf(item.period) === keyOf(period));
+        return { purpose, commitment: commitment?.amount ?? null, regular: month?.regular ?? null, extra: month?.extra ?? null,
+          unclassified: month?.unclassified ?? null, monthly: month?.amount ?? null, total: group?.total ?? null };
+      }),
+    })),
+  }));
 }
 
 /** Savings deposits assigned to a plan month (whenever they came in), PEN, counted only. */
@@ -153,6 +178,7 @@ export function monthlyRows(entries, plans = new Map()) {
 
 const DOLLAR = /^\s*\$\s*(\d+(?:\.\d+)?)\s*$/;
 const REASONS = {
+  INVALID_CONTRIBUTION_SPLIT: () => 'El desglose del aporte necesita revisión',
   MISSING_CONTRIBUTOR: () => 'Falta quién aportó',
   ZERO_AMOUNT_POLICY_PENDING: () => 'El monto es 0',
   PERIOD_ASSIGNMENT_REVIEW_REQUIRED: () => 'El mes no coincide con la fecha',

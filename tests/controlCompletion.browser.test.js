@@ -64,7 +64,7 @@ test('Control completion in browser: currency balances, charts and contribution 
       const groups = await browser.evaluate(`Array.from(document.querySelectorAll('[data-contribution-group]')).map(el => ({ key: el.dataset.contributionGroup, text: el.textContent }))`);
       assert.equal(groups.length, 4);
       const fiorella = groups.find(group => group.key === 'fiorella:PEN:savings').text;
-      assert.ok(fiorella.includes('PEN 100.25') && fiorella.includes('PEN 70.25') && fiorella.includes('PEN 30.00'));
+      assert.ok(fiorella.includes('PEN 100.25') && fiorella.includes('PEN 70.25'));
       assert.doesNotMatch(fiorella, /90\.15|900\.00/);
       assert.ok(groups.find(group => group.key === 'fiorella:USD:savings').text.includes('USD 30.40'));
       assert.ok(groups.find(group => group.key === 'milton:PEN:expenses').text.includes('PEN 12.00'));

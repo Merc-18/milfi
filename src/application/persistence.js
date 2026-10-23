@@ -1,5 +1,5 @@
 import {
-  COLUMNS, controlMovementFromRow, controlMovementToRow, controlReviewsToRows, createRepository, fixedBudgetFromRow, fixedBudgetToRow,
+  COLUMNS, commitmentFromRow, commitmentToRow, controlMovementFromRow, controlMovementToRow, controlReviewsToRows, createRepository, fixedBudgetFromRow, fixedBudgetToRow,
   monthlyPlanFromRow, monthlyPlanToRow, persistenceErrorCode, reviewFromRow, savingsGoalFromRow, savingsGoalToRow, variableExpenseFromRow, variableExpenseToRow,
 } from '../infrastructure/supabase/repositories.js';
 
@@ -66,7 +66,14 @@ export function createMilfiPersistence(client, { householdId }) {
       if (!movements.ok) return { ok: false, errors: [movements.code] };
       const reviews = await repository('control_movement_reviews').list({ household_id: householdId });
       if (!reviews.ok) return { ok: false, errors: [reviews.code] };
-      return { ok: true, records: movements.rows.map(row => controlMovementFromRow(row, reviews.rows.filter(review => review.movement_id === row.id))) };
+      const agreements = await client.from('control_contribution_commitments').select(COLUMNS.control_contribution_commitments).eq('household_id', householdId);
+      const missing = ['42P01', 'PGRST205', 'PGRST204'].includes(agreements.error?.code);
+      if (agreements.error && !missing) return failure(agreements.error);
+      return { ok: true, records: movements.rows.map(row => controlMovementFromRow(row, reviews.rows.filter(review => review.movement_id === row.id))),
+        commitments: (agreements.data ?? []).map(commitmentFromRow), commitmentsAvailable: !missing };
+    },
+    async saveContributionCommitment(record) {
+      return save('control_contribution_commitments', commitmentToRow, commitmentFromRow, record, null);
     },
     // Own (simulated) goals only; the app never asks to delete a workbook goal.
     async deleteSavingsGoal(goal) {

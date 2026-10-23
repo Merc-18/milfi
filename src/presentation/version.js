@@ -1,8 +1,8 @@
-import { buildStamp } from './buildStamp.js';
+import { readableBuild } from './buildStamp.js';
 
-// Commit and build code of the running bundle (set by vite.config.js). Without
-// them (tests, other tools) the commit reads 'local' and the build is load time.
-// Direct access on purpose: Vite's define does not replace optional chaining.
-export const APP_VERSION = import.meta.env.VITE_MILFI_VERSION ?? 'local';
-export const BUILD_STAMP = import.meta.env.VITE_MILFI_BUILD ?? buildStamp();
-export const versionLabel = `Versión ${BUILD_STAMP} (commit ${APP_VERSION})`;
+// These constants belong to the running bundle. Missing build metadata is
+// reported as unavailable; a browser must never invent a compilation date.
+export const APP_VERSION = (import.meta.env.VITE_MILFI_VERSION ?? 'local').slice(0, 7);
+export const BUILD_STAMP = import.meta.env.VITE_MILFI_BUILD ?? '';
+export const BUILD_DETAILS = readableBuild(BUILD_STAMP);
+export const versionLabel = `Versión ${APP_VERSION}, compilado ${BUILD_DETAILS?.label ?? 'sin fecha disponible'} (Perú)`;

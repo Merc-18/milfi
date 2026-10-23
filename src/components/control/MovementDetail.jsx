@@ -1,4 +1,5 @@
-import { controlMoney, kindName, personName, purposeName, statusName } from '../../presentation/control.js';
+import { controlMoney, kindName, personName, purposeName, statusName, currencyOriginWarning } from '../../presentation/control.js';
+import { contributionParts, contributionLabel } from '../../domain/controlContributions.js';
 import { formatPeriod } from '../../presentation/format.js';
 import { reviewReasons } from '../../presentation/controlLedgerView.js';
 import { buttonClass } from '../FiorellaSession.jsx';
@@ -11,6 +12,7 @@ const ACTIONS = { create: 'Alta', edit: 'Edición', delete: 'Eliminación' };
 export default function MovementDetail({ entry, events, userId, manage, entries, onEdit, onReview }) {
   const { record } = entry;
   const excel = record.provenance?.type === 'control-excel';
+  const parts = contributionParts(record);
   const savings = record.kind === 'deposit' && record.purpose === 'savings';
   const who = id => id && id === userId ? 'Tú' : IDS.has(id) ? personName(id) : 'Otro miembro';
   const reviews = [...(record.manualReviews ?? []), ...(record.preimportDecisions ?? [])]
@@ -21,6 +23,7 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
     ['Monto', controlMoney(record.amount, record.currency)], [record.kind === 'deposit' ? 'Fecha de recepción' : 'Fecha del retiro', record.effectiveDate ?? 'Sin fecha'],
     ['Mes recibido', record.period ? formatPeriod(record.period) : 'Sin mes'],
     ...(savings ? [['Mes del plan asignado', record.planPeriod ? formatPeriod(record.planPeriod) : 'Sin asignación confirmada']] : []),
+    ...(record.kind === 'deposit' ? [['Tipo de aporte', contributionLabel(record)], ...(parts.kind !== 'unclassified' && parts.kind !== 'invalid' ? [['Parte habitual', controlMoney(parts.regular, record.currency)], ['Parte extraordinaria', controlMoney(parts.extra, record.currency)]] : [])] : []),
     ['Estado', statusName(entry.status)],
     ['Registrado por', excel ? 'Cargado del Excel' : personName(record.actorId)],
     ['Procedencia', excel ? `Excel: ${record.provenance.sheet}!${record.provenance.operation?.amountRef ?? ''}`
@@ -29,6 +32,7 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
   ];
   return <div className="space-y-4" data-testid="movement-detail">
     {reviewReasons(entry, entries).reasons.filter(reason => reason.includes('invertidos')).map(reason => <p key={reason} role="note" className="text-sm">{reason}. Confirma la fecha en el documento original.</p>)}
+    {currencyOriginWarning(record) && <p role="note" className="text-sm">{currencyOriginWarning(record)}</p>}
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
       {rows.map(([label, value]) => <div key={label} className="contents"><dt className="text-texto-light">{label}</dt>
         <dd className="font-bold [overflow-wrap:anywhere]">{value}</dd></div>)}

@@ -6,7 +6,7 @@ import { useSessionStore } from '../store/sessionStore.js';
 import { safeReturnPath } from '../domain/access.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass } from '../presentation/control.js';
 import { noticeClass } from '../presentation/tones.js';
-import { APP_VERSION, BUILD_STAMP } from '../presentation/version.js';
+import { APP_VERSION, BUILD_DETAILS } from '../presentation/version.js';
 
 const errors = {
   INVALID_CREDENTIALS: 'Correo o contraseña incorrectos.',
@@ -82,6 +82,6 @@ export default function Acceso() {
       {session.status === 'ready' && <ChangePassword />}
     </section>}
     {session.status === 'error' && <p role="alert" className={noticeClass()}>{message(session.error)}</p>}
-    <p className="text-xs text-texto-light tabular-nums" data-testid="app-version">Versión {APP_VERSION}, compilación {BUILD_STAMP}</p>
+    <p className="text-xs text-texto-light tabular-nums" data-testid="app-version">Versión {APP_VERSION} · Compilado: {BUILD_DETAILS?.label ?? 'sin fecha disponible'} (Perú)</p>
   </div>;
 }

@@ -1,3 +1,4 @@
+import { validContribution } from './controlContributions.js';
 import { addAmounts, normalizeAmount } from './amounts.js';
 import { IDENTITIES, inspectMovementBatch, isValidDate, isValidPeriod } from './models.js';
 import { possibleControlDuplicates } from './controlSession.js';
@@ -28,6 +29,9 @@ export function inspectLedger(records) {
   return inspectMovementBatch(records).map(inspection => {
     const { record } = inspection;
     const source = record?.provenance?.type;
+    if (record?.provenance?.contribution && (record.kind !== 'deposit' || !validContribution(record.provenance.contribution, record.amount))) {
+      return { record, errors: ['INVALID_CONTRIBUTION_SPLIT'], pendingReasons: ['INVALID_CONTRIBUTION_SPLIT'], status: 'invalid', review: null, staleReviews: 0 };
+    }
     if (source === 'control-excel') {
       // Evidence captures are not stored, so imported rows are shown with the
       // decision they were imported with, never re-declared as verified. An
@@ -77,10 +81,9 @@ export function prepareControlEntry(input, records = []) {
   const current = { kind: input.kind, effectiveDate: input.effectiveDate, period: { year: input.period.year, month: input.period.month },
     currency: input.currency, amount: normalizeAmount(input.amount), contributorId: input.contributorId, purpose: input.purpose,
     description: input.description.trim() || null };
-  // A new savings deposit says which Fiorella plan month it belongs to (chosen, never inferred).
-  const planPeriod = input.planPeriod ?? previous?.planPeriod ?? null;
+  // A plan assignment is explicit and optional; receipt dates are never shifted.
+  const planPeriod = input.planPeriod !== undefined ? input.planPeriod : previous?.planPeriod ?? null;
   if (planPeriod !== null && !isValidPeriod(planPeriod)) return fail('INVALID_PLAN_PERIOD');
-  if (!previous && current.kind === 'deposit' && current.purpose === 'savings' && planPeriod === null) return fail('MISSING_PLAN_PERIOD');
   const record = { id: input.id, schemaVersion: 1, moduleId: 'control-mf', origin: 'real', validationStatus: 'pending',
     householdId: input.householdId, revision: previous?.revision ?? 0, actorId: input.actorId, ...current,
     planPeriod: current.kind === 'deposit' && current.purpose === 'savings' && planPeriod ? { year: planPeriod.year, month: planPeriod.month } : null,
@@ -89,6 +92,12 @@ export function prepareControlEntry(input, records = []) {
       : { type: 'control-manual', sourceId: 'milfi-app', operationId: input.operationId.trim(), statement: input.provenanceNote.trim(),
         enteredBy: input.actorId, original: { ...current, amount: input.amount } },
     manualReviews: structuredClone(previous?.manualReviews ?? []) };
+  if (Object.hasOwn(input, 'contribution') && input.contribution !== undefined) {
+    if (current.kind !== 'deposit' || (input.contribution !== null && !validContribution(input.contribution, current.amount))) return fail('INVALID_CONTRIBUTION_SPLIT');
+    if (input.contribution === null) delete record.provenance.contribution;
+    else record.provenance.contribution = { version: 1, regular: normalizeAmount(input.contribution.regular), extra: normalizeAmount(input.contribution.extra) };
+  }
+  if (current.kind !== 'deposit') delete record.provenance.contribution;
   const inspection = inspectLedger([...records.filter(other => other.id !== record.id), record]).find(item => item.record.id === record.id);
   if (inspection.errors.length) return fail(...inspection.errors);
   const possible = possibleControlDuplicates(record, records);

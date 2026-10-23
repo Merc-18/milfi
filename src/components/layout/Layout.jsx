@@ -5,7 +5,7 @@ import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
 import FiorellaNav from '../FiorellaNav.jsx';
 import DemoBadge from '../DemoBadge.jsx';
-import { BUILD_STAMP, versionLabel } from '../../presentation/version.js';
+import { APP_VERSION, BUILD_DETAILS, versionLabel } from '../../presentation/version.js';
 
 const MODULES = [
   { to: '/', icon: Home, label: 'Inicio', end: true },
@@ -24,8 +24,10 @@ export default function Layout() {
           <div className="flex min-w-0 flex-col">
             <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11">
               <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
-            <span className="-mt-1.5 text-[10px] leading-none tabular-nums text-texto-light" data-testid="build-stamp" title={versionLabel}
-              aria-label={versionLabel}>{BUILD_STAMP}</span>
+            <span className="text-[10px] leading-tight tabular-nums text-texto" data-testid="build-stamp" title={versionLabel} aria-label={versionLabel}>
+              <time className="block" dateTime={BUILD_DETAILS?.dateTime}>Actualizado: {BUILD_DETAILS?.label ?? 'sin fecha disponible'}</time>
+              <span className="block" data-testid="commit-version">Versión {APP_VERSION}</span>
+            </span>
           </div>
           <nav aria-label="Módulos de MilFi" className="hidden md:flex items-center gap-1">
             {MODULES.map(item => <NavLink key={item.to} to={item.to} end={item.end}

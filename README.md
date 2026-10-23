@@ -11,6 +11,10 @@ La [guía de carga de Control](docs/CARGA_CONTROL_FASE_4.md) explica los comando
 para aplicar la migración, preparar las decisiones privadas, ensayar, cargar y
 revertir un lote. La entrega no ejecuta esos pasos contra la base real.
 
+La [mejora de uso diario](docs/USO_DIARIO_VERSION_APORTES.md) añade fecha de
+compilación legible, aportes por persona y moneda, desglose habitual/extraordinario
+y compromisos mensuales explícitos (migración nueva pendiente de aprobación).
+
 ## Estado de los datos
 
 - **Fiorella:** plantilla configurada con reglas definitivas. Historial real aún

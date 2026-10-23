@@ -1,9 +1,10 @@
 // In-memory stand-in for the Control persistence used by the demo (no account):
 // the same ledger domain and screens, nothing leaves the browser tab and a reload
 // starts empty. Revisions and the change history behave like the database.
-export function createMemoryControlPersistence({ householdId = 'demo-household', actor = 'milton', initialRecords = [] } = {}) {
+export function createMemoryControlPersistence({ householdId = 'demo-household', actor = 'milton', initialRecords = [], initialCommitments = [] } = {}) {
   let records = structuredClone(initialRecords);
   let events = [];
+  const commitments = structuredClone(initialCommitments);
   let sequence = 0;
   const now = () => new Date().toISOString();
   const store = (record, previous) => {
@@ -20,8 +21,16 @@ export function createMemoryControlPersistence({ householdId = 'demo-household',
   };
   return {
     householdId,
-    async loadControl() { return { ok: true, records: structuredClone(records) }; },
+    async loadControl() { return { ok: true, records: structuredClone(records), commitments: structuredClone(commitments), commitmentsAvailable: true }; },
     async loadControlHistory() { return { ok: true, events: structuredClone(events).reverse() }; },
+    async saveContributionCommitment(record) {
+      const same = item => item.period.year === record.period.year && item.period.month === record.period.month
+        && item.contributorId === record.contributorId && item.currency === record.currency && item.purpose === record.purpose;
+      if (commitments.some(same)) return { ok: false, errors: ['DUPLICATE'] };
+      const value = { ...structuredClone(record), revision: 1 };
+      commitments.push(value);
+      return { ok: true, value };
+    },
     async saveControlEntry(record, previous) { return store(record, previous); },
     async addControlReview(record, previous, review, changed) {
       if (changed) { const updated = store(record, previous); if (!updated.ok) return updated; }

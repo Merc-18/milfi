@@ -110,7 +110,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.doesNotMatch(await visibleText(), /Simulaciones de esta sesión|4,000\.01|600\.0024/);
       await clickLink('/control', 'Control M&F');
       const control = await browser.evaluate('document.body.textContent');
-      assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024|Aportes de Milton/);
+      assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024/);
       assert.ok(control.includes('Saldo de ahorro según lo registrado'));
     });
 
@@ -541,7 +541,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate(`document.getElementById('control-kind-${kind}').click()`);
       if (kind === 'deposit') await browser.evaluate(`document.getElementById('control-purpose-${purpose}').click()`);
       await fill('control-date', date); await fill('control-amount', amount);
-      if (kind === 'deposit' && purpose === 'savings') await fill('control-plan', plan);
+      if (kind === 'deposit') await select('control-contribution-type', 'habitual');
+      if (kind === 'deposit' && purpose === 'savings') { await browser.evaluate('document.getElementById("control-assign-plan").click()'); await fill('control-plan', plan); }
       if (description) await fill('control-description', description);
       await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
@@ -600,6 +601,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await accept(); assert.ok((await balance()).includes('PEN 130.00'));
       await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
       await browser.evaluate('document.getElementById("control-purpose-savings").click()');
+      await select('control-contribution-type', 'habitual');
+      await browser.evaluate('document.getElementById("control-assign-plan").click()');
       await fill('control-amount', '150'); await fill('control-date', '2043-07-10'); await fill('control-plan', '2043-06');
       await submitForm('Movimiento de Control');
       await browser.waitFor('!!document.getElementById("control-distinct")');
@@ -689,13 +692,13 @@ test('browser regression: redirects, simulation history and financial isolation'
       const text = await visibleText();
       assert.ok(text.includes('Autenticación no configurada') && text.includes('No existe un inicio de sesión simulado'));
       // Commit and build code, also in the header; the header fits at 320px with the demo badge.
-      assert.match(await testText('app-version'), /^Versión \S+, compilación \d{14}$/);
+      assert.match(await testText('app-version'), /^Versión \S+ · Compilado: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2} \(Perú\)$/);
       await browser.page('Emulation.setDeviceMetricsOverride', { width: 320, height: 700, deviceScaleFactor: 1, mobile: true });
       const header = await browser.evaluate(`(() => { const stamp = document.querySelector('[data-testid=build-stamp]').getBoundingClientRect();
         const badge = document.querySelector('[data-testid=demo-mode]').getBoundingClientRect(); const bar = document.querySelector('header > div');
         return { stamp: document.querySelector('[data-testid=build-stamp]').textContent, overlap: stamp.right > badge.left && stamp.bottom > badge.top,
           fits: bar.scrollWidth <= bar.clientWidth && document.documentElement.scrollWidth <= document.documentElement.clientWidth, width: stamp.width }; })()`);
-      assert.ok(/^\d{14}$/.test(header.stamp) && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
+      assert.ok(/Actualizado:/.test(header.stamp) && /Versión/.test(header.stamp) && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
       await capture('26-cabecera-320.png');
       assert.equal(await browser.evaluate('document.querySelectorAll("#login-email, #login-password").length'), 0);
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));

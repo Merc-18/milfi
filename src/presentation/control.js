@@ -16,7 +16,14 @@ export function controlMoney(amount, currency) {
   return `${currency} ${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction.padEnd(2, '0')}`;
 }
 
+export const currencyOriginWarning = record => record.provenance?.type === 'control-excel' && record.currency === 'PEN'
+  && typeof record.provenance.original?.amount === 'string' && /^\s*\$/.test(record.provenance.original.amount)
+  ? 'El original usa $ y figura PEN: confirma la moneda con su referencia.' : null;
+
 const explanations = {
+  INVALID_CONTRIBUTION_SPLIT: 'El habitual más el extraordinario deben coincidir exactamente con el importe de la transferencia.',
+  INVALID_CONTRIBUTION_COMMITMENT: 'Completa el compromiso del periodo y confirma expresamente el acuerdo.',
+  COMMITMENTS_UNAVAILABLE: 'El registro de compromisos aún no está habilitado.',
   INVALID_DATE_OR_PERIOD: 'Completa una fecha real del calendario y un periodo válido.',
   INVALID_AMOUNT: 'Usa un importe no negativo con punto decimal, sin símbolos ni separadores.',
   INVALID_CURRENCY: 'Indica un código de moneda reconocido (por ejemplo PEN o USD), o déjalo pendiente.',

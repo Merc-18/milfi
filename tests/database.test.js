@@ -38,11 +38,11 @@ const noEffect = result => { assert.equal(result.ok, true, result.error); assert
 
 test('schema: every public table has RLS, anon holds no grant and admin functions are not callable', async () => {
   const tables = (await db.query("select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' order by 1")).rows;
-  assert.equal(tables.length, 11);
+  assert.equal(tables.length, 12);
   assert.deepEqual(tables.filter(table => !table.relrowsecurity), []);
   assert.deepEqual((await db.query("select table_name, privilege_type from information_schema.role_table_grants where grantee = 'anon' and table_schema = 'public'")).rows, []);
   const writable = (await db.query("select table_name from information_schema.role_table_grants where grantee = 'authenticated' and table_schema = 'public' and privilege_type in ('INSERT','UPDATE','DELETE') group by 1 order by 1")).rows.map(row => row.table_name);
-  assert.deepEqual(writable, ['control_import_batches', 'control_movement_reviews', 'control_movements', 'fiorella_fixed_budgets', 'fiorella_monthly_plans', 'fiorella_savings_goals', 'fiorella_variable_expenses']);
+  assert.deepEqual(writable, ['control_contribution_commitments', 'control_import_batches', 'control_movement_reviews', 'control_movements', 'fiorella_fixed_budgets', 'fiorella_monthly_plans', 'fiorella_savings_goals', 'fiorella_variable_expenses']);
   for (const user of [u.fiorella, u.milton, null]) denied(await as(db, user, "select private.assign_member($1, $2, 'milton', 'x')", [u.fiorella, u.household]));
   const definers = (await db.query("select proname, proconfig from pg_proc where pronamespace = 'private'::regnamespace and prosecdef")).rows;
   assert.ok(definers.length >= 4 && definers.every(row => row.proconfig?.includes('search_path=""')), JSON.stringify(definers));

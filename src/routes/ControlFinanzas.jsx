@@ -7,6 +7,7 @@ import PeriodPicker from '../components/PeriodPicker.jsx';
 import Sheet from '../components/ui/Sheet.jsx';
 import BalanceSteps from '../components/charts/BalanceSteps.jsx';
 import ControlOverview from '../components/control/ControlOverview.jsx';
+import CommitmentForm from '../components/control/CommitmentForm.jsx';
 import ContributionHistory from '../components/control/ContributionHistory.jsx';
 import MonthlyTable from '../components/control/MonthlyTable.jsx';
 import MovementList from '../components/control/MovementList.jsx';
@@ -18,8 +19,7 @@ import { buttonClass, cardClass, PageHeader } from '../components/FiorellaSessio
 import { canManage } from '../domain/access.js';
 import { inspectLedger } from '../domain/controlLedger.js';
 import { fiorellaEvolution } from '../domain/fiorellaDashboard.js';
-import { periodKey } from '../domain/fiorellaSession.js';
-import { balanceSeries, contributionHistory, monthlyRows, movementMonth, reviewQueue, reviewReasons, savingsBalance } from '../presentation/controlLedgerView.js';
+import { balanceSeries, personContributions, monthlyRows, reviewQueue, reviewReasons, savingsBalance } from '../presentation/controlLedgerView.js';
 import { withFixedCap } from '../presentation/fixedCap.js';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
@@ -34,13 +34,14 @@ import { parsePeriodInput } from '../presentation/format.js';
 export default function ControlFinanzas() {
   const manage = canManage(useModuleAccess('control-mf'));
   const userId = useSessionStore(state => state.user?.id ?? null);
-  const { status, error, records, events } = useLedgerStore(useShallow(state => ({ status: state.status, error: state.error, records: state.records,
-    events: state.events })));
+  const { status, error, records, events, commitments, commitmentsAvailable } = useLedgerStore(useShallow(state => ({ status: state.status, error: state.error, records: state.records,
+    events: state.events, commitments: state.commitments, commitmentsAvailable: state.commitmentsAvailable })));
   const fiorella = useStore(state => state.fiorellaDemoRecords);
   const persisted = useStore(state => !!state.remote);
   const input = usePeriodStore(state => state.selectedPeriod);
   const period = parsePeriodInput(input);
   const [form, setForm] = useState(null);
+  const [commitmentOpen, setCommitmentOpen] = useState(false);
   const [opened, setOpened] = useState(null);
   const [resolving, setResolving] = useState(null);
   const [notice, setNotice] = useState('');
@@ -51,10 +52,9 @@ export default function ControlFinanzas() {
   const usdBalance = savingsBalance(entries, 'USD');
   const series = balanceSeries(entries, period);
   const usdSeries = balanceSeries(entries, period, 'USD');
-  const contributions = contributionHistory(entries);
+  const contributions = personContributions(entries, period, commitments);
   const rows = monthlyRows(entries, plans);
   const queue = reviewQueue(entries);
-  const month = entries.filter(entry => { const at = movementMonth(entry.record); return at && periodKey(at) === input; });
   const openedEntry = entries.find(entry => entry.record.id === opened) ?? null;
   const resolvingEntry = entries.find(entry => entry.record.id === resolving);
   const resolvingItem = resolvingEntry ? { entry: resolvingEntry, ...reviewReasons(resolvingEntry, entries) } : null;
@@ -86,8 +86,15 @@ export default function ControlFinanzas() {
       </section>
     </div>
     <MonthlyTable rows={rows} selected={input} />
-    <ContributionHistory groups={contributions} />
-    <MovementList key={input} entries={month} onOpen={setOpened} />
+    <ContributionHistory people={contributions} selected={period} />
+    {manage && <div className="text-sm">
+      {commitmentsAvailable ? <button type="button" className={buttonClass} onClick={() => setCommitmentOpen(true)}>Definir compromiso del mes</button>
+        : <p>El registro de compromisos aún no está habilitado. No se infieren acuerdos del historial.</p>}
+    </div>}
+    <Sheet open={commitmentOpen && manage} onClose={() => setCommitmentOpen(false)} title="Compromiso del mes">
+      <CommitmentForm key={input} period={period} onDone={message => { setNotice(message); setCommitmentOpen(false); }} />
+    </Sheet>
+    <MovementList key={input} entries={entries} selected={input} onOpen={setOpened} />
     <ReviewQueue items={queue} manage={manage} onResolve={setResolving} />
     {manage && <Sheet open={form !== null} onClose={() => setForm(null)} title={editing ? 'Editar movimiento' : 'Registrar movimiento'}>
       <MovementForm key={form ?? 'closed'} record={editing} selected={period} onDone={done} onCancel={() => setForm(null)} />
