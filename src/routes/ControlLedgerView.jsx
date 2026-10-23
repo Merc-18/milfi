@@ -18,7 +18,7 @@ import { controlButtonClass as buttonClass, controlCardClass as cardClass, contr
   controlMoney, controlExplanation, kindName, personName, purposeName } from '../presentation/control.js';
 
 const statusLabels = { pending: 'Pendiente de revisión', reviewed: 'Revisado · no conciliado', rejected: 'Rechazado', invalid: 'Inválido',
-  imported: 'Cargado del Excel · revisado' };
+  imported: 'Revisado · no conciliado' };
 // Three distinct operations, never netted against each other.
 const OPERATIONS = [['depositsExpenses', 'Depósitos para gastos', 'bg-principal/20'], ['depositsSavings', 'Depósitos para ahorro', 'bg-exito/30'], ['withdrawals', 'Retiros', 'bg-acento/30']];
 const operationOf = group => group.kind === 'withdrawal' ? 'withdrawals' : group.purpose === 'savings' ? 'depositsSavings' : 'depositsExpenses';
@@ -50,7 +50,7 @@ function Evolution({ rows, selected }) {
     <div className="overflow-x-auto -mx-1"><table className="w-full text-xs min-w-[32rem]">
       <thead><tr className="text-left">{['Mes', 'Dep. gastos', 'Dep. ahorro', 'Retiros', 'Pendientes'].map(head => <th key={head} className="p-1 font-bold">{head}</th>)}</tr></thead>
       <tbody>{rows.map(row => <tr key={row.key} className={`border-t border-secundario align-top ${row.key === selected ? 'bg-principal/20' : ''}`}>
-        <td className="p-1 capitalize whitespace-nowrap">{formatPeriod(row.period)}</td>
+        <td className="p-1 first-letter:uppercase whitespace-nowrap">{formatPeriod(row.period)}</td>
         {['depositsExpenses', 'depositsSavings', 'withdrawals'].map(field => <td key={field} className="p-1">{row.currencies.filter(item => item[field]).map(item => <span key={item.currency} className="block">{controlMoney(item[field], item.currency)}</span>)}{!row.currencies.some(item => item[field]) && '—'}</td>)}
         <td className="p-1">{row.pending || '—'}</td>
       </tr>)}</tbody>
@@ -71,6 +71,7 @@ export default function ControlLedgerView() {
   const [contributor, setContributor] = useState('all');
   const [notice, setNotice] = useState('');
   const [formVersion, setFormVersion] = useState(0);
+  const [shown, setShown] = useState(15);
   const period = parsePeriodInput(periodInput);
   const entries = useMemo(() => inspectLedger(records), [records]);
   const evolution = useMemo(() => controlEvolution(entries), [entries]);
@@ -90,32 +91,36 @@ export default function ControlLedgerView() {
     return result;
   };
   const select = (id, label, value, onChange, options) => <div><label htmlFor={id} className="block text-xs font-bold mb-1">{label}</label>
-    <select id={id} className={fieldClass} value={value} onChange={event => onChange(event.target.value)}><option value="all">Todos</option>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></div>;
+    <select id={id} className={fieldClass} value={value} onChange={event => { onChange(event.target.value); setShown(15); }}><option value="all">Todos</option>{options.map(([option, text]) => <option key={option} value={option}>{text}</option>)}</select></div>;
   return <div className="pb-10 space-y-5 [overflow-wrap:anywhere]" data-testid="control-ledger">
-    <header className="my-6"><h1 className="text-2xl font-bold mb-1">Control Finanzas M&F</h1><p className="text-sm">Administra Milton · Consultan ambos</p></header>
+    <header className="flex flex-wrap items-end justify-between gap-3 mt-2 mb-2">
+      <h1 className="text-2xl md:text-3xl font-bold">Control Finanzas M&F</h1>
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-44"><PeriodInput id="control-selected-period" label="Periodo" labelClassName="sr-only" applied={periodInput} className={`${fieldClass} text-center font-bold`} onValidChange={value => {
+          useControlStore.getState().selectPeriod(value); setEditing(null); setReviewing(null); setNotice(''); setShown(15);
+        }} /></div>
+        <button type="button" className={buttonClass} onClick={async () => { const result = await useLedgerStore.getState().refresh(); setNotice(result.ok ? 'Datos actualizados.' : controlExplanation(result.errors[0])); }}>Actualizar</button>
+      </div>
+    </header>
     {status === 'error' && <StatusNotice title="No se pudieron cargar los movimientos"><p role="alert">MilFi no pudo leer los datos ({error}). No se muestran cifras incompletas.</p></StatusNotice>}
     {status === 'loading' && <p role="status" className="text-sm">Cargando movimientos…</p>}
-    {!manage && <ReadOnlyNotice>Tu usuario puede consultar Control Finanzas M&F, pero no registrar, editar ni revisar movimientos.</ReadOnlyNotice>}
-    <section className={cardClass}>
-      <PeriodInput id="control-selected-period" label="Periodo" applied={periodInput} className={fieldClass} onValidChange={value => {
-        useControlStore.getState().selectPeriod(value); setEditing(null); setReviewing(null); setNotice('');
-      }} />
-      <div data-testid="control-counts" className="flex flex-wrap gap-x-4 gap-y-1 text-sm"><span>Depósitos: {summary.deposits}</span><span>Retiros: {summary.withdrawals}</span>
-        <span>Pendientes: {summary.pending}</span></div>
-      <button type="button" className={buttonClass} onClick={async () => { const result = await useLedgerStore.getState().refresh(); setNotice(result.ok ? 'Datos actualizados.' : controlExplanation(result.errors[0])); }}>Actualizar</button>
-    </section>
-    <PeriodDashboard summary={summary} />
-    <Evolution rows={evolution} selected={periodInput} />
-    {manage && <section className={cardClass}>
-      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${periodInput}`} real identity={identity} record={editing} period={periodInput} onSave={save} onCancel={() => setEditing(null)} />
-      {notice && <p role="status" className="text-sm bg-secundario/30 rounded-xl p-3">{notice}</p>}
-    </section>}
-    {!manage && notice && <p role="status" className="text-sm">{notice}</p>}
+    {!manage && <ReadOnlyNotice>Administra Milton.</ReadOnlyNotice>}
+    <div data-testid="control-counts" className="flex flex-wrap gap-2 text-sm">{[['Depósitos', summary.deposits], ['Retiros', summary.withdrawals], ['Pendientes', summary.pending]].map(([name, count]) =>
+      <span key={name} className={`rounded-xl px-3 py-1 ${name === 'Pendientes' && count ? 'bg-amber-50 font-bold' : 'bg-white shadow-soft'}`}>{name}: {count}</span>)}</div>
+    {notice && <p role="status" className="text-sm font-bold bg-exito/60 rounded-xl px-3 py-2">{notice}</p>}
     {manage && reviewing && <ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} real entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} />}
+    {manage && <details className={cardClass} open={!!editing}>
+      <summary className="font-bold cursor-pointer min-h-11 flex items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span>{editing ? 'Editar movimiento' : '+ Registrar movimiento'}</span><span aria-hidden="true">▾</span></summary>
+      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${periodInput}`} real identity={identity} record={editing} period={periodInput} onSave={save} onCancel={() => setEditing(null)} />
+    </details>}
+    <div className="grid gap-4 lg:grid-cols-2 items-start">
+      <PeriodDashboard summary={summary} />
+      <Evolution rows={evolution} selected={periodInput} />
+    </div>
     <section className="space-y-4" aria-label="Movimientos de Control">
       <h2 className="text-lg font-bold">Movimientos del periodo</h2>
-      <div className="grid grid-cols-2 gap-3">
-        <div><label htmlFor="control-status" className="block text-xs font-bold mb-1">Estado</label><select id="control-status" className={fieldClass} value={filter} onChange={event => setFilter(event.target.value)}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div><label htmlFor="control-status" className="block text-xs font-bold mb-1">Estado</label><select id="control-status" className={fieldClass} value={filter} onChange={event => { setFilter(event.target.value); setShown(15); }}>
           <option value="all">Todos</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select></div>
         {select('control-filter-kind', 'Tipo', kind, setKind, [['deposit', 'Depósito'], ['withdrawal', 'Retiro']])}
@@ -123,7 +128,8 @@ export default function ControlLedgerView() {
         {select('control-filter-contributor', 'Aportante', contributor, setContributor, [['milton', 'Milton'], ['fiorella', 'Fiorella']])}
       </div>
       {!visible.length && <p className="text-sm rounded-2xl bg-white p-4">Sin movimientos para este periodo y filtro.</p>}
-      {visible.map(entry => {
+      <div className="grid gap-3 lg:grid-cols-2 items-start">
+      {visible.slice(0, shown).map(entry => {
         const { record } = entry;
         const manual = record.provenance?.type === 'control-manual';
         return <article key={record.id} data-ledger-id={record.id} data-ledger-state={entry.status} className={cardClass}>
@@ -134,8 +140,8 @@ export default function ControlLedgerView() {
           {!!entry.pendingReasons.length && <ul className="text-sm space-y-1">{entry.pendingReasons.map(reason => <li key={reason}>{controlExplanation(reason)}</li>)}</ul>}
           {!!entry.staleReviews && <p className="text-sm font-bold">Hay revisiones anteriores desactualizadas: los datos cambiaron después.</p>}
           {manage && manual && <div className="flex flex-wrap gap-3">
-            <button type="button" className={buttonClass} onClick={() => { setEditing(structuredClone(record)); setReviewing(null); setNotice(''); }}>Editar movimiento</button>
-            <button type="button" className={buttonClass} onClick={() => { setReviewing(entry); setEditing(null); setNotice(''); }}>Revisar movimiento</button></div>}
+            <button type="button" className={buttonClass} onClick={() => { setEditing(structuredClone(record)); setReviewing(null); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar movimiento</button>
+            <button type="button" className={buttonClass} onClick={() => { setReviewing(entry); setEditing(null); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Revisar movimiento</button></div>}
           <details className="text-sm"><summary className="cursor-pointer min-h-11 py-3 font-bold">Procedencia y revisiones</summary>
             <p className="py-2">{manual ? `Procedencia: ${record.provenance.statement}` : `Excel: ${record.provenance?.sheet}!${record.provenance?.operation?.amountRef}`} · Revisión {record.revision}</p>
             {[...(record.manualReviews ?? []), ...(record.evidenceReviews ?? []), ...(record.preimportDecisions ?? [])].map(item => <p key={item.id} className="border-t border-secundario py-2">
@@ -143,6 +149,8 @@ export default function ControlLedgerView() {
           </details>
         </article>;
       })}
+      </div>
+      {visible.length > shown && <button type="button" className={buttonClass} onClick={() => setShown(value => value + 15)}>Ver más ({visible.length - shown} restantes)</button>}
     </section>
     <details className={cardClass}>
       <summary className="font-bold cursor-pointer">Historial de cambios ({events.length})</summary>

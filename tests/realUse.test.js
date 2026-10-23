@@ -11,6 +11,7 @@ import { readControlWorkbook } from '../src/application/controlPreimport.js';
 import { applyControlDecisions, controlLoadPreview, fiorellaLoadPayload, fiorellaLoadPreview } from '../src/application/historicalLoad.js';
 import { createMilfiPersistence } from '../src/application/persistence.js';
 import { inspectLedger, summarizeLedger } from '../src/domain/controlLedger.js';
+import { createMilfiStore } from '../src/store/useStore.js';
 
 const recognize = async (options, cutoff = '2031-02-20') => recognizeFiorellaWorkbook((await readXlsxCapture(syntheticFiorellaXlsx(options))).capture, { cutoff });
 
@@ -124,3 +125,40 @@ test('Control load: owner decisions resolve fields with evidence; the rest is lo
   assert.deepEqual(controlLoadPreview(decided, batches, stored.records).conflicts.map(item => item.code), ['FILE_ALREADY_LOADED', 'SAME_CELLS_FROM_OTHER_FILE']);
 });
 
+
+test('daily use after the load: Fiorella saves new and imported records through the app store; Milton is refused', async () => {
+  const db = await createDatabase();
+  const u = await seedSynthetic(db);
+  const { plan } = await recognize();
+  assert.equal((await as(db, u.fiorella, 'select public.import_fiorella_history($1::jsonb)', [JSON.stringify(fiorellaLoadPayload(plan, u.household))])).ok, true);
+  const storeFor = async user => {
+    const store = createMilfiStore();
+    await store.getState().connectRemote(createMilfiPersistence(createPgRestClient(db, u[user]), { householdId: u.household }));
+    assert.equal(store.getState().remoteStatus, 'ready');
+    return store;
+  };
+  const fiorella = await storeFor('fiorella');
+  const P = { year: 2031, month: 2 };
+  const records = () => fiorella.getState().fiorellaDemoRecords;
+  const command = (kind, existing, fields) => ({ kind, period: P, id: existing?.id ?? crypto.randomUUID(), expectedRevision: existing?.revision ?? 0,
+    eventId: crypto.randomUUID(), occurredAt: new Date().toISOString(), ...fields });
+  const month = records().find(record => record.kind === 'monthly-plan' && record.period.month === 2);
+  let result = await fiorella.getState().saveFiorellaDemo(command('monthly-plan', month, { income: '3200', appliedFixedExpense: '1200', planStatus: 'actual' }));
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  const luz = records().find(record => record.kind === 'fixed-budget' && record.period.month === 2 && record.categoryId === 'servicios-luz');
+  result = await fiorella.getState().saveFiorellaDemo(command('fixed-budget', luz, { categoryId: 'servicios-luz', budgetAmount: '20', actualAmount: '18.5' }));
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  result = await fiorella.getState().saveFiorellaDemo(command('variable-expense', null, { categoryId: 'ocio', effectiveDate: '2031-02-15', description: 'Gasto nuevo inventado', amount: '9.9', subcategory: 'Antojo', notes: '' }));
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  const imported = records().find(record => record.kind === 'variable-expense' && record.provenance?.type === 'fiorella-excel');
+  result = await fiorella.getState().saveFiorellaDemo(command('variable-expense', imported, { categoryId: imported.categoryId, effectiveDate: imported.effectiveDate,
+    description: `${imported.description} (editado)`, amount: imported.amount, subcategory: imported.subcategory, notes: imported.notes }));
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  const edited = records().find(record => record.id === imported.id);
+  assert.deepEqual([edited.revision, edited.provenance.type], [2, 'fiorella-excel']);
+  // Milton reads everything but every write is refused by the database.
+  const milton = await storeFor('milton');
+  assert.equal(milton.getState().fiorellaDemoRecords.length, records().length);
+  const refused = await milton.getState().saveFiorellaDemo(command('variable-expense', null, { categoryId: 'ocio', effectiveDate: '2031-02-16', description: 'Intento de Milton', amount: '1' }));
+  assert.deepEqual(refused, { ok: false, errors: ['FORBIDDEN'] });
+});

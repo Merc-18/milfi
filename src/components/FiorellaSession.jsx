@@ -1,5 +1,7 @@
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { formatAmount } from '../presentation/format.js';
+import { formatAmount, parsePeriodInput } from '../presentation/format.js';
 import { moneyDifference } from '../domain/fiorellaSession.js';
 import StatusNotice from './StatusNotice.jsx';
 import PeriodInput from './PeriodInput.jsx';
@@ -35,11 +37,35 @@ export function Kpi({ label, amount, children, tone = 'bg-white' }) {
     <p className="text-lg font-bold break-all">{amount == null ? 'Sin registrar' : formatAmount(amount)}</p>{children}</div>;
 }
 
+export function PageHeader({ title, subtitle, children }) {
+  return <header className="flex flex-wrap items-end justify-between gap-3 mt-2 mb-4">
+    <div className="min-w-0"><h1 className="text-2xl md:text-3xl font-bold">{title}</h1>{subtitle && <p className="text-sm text-texto-light mt-1">{subtitle}</p>}</div>
+    {children}
+  </header>;
+}
+
+// Month switcher: previous/next buttons plus the native month field.
 export function PeriodPicker() {
   const input = useStore(state => state.selectedFiorellaPeriod);
   const select = useStore(state => state.selectFiorellaPeriod);
-  return <div className={`${cardClass} mb-5`}>
-    <PeriodInput id="fiorella-period" label="Mes y año" applied={input} onValidChange={select} className={fieldClass} />
+  // The native field is uncontrolled; remount it only when the month changes from
+  // outside (arrows, a saved expense of another month), never while typing in it.
+  const [emitted, setEmitted] = useState(input);
+  const [seen, setSeen] = useState(input);
+  const [version, setVersion] = useState(0);
+  if (input !== seen) { setSeen(input); if (input !== emitted) setVersion(value => value + 1); }
+  const period = parsePeriodInput(input);
+  const typed = value => { setEmitted(value); return select(value); };
+  const shift = step => {
+    if (!period) return;
+    const index = period.year * 12 + period.month - 1 + step;
+    select(`${String(Math.floor(index / 12)).padStart(4, '0')}-${String((index % 12) + 1).padStart(2, '0')}`);
+  };
+  const arrow = 'shrink-0 min-h-11 min-w-11 rounded-xl bg-white shadow-soft flex items-center justify-center hover:bg-principal/60 disabled:opacity-40';
+  return <div className="flex items-end gap-2">
+    <button type="button" className={arrow} onClick={() => shift(-1)} disabled={!period} aria-label="Mes anterior"><ChevronLeft size={20} aria-hidden="true" /></button>
+    <div className="min-w-0 w-44"><PeriodInput key={version} id="fiorella-period" label="Mes" labelClassName="sr-only" applied={input} onValidChange={typed} className={`${fieldClass} bg-white text-center font-bold first-letter:uppercase`} /></div>
+    <button type="button" className={arrow} onClick={() => shift(1)} disabled={!period} aria-label="Mes siguiente"><ChevronRight size={20} aria-hidden="true" /></button>
   </div>;
 }
 

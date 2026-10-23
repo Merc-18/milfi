@@ -127,7 +127,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     });
 
     await context.test('Fiorella GV accumulates, edits and handles duplicate-looking demos without redistribution', async () => {
-      await clickLink('/fiorella/gastos', 'Seguimiento GV');
+      await clickLink('/fiorella/gastos', 'Gastos GV');
       const expense = async (description, amount, category = 'salud', date = '2038-04-09') => {
         await fill('gv-date', date); await fill('gv-description', description); await fill('gv-amount', amount);
         await browser.evaluate(`(() => { const select = document.getElementById('gv-category'); select.value = ${JSON.stringify(category)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
@@ -148,9 +148,12 @@ test('browser regression: redirects, simulation history and financial isolation'
       await submitForm('Gasto variable de demostración');
       await browser.waitFor('document.querySelectorAll("article").length === 4');
       assert.ok((await visibleText()).includes('S/ 0.50'));
-      await expense('Periodo ficticio incorrecto', '2', 'salud', '2038-05-01');
-      await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("mes y año")');
-      assert.equal(await browser.evaluate('document.querySelectorAll("article").length'), 4);
+      // An expense dated in another month is saved in that month and the view follows it.
+      await expense('Gasto ficticio de mayo', '2', 'salud', '2038-05-01');
+      await browser.waitFor('document.querySelector("[role=status]")?.textContent.includes("mayo de 2038") && document.querySelectorAll("article").length === 1');
+      assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '2038-05');
+      await fill('fiorella-period', '2038-04');
+      await browser.waitFor('document.querySelectorAll("article").length === 4');
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('03-gastos-movil.png');
       await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
@@ -165,7 +168,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Seguimiento GV'], ['/fiorella/historial', 'Historial']]) {
+        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos GV'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,

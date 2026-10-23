@@ -57,8 +57,8 @@ export default function Acceso() {
     setPassword('');
     setSubmitting(false);
   };
-  return <div className="pb-10 space-y-5">
-    <header className="my-6"><h1 className="text-2xl font-bold mb-2">Acceso</h1><p className="text-sm">Inicio de sesión de MilFi</p></header>
+  return <div className="pb-10 space-y-5 max-w-lg">
+    <header className="my-4"><h1 className="text-2xl font-bold">Acceso</h1></header>
     {session.mode === 'demo' && <StatusNotice title="Autenticación no configurada"><p>Este entorno no tiene un proyecto Supabase configurado. La aplicación funciona en modo demostración local, sin usuarios, sin seguridad y sin datos reales. No existe un inicio de sesión simulado.</p></StatusNotice>}
     {session.status === 'config-error' && <StatusNotice title="Configuración no válida"><p>{message(session.error)}</p></StatusNotice>}
     {session.status === 'initializing' && <p role="status" className="text-sm">Recuperando la sesión…</p>}
@@ -80,5 +80,6 @@ export default function Acceso() {
       {session.status === 'ready' && <ChangePassword />}
     </section>}
     {session.status === 'error' && <p role="alert" className="text-sm rounded-xl bg-amber-50 p-3">{message(session.error)}</p>}
+    <p className="text-xs text-texto-light">Versión {import.meta.env.VITE_MILFI_VERSION ?? 'local'}</p>
   </div>;
 }

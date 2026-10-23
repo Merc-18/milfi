@@ -1,51 +1,59 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, Flower2, Users } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { Home, Flower2, Users, UserRound } from 'lucide-react';
+import { useEffect } from 'react';
 import AuthGate from '../auth/AccessGuards.jsx';
 import DataSync from '../auth/DataSync.jsx';
 
+const MODULES = [
+  { to: '/', icon: Home, label: 'Inicio', end: true },
+  { to: '/fiorella', icon: Flower2, label: 'Fiorella', end: false },
+  { to: '/control', icon: Users, label: 'Control M&F', end: false },
+];
+// Daily tasks first; planning and reference pages last.
+const FIORELLA_SECTIONS = [
+  ['/fiorella', 'Panel'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/presupuestos', 'Presupuestos'],
+  ['/fiorella/historial', 'Historial'], ['/fiorella/simulador', 'Metas'], ['/fiorella/calculadora', 'Simular'], ['/fiorella/configuracion', 'Reglas'],
+];
+
 export default function Layout() {
   const { pathname } = useLocation();
-  const main = useRef(null);
-  useEffect(() => { main.current?.scrollTo({ top: 0 }); }, [pathname]);
-  const navItems = [
-    { to: "/", icon: Home, label: "Inicio", end: true },
-    { to: "/fiorella", icon: Flower2, label: "Fiorella", end: false },
-    { to: "/control", icon: Users, label: "Control M&F", end: false },
-  ];
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
 
   return (
-    <div className="flex flex-col h-dvh bg-fondo w-full max-w-md mx-auto relative overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.1)] sm:rounded-3xl sm:h-[850px] sm:my-8 border-x sm:border-y border-principal">
-      <main ref={main} className="flex-1 min-w-0 overflow-y-auto pb-32 p-4 sm:p-6">
-        <div className="flex justify-end mb-2"><NavLink to="/acceso" className="text-xs font-bold underline min-h-11 py-3">Acceso</NavLink></div>
+    <div className="min-h-dvh w-full bg-fondo">
+      <header className="sticky top-0 z-40 border-b border-secundario/70 bg-fondo/90 backdrop-blur-md pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 md:px-8">
+          <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11"><img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
+          <nav aria-label="Módulos de MilFi" className="hidden md:flex items-center gap-1">
+            {MODULES.map(item => <NavLink key={item.to} to={item.to} end={item.end}
+              className={({ isActive }) => `flex items-center gap-2 rounded-xl px-4 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
+              <item.icon size={18} aria-hidden="true" />{item.label}</NavLink>)}
+          </nav>
+          <NavLink to="/acceso" className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
+            <UserRound size={18} aria-hidden="true" />Acceso</NavLink>
+        </div>
         {pathname.startsWith('/fiorella') && (
-          <nav aria-label="Finanzas de Fiorella" className="flex flex-wrap gap-2 text-xs mb-4">
-            {[
-              ['/fiorella', 'Resumen'], ['/fiorella/calculadora', 'Simular'],
-              ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos GV'],
-              ['/fiorella/simulador', 'Escenarios y metas'],
-              ['/fiorella/historial', 'Historial'], ['/fiorella/configuracion', 'Reglas'],
-            ].map(([to, label]) => <NavLink key={to} to={to} end className={({ isActive }) => `px-3 py-3 min-h-11 rounded-xl ${isActive ? 'bg-principal font-bold' : 'bg-white'}`}>{label}</NavLink>)}
+          <nav aria-label="Finanzas de Fiorella" className="mx-auto max-w-6xl overflow-x-auto px-4 md:px-8">
+            <div className="flex gap-1 pb-2 text-sm whitespace-nowrap">
+              {FIORELLA_SECTIONS.map(([to, label]) => <NavLink key={to} to={to} end
+                className={({ isActive }) => `rounded-xl px-3 py-2 min-h-11 flex items-center ${isActive ? 'bg-texto text-white font-bold' : 'bg-white hover:bg-principal/60'}`}>{label}</NavLink>)}
+            </div>
           </nav>
         )}
+      </header>
+
+      <main className="mx-auto w-full max-w-6xl min-w-0 px-4 pt-4 pb-32 md:px-8 md:pb-12">
         <DataSync />
         <AuthGate><Outlet /></AuthGate>
       </main>
 
-      <nav aria-label="Módulos de MilFi" className="absolute bottom-0 w-full bg-white/80 backdrop-blur-md border-t border-secundario rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-safe pt-3 px-6 flex justify-between items-center min-h-24 z-50">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className="flex-1 flex justify-center"
-          >
+      <nav aria-label="Módulos de MilFi (móvil)" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-secundario rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-safe pt-2 px-6 flex justify-between items-center">
+        {MODULES.map(item => (
+          <NavLink key={item.to} to={item.to} end={item.end} className="flex-1 flex justify-center">
             {({ isActive }) => (
-              <div className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all duration-300 ${
-                isActive ? "bg-principal text-texto font-bold -translate-y-3 shadow-soft" : "text-texto-light hover:text-texto hover:-translate-y-1"
-              }`}>
-                <item.icon size={24} strokeWidth={isActive ? 3 : 2} aria-hidden="true" />
-                <span className="text-[10px] mt-1">{item.label}</span>
+              <div className={`flex flex-col items-center justify-center w-20 h-14 rounded-2xl transition-colors ${isActive ? 'bg-principal text-texto font-bold' : 'text-texto-light'}`}>
+                <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
+                <span className="text-[11px] mt-0.5">{item.label}</span>
               </div>
             )}
           </NavLink>
