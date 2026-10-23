@@ -54,7 +54,8 @@ export default function GastosGV() {
         : <VariableView summary={summary} period={period} today={today} manage={manage} onNew={openNew} onMonthly={() => setMonthly(true)}
           onEdit={item => { setFeedback(''); setEditing(item.id); }} />}
     </div>
-    {manage && <ExpenseSheet open={sheetOpen} record={record} input={input} period={period} suggestions={suggestions} onClose={closeSheet}
+    {manage && <ExpenseSheet open={sheetOpen} record={record} initialKind={view === 'fijos' ? 'fijo' : 'variable'} input={input} period={period}
+      summary={summary} suggestions={suggestions} onClose={closeSheet}
       onDone={message => { setFeedback(message); closeSheet(); }} />}
     {manage && <Sheet open={monthly} onClose={() => setMonthly(false)} title="Ingreso del mes">
       <MonthlyForm key={input} period={period} record={summary.monthly} />

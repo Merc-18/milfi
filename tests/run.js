@@ -23,3 +23,4 @@ import './budgetCopy.test.js';
 import './goalPlan.test.js';
 import './buildStamp.test.js';
 import './fixedCap.test.js';
+import './fixedEntry.test.js';

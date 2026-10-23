@@ -282,6 +282,46 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/fiorella', 'Resumen');
     });
 
+    await context.test('fixed expenses use the same sheet: add to an empty or registered total, or replace it, budget untouched', async () => {
+      await clickLink('/fiorella/gastos', 'Gastos');
+      const openFixed = async () => {
+        await browser.waitFor('!document.querySelector("dialog[open]")');
+        await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Registrar gasto").click()');
+        await browser.waitFor('!!document.getElementById("gasto-tipo-fijo")');
+        await browser.evaluate('document.getElementById("gasto-tipo-fijo").click()');
+        await browser.waitFor('!!document.querySelector("dialog[open] #gf-category")');
+      };
+      const choose = id => browser.evaluate(`(() => { const select = document.getElementById('gf-category'); select.value = ${JSON.stringify(id)};
+        select.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const preview = () => testText('fixed-preview');
+      await openFixed();
+      // Grouped subcategories with their display names, and no date field.
+      assert.ok(await browser.evaluate('Array.from(document.querySelectorAll("#gf-category optgroup")).map(group => group.label).join() === "Servicios,Transporte,Comida,Bienestar,Otros"'));
+      assert.ok(await browser.evaluate('Array.from(document.querySelectorAll("#gf-category option")).some(option => option.textContent === "Carbohidratos")'));
+      assert.equal(await browser.evaluate('document.querySelectorAll("dialog[open] input[type=date]").length'), 0);
+      await choose('servicios-luz'); await fill('gf-amount', '80');
+      assert.ok((await preview()).includes('Se suma a abril de 2038') && (await preview()).includes('Luz: sin registrar → S/ 80.00 este mes'), await preview());
+      await capture('27-gasto-fijo-movil.png');
+      await submitForm('Gasto fijo');
+      await browser.waitFor('!document.querySelector("dialog[open]") && document.querySelector("[role=status]")?.textContent.includes("Luz: S/ 80.00 en abril de 2038")');
+      await openFixed(); await choose('servicios-luz'); await fill('gf-amount', '80');
+      assert.ok((await preview()).includes('Luz: S/ 80.00 → S/ 160.00 este mes'));
+      await submitForm('Gasto fijo');
+      await openFixed(); await choose('servicios-gas'); await fill('gf-amount', '1500');
+      await browser.evaluate('document.getElementById("gf-mode-replace").click()');
+      assert.ok((await preview()).includes('Reemplaza el total de abril de 2038') && (await preview()).includes('Gas: S/ 110.05 → S/ 1,500.00 este mes'), await preview());
+      await submitForm('Gasto fijo');
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      // The budgets stay as they were: Gas keeps 120.10 and Luz has none.
+      await browser.evaluate('document.getElementById("gastos-tab-fijos").click()');
+      await browser.waitFor('!!document.querySelector("[data-budget-id=servicios-gas]")');
+      assert.ok((await browser.evaluate('document.querySelector("[data-budget-id=servicios-gas]").textContent')).includes('S/ 1,500.00 de S/ 120.10'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-budget-id=servicios-luz]").textContent')).includes('S/ 160.00, presupuesto sin registrar'));
+      // GF real 1,660 above the S/ 1,500 reserved: the summary shows the excess.
+      await clickLink('/fiorella', 'Resumen');
+      assert.ok((await testText('fixed-stat')).includes('Exceso: −S/ 160.00'), await testText('fixed-stat'));
+    });
+
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });

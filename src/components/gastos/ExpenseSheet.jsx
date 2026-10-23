@@ -7,13 +7,14 @@ import { usePeriodStore } from '../../store/periodStore.js';
 import { useStore } from '../../store/useStore.js';
 import { buttonClass, fieldClass } from '../FiorellaSession.jsx';
 import Sheet from '../ui/Sheet.jsx';
+import FixedExpenseForm from './FixedExpenseForm.jsx';
+import { segmentClass, segmentGroupClass } from './formStyles.js';
 
 const DUPLICATE = 'POSSIBLE_DUPLICATE_EXPENSE';
 const periodOfDate = date => /^\d{4}-\d{2}-\d{2}$/.test(date) ? { year: Number(date.slice(0, 4)), month: Number(date.slice(5, 7)) } : null;
 const keyOf = period => `${period.year}-${String(period.month).padStart(2, '0')}`;
 const label = (id, text) => <label htmlFor={id} className="block font-bold text-sm mb-1">{text}</label>;
-const segmentClass = 'flex min-h-11 cursor-pointer items-center justify-center rounded-lg px-4 text-sm has-[:checked]:bg-texto has-[:checked]:font-bold'
-  + ' has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-texto';
+
 
 function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
   const save = useStore(state => state.saveFiorellaDemo);
@@ -60,7 +61,7 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
         onChange={event => edit(setAmount)(event.target.value)} className={`${fieldClass} text-3xl font-bold tabular-nums`} placeholder="0.00" /></div>
     <fieldset>
       <legend className="block font-bold text-sm mb-1">Categoría</legend>
-      <div className="grid grid-cols-2 gap-1 rounded-xl bg-white p-1 shadow-soft">
+      <div className={segmentGroupClass}>
         {FINANCIAL_RULES.variableCategories.map(item => <label key={item.id} htmlFor={`gv-category-${item.id}`} className={segmentClass}>
           <input id={`gv-category-${item.id}`} type="radio" name="gv-category" value={item.id} className="sr-only" checked={category === item.id}
             onChange={() => edit(setCategory)(item.id)} />{item.name}</label>)}
@@ -97,9 +98,30 @@ function ExpenseForm({ input, period, record, suggestions, onDone, onCancel }) {
   </form>;
 }
 
-// New or edited variable expense in a sheet.
-export default function ExpenseSheet({ open, record, input, period, suggestions, onDone, onClose }) {
+const KINDS = [['variable', 'Variable'], ['fijo', 'Fijo']];
+
+// A new expense chooses its kind first; an edited variable expense keeps its form.
+function ExpenseContent({ record, initialKind, input, period, summary, suggestions, onDone, onClose }) {
+  const [kind, setKind] = useState(initialKind);
+  return <div className="space-y-4">
+    {!record && <fieldset>
+      <legend className="block font-bold text-sm mb-1">Tipo de gasto</legend>
+      <div className={segmentGroupClass}>
+        {KINDS.map(([id, label]) => <label key={id} htmlFor={`gasto-tipo-${id}`} className={segmentClass}>
+          <input id={`gasto-tipo-${id}`} type="radio" name="gasto-tipo" value={id} className="sr-only" checked={kind === id}
+            onChange={() => setKind(id)} />{label}</label>)}
+      </div>
+    </fieldset>}
+    {kind === 'fijo' && !record
+      ? <FixedExpenseForm period={period} summary={summary} onDone={onDone} onCancel={onClose} />
+      : <ExpenseForm key={record?.id ?? 'new'} input={input} period={period} record={record} suggestions={suggestions} onDone={onDone} onCancel={onClose} />}
+  </div>;
+}
+
+// New (variable or fixed) or edited variable expense, in one sheet.
+export default function ExpenseSheet({ open, record, initialKind = 'variable', input, period, summary, suggestions, onDone, onClose }) {
   return <Sheet open={open} onClose={onClose} title={record ? 'Editar gasto' : 'Registrar gasto'}>
-    <ExpenseForm key={record?.id ?? 'new'} input={input} period={period} record={record} suggestions={suggestions} onDone={onDone} onCancel={onClose} />
+    <ExpenseContent record={record} initialKind={initialKind} input={input} period={period} summary={summary} suggestions={suggestions}
+      onDone={onDone} onClose={onClose} />
   </Sheet>;
 }
