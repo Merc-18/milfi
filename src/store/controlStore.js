@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 import { prepareControlDemo, prepareControlReview } from '../domain/controlSession.js';
-import { currentPeriodInput, parsePeriodInput } from '../presentation/format.js';
 
-// Independent, memory-only module. No real import, persistence or auth action.
+// Independent, memory-only module (the month lives in periodStore). No real import, persistence or auth action.
 export function createControlStore() {
   return create((set, get) => {
     const apply = (prepare, input) => {
@@ -14,12 +13,7 @@ export function createControlStore() {
       return result;
     };
     return {
-      selectedPeriod: currentPeriodInput(), demoMovements: [], events: [],
-      selectPeriod: value => {
-        if (!parsePeriodInput(value)) return false;
-        set({ selectedPeriod: value });
-        return true;
-      },
+      demoMovements: [], events: [],
       saveDemo: input => apply(prepareControlDemo, input),
       reviewDemo: input => apply(prepareControlReview, input),
     };

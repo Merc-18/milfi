@@ -1,19 +1,19 @@
 import { useStore } from '../store/useStore.js';
+import { usePeriodStore } from '../store/periodStore.js';
 import { parsePeriodInput } from './format.js';
 import { summarizeFiorella } from '../domain/fiorellaSession.js';
+import { withFixedCap } from './fixedCap.js';
 
 export function useFiorellaPeriod() {
-  const input = useStore(state => state.selectedFiorellaPeriod);
+  const input = usePeriodStore(state => state.selectedPeriod);
   const records = useStore(state => state.fiorellaDemoRecords);
   const persisted = useStore(state => !!state.remote);
   const period = parsePeriodInput(input);
-  return { input, period, persisted, summary: summarizeFiorella(records, period, persisted ? 'real' : 'simulated') };
+  return { input, period, persisted, summary: summarizeFiorella(withFixedCap(records), period, persisted ? 'real' : 'simulated') };
 }
 
 /** True while records are loaded from and saved to Supabase (authorized session). */
 export const usePersisted = () => useStore(state => !!state.remote);
-/** " · demo" while showing session examples; nothing with real data. */
-export const useDemoLabel = () => useStore(state => state.remote ? '' : ' · demo');
 
 const errors = {
   POSSIBLE_DUPLICATE_EXPENSE: 'Ya existe un gasto con los mismos datos. Revisa la lista o indica explícitamente que se trata de otro gasto.',
@@ -31,7 +31,7 @@ const errors = {
 };
 export function sessionResultMessage(result, persisted = false) {
   if (result.ok) return result.unchanged ? 'Sin cambios; no se creó otro registro.'
-    : persisted ? 'Guardado en MilFi. Se conserva al cerrar sesión y se ve desde otros dispositivos.' : 'Registrado solo en esta sesión de demostración. Se perderá al recargar.';
+    : persisted ? 'Guardado en MilFi. Se conserva al cerrar sesión y se ve desde otros dispositivos.' : 'Guardado.';
   return errors[result.errors?.[0]] ?? 'Revisa los campos. Usa importes no negativos con punto decimal, una fecha válida y descripción de hasta 300 caracteres.';
 }
 

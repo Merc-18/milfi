@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import ControlLedgerView from './ControlLedgerView.jsx';
 import { useLedgerStore } from '../store/ledgerStore.js';
 import { ReadOnlyNotice } from '../components/auth/AccessGuards.jsx';
 import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
+import Badge from '../components/ui/Badge.jsx';
 import StatusNotice from '../components/StatusNotice.jsx';
-import PeriodInput from '../components/PeriodInput.jsx';
+import PeriodPicker from '../components/PeriodPicker.jsx';
+import { usePeriodStore } from '../store/periodStore.js';
 import ControlMovementEditor from '../components/ControlMovementEditor.jsx';
 import ControlReviewEditor from '../components/ControlReviewEditor.jsx';
 import { controlReviewBinding, summarizeControlDemo } from '../domain/controlSession.js';
 import { useControlStore } from '../store/controlStore.js';
 import { formatPeriod, parsePeriodInput } from '../presentation/format.js';
 import { controlButtonClass as buttonClass, controlCardClass as cardClass, controlFieldClass as fieldClass,
-  controlMoney, controlExplanation, kindName, personName, purposeName, statusName } from '../presentation/control.js';
+  controlMoney, controlExplanation, kindName, personName, purposeName, statusName, statusTone } from '../presentation/control.js';
 
 // Persisted ledger while an authorized session is connected; session demo otherwise.
 export default function ControlFinanzas() {
@@ -23,6 +24,7 @@ export default function ControlFinanzas() {
 
 function ControlDemoView() {
   const state = useControlStore();
+  const periodInput = usePeriodStore(store => store.selectedPeriod);
   const manage = canManage(useModuleAccess('control-mf'));
   const [editing, setEditing] = useState(null);
   const [reviewing, setReviewing] = useState(null);
@@ -33,7 +35,7 @@ function ControlDemoView() {
   const reviewRef = useRef(null);
   useEffect(() => { if (editing) editorRef.current?.scrollIntoView({ block: 'start' }); }, [editing]);
   useEffect(() => { if (reviewing) reviewRef.current?.scrollIntoView({ block: 'start' }); }, [reviewing]);
-  const period = parsePeriodInput(state.selectedPeriod);
+  const period = parsePeriodInput(periodInput);
   const summary = summarizeControlDemo(state.demoMovements, period);
   const entries = summary.entries.filter(entry => status === 'all' || entry.status === status)
     .sort((a, b) => b.record.effectiveDate.localeCompare(a.record.effectiveDate) || a.record.id.localeCompare(b.record.id));
@@ -57,14 +59,9 @@ function ControlDemoView() {
     <header className="my-6"><h1 className="text-2xl font-bold mb-2">Control Finanzas M&F</h1><p className="text-sm">Administración prevista: Milton · Consulta de ambos</p></header>
     <StatusNotice title="Historial real pendiente de importación"><p>El Excel de Control contiene operaciones reales. Todavía no se ha importado ningún movimiento; no hay un saldo confirmado para mostrar.</p></StatusNotice>
     {!manage && <ReadOnlyNotice>Tu usuario puede consultar Control Finanzas M&F, pero no registrar, editar, revisar ni preimportar movimientos.</ReadOnlyNotice>}
-    {manage && <section className={cardClass}><h2 className="font-bold text-lg">Preimportación del Excel de Control</h2>
-      <p className="text-sm">Lee localmente un Excel de Control y revisa sus movimientos antes de una importación futura. No escribe en el historial real.</p>
-      <Link to="/control/preimportacion" className="underline font-bold">Abrir preimportación</Link></section>}
-    <StatusNotice title="Demostración temporal · Sin dinero real"><p>Introduce únicamente datos inventados. Los ejemplos y sus revisiones se perderán al recargar. No hay almacenamiento permanente ni autenticación: los responsables se declaran, sus permisos no se verifican. La administración de Milton y la consulta de Fiorella se aplicarán con el backend futuro.</p></StatusNotice>
     <section className={cardClass}>
-      <PeriodInput id="control-selected-period" label="Periodo de consulta" applied={state.selectedPeriod} className={fieldClass} onValidChange={value => {
-        state.selectPeriod(value); setEditing(null); setReviewing(null); setNotice('');
-      }} />
+      <h2 className="font-bold text-sm">Periodo de consulta</h2>
+      <PeriodPicker id="control-selected-period" onChange={() => { setEditing(null); setReviewing(null); setNotice(''); }} />
       <div data-testid="control-counts" className="text-sm space-y-2"><p>Depósitos registrados de demo: {summary.deposits}</p><p>Retiros registrados de demo: {summary.withdrawals}</p><p>Movimientos demo pendientes: {summary.pending}</p><p>Movimientos reales confirmados: ninguno importado.</p></div>
     </section>
     <section className={cardClass} data-testid="control-summary">
@@ -82,7 +79,7 @@ function ControlDemoView() {
       <h2 className="font-bold text-lg">Retiros y consulta de saldos</h2><p className="text-sm">Los retiros son movimientos independientes; no se deducen de diferencias entre saldos ni se atribuyen automáticamente a una persona. Los casos cuyo tratamiento requiera aprobación quedan pendientes.</p>
     </section>
     {manage && <section className={cardClass} ref={editorRef}>
-      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${state.selectedPeriod}`} record={editing} period={state.selectedPeriod} onSave={save} onCancel={() => setEditing(null)} />
+      <ControlMovementEditor key={`${editing?.id ?? 'new'}-${formVersion}-${periodInput}`} record={editing} period={periodInput} onSave={save} onCancel={() => setEditing(null)} />
       {notice && <p role="status" className="text-sm bg-secundario/30 rounded-xl p-3">{notice}</p>}
     </section>}
     {manage && reviewing && <section ref={reviewRef}><ControlReviewEditor key={`${reviewing.record.id}-${reviewing.record.revision}`} entry={reviewing} onReview={review} onCancel={() => setReviewing(null)} /></section>}
@@ -95,7 +92,7 @@ function ControlDemoView() {
       {entries.map(entry => {
         const { record } = entry;
         return <article key={record.id} data-control-id={record.id} data-control-state={entry.status} className={cardClass}>
-          <p className={`text-sm font-bold rounded-xl p-3 ${entry.status === 'pending' || entry.status === 'invalid' ? 'bg-amber-50' : entry.status === 'rejected' ? 'bg-rose-50' : 'bg-violet-50'}`}>{statusName(entry.status)} · Nunca confirmado</p>
+          <p><Badge tone={statusTone(entry.status)}>{statusName(entry.status)} · Nunca confirmado</Badge></p>
           <h3 className="font-bold">{kindName(record.kind)} · {purposeName(record.purpose)}</h3>
           <p>{controlMoney(record.amount, record.currency)}</p>
           <p className="text-sm">Fecha: {record.effectiveDate} · Periodo: {formatPeriod(record.period)}</p>

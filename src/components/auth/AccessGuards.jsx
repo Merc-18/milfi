@@ -16,10 +16,8 @@ export default function AuthGate({ children }) {
   const { pathname } = useLocation();
   const { mode, status, access } = useSessionView();
   useEffect(() => { useSessionStore.getState().start(); }, []);
-  if (mode === 'demo') return <>
-    <p className="text-xs rounded-xl bg-secundario/30 p-3 mb-4" data-testid="demo-mode">Modo demostración local: la autenticación no está configurada en este entorno. No hay inicio de sesión, seguridad ni datos reales; los ejemplos se pierden al recargar.</p>
-    {children}
-  </>;
+  // The demo is explained once, by the badge in the header.
+  if (mode === 'demo') return children;
   if (pathname === '/acceso') return children;
   if (busy.has(status)) return <p role="status" className="my-6 text-sm">Verificando la sesión…</p>;
   if (status === 'signed-out' || status === 'expired') return <Navigate to="/acceso" replace state={{ from: pathname }} />;

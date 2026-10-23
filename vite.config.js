@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { execSync } from 'node:child_process'
 import process from 'node:process'
+import { buildStamp } from './src/presentation/buildStamp.js'
 
 // Short commit shown in Acceso, to check which version a browser is running.
 function appVersion() {
@@ -11,7 +12,8 @@ function appVersion() {
 }
 
 export default defineConfig({
-  define: { 'import.meta.env.VITE_MILFI_VERSION': JSON.stringify(appVersion()) },
+  // Build code ddMMyyyyHHmmss in Lima time; with `npm run dev` it is the server start time.
+  define: { 'import.meta.env.VITE_MILFI_VERSION': JSON.stringify(appVersion()), 'import.meta.env.VITE_MILFI_BUILD': JSON.stringify(buildStamp()) },
   plugins: [
     react(),
     VitePWA({

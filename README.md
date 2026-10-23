@@ -67,23 +67,34 @@ detecta la caché local de Playwright. Usa un perfil temporal con datos inventad
 y un servidor de preview limitado a localhost; ambos se cierran al terminar.
 No sustituye la verificación visual completa en dispositivos.
 
+## GF aplicado
+
+El GF aplicado es siempre el tope oficial (S/ 1,500): el formulario del mes solo pide el ingreso.
+Los meses guardados sin GF se leen con el tope, solo en memoria; un GF distinto guardado antes se
+conserva hasta editar ese mes. `npm run check:fiorella-fixed` (solo lectura, con sesión) imprime
+cuántos meses hay en cada caso, sin importes.
+
 ## Navegación
 
-- `/`: entrada a los dos módulos.
-- `/fiorella`: resumen y estado de la plantilla.
-- `/fiorella/presupuestos`: presupuestos y ejecución GF por subcategoría y periodo.
-- `/fiorella/gastos`: registro y seguimiento GV de demostración.
-- `/fiorella/simulador`: alternativas, proyección y metas hipotéticas de pareja.
-- `/fiorella/calculadora`: simulación con periodo explícito.
-- `/fiorella/historial`: aviso de historial pendiente y simulaciones de la sesión.
-- `/fiorella/configuracion`: consulta de las reglas oficiales.
-- `/control`: dashboard, movimientos y revisiones de demostración; sin historial real importado ni saldo bancario.
+- `/`: entrada a los dos módulos, con un dato vivo del mes elegido en cada uno.
+- `/fiorella` (pestaña Resumen): cómo va el mes; «Te queda por gastar», reparto del mes y enlaces al detalle.
+- `/fiorella/gastos` (pestaña Gastos): todo lo gastado en el mes, en dos vistas:
+  - `?tipo=variables` (por defecto): ritmo del mes, Salud y Ocio, y la lista de gastos variables por día;
+    `?nuevo` abre el formulario de gasto (variable o fijo); «Registrar gasto» solo está en el encabezado de Gastos.
+  - `?tipo=fijos`: GF reservado, presupuesto detallado y gastado, gráfico por grupo y edición por subcategoría,
+    con copia de presupuestos del mes anterior.
+- `/fiorella/metas` (pestaña Metas): cuándo llegas a cada meta con tu plan, su camino y un «¿y si…?» sin guardar;
+  `?simular` lo abre directo.
+- `/fiorella/historial` (pestaña Historial): evolución mensual siempre visible, con semáforo de GF y GV, y registros por mes.
+- `/fiorella/configuracion`: reglas oficiales; también se abren desde el botón de información de las pestañas.
+- `/control`: dashboard, movimientos y revisiones; sin saldo bancario.
 - `/acceso`: inicio y cierre de sesión con Supabase Auth, o aviso de modo demostración si no está configurado.
-- `/control/preimportacion`: lectura local de un Excel de Control y revisión previa de sus movimientos, solo en la sesión.
 
-Las rutas anteriores `/calculadora`, `/historial`, `/configuracion` y
-`/fondo-comun` redirigen a sus equivalentes. Las rutas desconocidas muestran una
-página de recuperación. El futuro hosting deberá resolver rutas SPA a `index.html`.
+El mes elegido es el mismo en Fiorella y Control. Las rutas anteriores
+`/fiorella/presupuestos`, `/fiorella/simulador`, `/fiorella/calculadora`, `/calculadora`, `/historial`, `/configuracion` y
+`/fondo-comun` redirigen a sus equivalentes; `/control/preimportacion` ya no existe.
+Las rutas desconocidas muestran una página de recuperación. El futuro hosting
+deberá resolver rutas SPA a `index.html`.
 
 ## Límites y próximos pasos
 

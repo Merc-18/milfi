@@ -3,7 +3,6 @@ import { prepareSimulation } from '../application/simulations.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { IDENTITIES, MODULE_DEFINITIONS } from '../domain/models.js';
 import { prepareFiorellaDemo } from '../domain/fiorellaSession.js';
-import { currentPeriodInput, parsePeriodInput } from '../presentation/format.js';
 import { prepareSavingsGoal } from '../application/savingsGoals.js';
 
 // The server sets authoritative timestamps; align the client one so clock skew
@@ -60,14 +59,8 @@ export function createMilfiStore() {
       set(state => ({ savingsGoals: [...state.savingsGoals.filter(goal => goal.id !== snapshot.id), snapshot] }));
       return result;
     },
-    selectedFiorellaPeriod: currentPeriodInput(),
     fiorellaDemoRecords: [],
     fiorellaDemoEvents: [],
-    selectFiorellaPeriod: value => {
-      if (!parsePeriodInput(value)) return false;
-      set({ selectedFiorellaPeriod: value });
-      return true;
-    },
     saveFiorellaDemo: input => {
       const remote = get().remote;
       if (remote) {

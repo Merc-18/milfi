@@ -3,6 +3,8 @@ export const controlButtonClass = 'min-h-11 rounded-xl bg-principal px-4 py-3 fo
 export const controlCardClass = 'min-w-0 rounded-[24px] bg-white p-5 shadow-soft space-y-3';
 export const personName = id => ({ milton: 'Milton', fiorella: 'Fiorella' }[id] ?? 'Sin identificar');
 export const purposeName = purpose => ({ expenses: 'Gastos', savings: 'Ahorro' }[purpose] ?? 'Destino pendiente');
+// Review states as palette tones; the label always states the state in words.
+export const statusTone = status => ({ pending: 'aviso', invalid: 'aviso', rejected: 'excedido' }[status] ?? 'neutral');
 export const kindName = kind => kind === 'deposit' ? 'Depósito' : 'Retiro';
 export const statusName = status => ({ reviewed: 'Demo revisada', pending: 'Demo pendiente de revisión', rejected: 'Demo rechazada', invalid: 'Demo inválida' }[status] ?? 'Pendiente');
 

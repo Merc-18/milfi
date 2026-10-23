@@ -13,6 +13,21 @@ export function formatPeriod(period) {
   return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(value));
 }
 
+// Compact month label for charts, e.g. "ene 31".
+export function formatShortPeriod(period) {
+  if (!isValidPeriod(period)) return '—';
+  const value = `${String(period.year).padStart(4, '0')}-${String(period.month).padStart(2, '0')}-01T00:00:00Z`;
+  return new Intl.DateTimeFormat('es-PE', { month: 'short', year: '2-digit', timeZone: 'UTC' }).format(new Date(value)).replace('.', '');
+}
+
+// Short day label, e.g. "12 oct".
+export function formatShortDate(date) {
+  return new Intl.DateTimeFormat('es-PE', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`)).replace('.', '');
+}
+
+// Today's date in Lima, 'YYYY-MM-DD'.
+export const todayInLima = (now = new Date()) => now.toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+
 export function currentPeriodInput(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en', { year: 'numeric', month: '2-digit', timeZone: 'America/Lima' }).formatToParts(now);
   return `${parts.find(part => part.type === 'year').value}-${parts.find(part => part.type === 'month').value}`;
