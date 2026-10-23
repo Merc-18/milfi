@@ -1,11 +1,27 @@
 {
   "reviewedBy": "milton",
+  "zeroAmounts": "omit",
   "resolutions": [
-    { "field": "currency", "value": "<CODIGO_ISO, p. ej. PEN>", "match": {},
-      "reason": "<Por qué esa moneda aplica a estas operaciones>", "evidenceReference": "<Dónde consta: estado de cuenta, acta, etc.>" },
-    { "field": "contributorId", "value": "<milton|fiorella>", "match": { "kind": "deposit", "header": "<Texto exacto del encabezado de la columna, p. ej. Depósito Gastos (Tú)>" },
-      "reason": "<Quién es 'Tú' / 'Ella' en ese libro>", "evidenceReference": "<Referencia>" },
-    { "field": "period", "value": "month-of-date", "match": { "kind": "withdrawal" },
-      "reason": "<Cada retiro corresponde al mes de su propia fecha>", "evidenceReference": "<Referencia>" }
+    {
+      "field": "contributorId",
+      "value": "milton",
+      "match": { "kind": "deposit", "purpose": "expenses" },
+      "reason": "La columna Depósito Gastos corresponde a Milton.",
+      "evidenceReference": "Decisión del propietario, 2026-10-23: aportante por columna."
+    },
+    {
+      "field": "contributorId",
+      "value": "fiorella",
+      "match": { "kind": "deposit", "purpose": "savings" },
+      "reason": "La columna Depósito Ahorros corresponde a Fiorella.",
+      "evidenceReference": "Decisión del propietario, 2026-10-23: aportante por columna."
+    },
+    {
+      "field": "currency",
+      "value": "PEN",
+      "match": { "amountInterpreted": true },
+      "reason": "Los montos numéricos sin símbolo de esta hoja son PEN. El texto con $ requiere confirmación individual.",
+      "evidenceReference": "Decisión del propietario, 2026-10-23: moneda de los valores numéricos."
+    }
   ]
 }

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { createDatabase, seedSynthetic } from './helpers/pgHarness.js';
 import { createPgRestClient } from './helpers/pgRestClient.js';
 import { syntheticControlXlsx } from './helpers/xlsxBuilder.js';
 import { createMilfiPersistence } from '../src/application/persistence.js';
 import { prepareFieldResolution, preparePreimportDecision, readControlWorkbook } from '../src/application/controlPreimport.js';
 import { prepareFiorellaDemo, summarizeFiorella, fiorellaHistory } from '../src/domain/fiorellaSession.js';
-import { inspectLedger, prepareControlEntry, prepareControlEntryReview, summarizeLedger } from '../src/domain/controlLedger.js';
+import { inspectLedger, prepareControlEntry, prepareControlEntryReview, prepareControlPlanAssignment, prepareImportedReview, summarizeLedger } from '../src/domain/controlLedger.js';
+import { applyControlDecisions } from '../src/application/historicalLoad.js';
 import { inspectPreimport } from '../src/domain/controlPreimport.js';
 
 // Persistence service against the real schema and RLS (PGlite, SIMULATED identities),
@@ -154,4 +156,40 @@ test('prepared Excel movements are imported atomically once, by Milton only, kee
   assert.deepEqual(stored.provenance, prepared.find(record => record.provenance.operation.amountRef === 'C5').provenance);
   assert.equal(stored.evidenceReviews.length, 2);
   assert.equal(stored.preimportDecisions.at(-1).decision, 'prepared');
+});
+
+test('imported corrections and plan allocations survive a database reload; Fiorella cannot write them', async () => {
+  const read = await readControlWorkbook(syntheticControlXlsx({ sheetName: 'Asignaciones inventadas' }));
+  const decided = applyControlDecisions(read, { reviewedBy: 'milton', zeroAmounts: 'omit', resolutions: [
+    { field: 'currency', value: 'PEN', match: { amountInterpreted: true }, reason: 'Prueba', evidenceReference: 'Acta sintética' },
+    { field: 'contributorId', value: 'fiorella', match: { purpose: 'savings', kind: 'deposit' }, reason: 'Prueba', evidenceReference: 'Acta sintética' },
+  ] }, at());
+  const milton = session('milton');
+  assert.equal((await milton.importPrepared(read.batch, decided.records)).ok, true);
+  let records = (await milton.loadControl()).records;
+  const savings = records.find(record => record.provenance.sheet === 'Asignaciones inventadas' && record.purpose === 'savings' && record.kind === 'deposit');
+  const assigned = prepareControlPlanAssignment({ id: savings.id, expectedRevision: savings.revision, planPeriod: { year: 2030, month: 12 } }, records);
+  assert.equal((await session('fiorella').saveControlEntry(assigned.value, savings)).ok, false);
+  assert.equal((await milton.saveControlEntry(assigned.value, savings)).ok, true);
+  records = (await milton.loadControl()).records;
+  const assignedEntry = inspectLedger(records).find(entry => entry.record.id === savings.id);
+  assert.deepEqual([assignedEntry.status, assignedEntry.record.planPeriod], ['imported', { year: 2030, month: 12 }]);
+  const dollar = records.find(record => record.provenance.sheet === 'Asignaciones inventadas' && record.provenance.original.amount === '$7.5');
+  const accepted = prepareImportedReview({ id: dollar.id, expectedRevision: dollar.revision, reviewedBy: 'milton', decision: 'accepted',
+    reason: 'Comprobado', evidenceReference: 'Extracto sintético', corrections: { amount: '7.5', currency: 'USD', period: { year: 2031, month: 2 } } }, records);
+  assert.equal(accepted.ok, true, JSON.stringify(accepted.errors));
+  assert.equal((await session('fiorella').addControlReview(accepted.record, dollar, accepted.review, accepted.changed)).ok, false);
+  assert.equal((await milton.addControlReview(accepted.record, dollar, accepted.review, accepted.changed)).ok, true);
+  const corrected = inspectLedger((await session('fiorella').loadControl()).records).find(entry => entry.record.id === dollar.id);
+  assert.deepEqual([corrected.status, corrected.record.amount, corrected.record.currency, corrected.record.provenance.original.amount], ['reviewed', '7.5', 'USD', '$7.5']);
+  // The owner's rollback script is exercised only on invented rows in memory.
+  const batch = (await db.query('select id from public.control_import_batches where source_fingerprint = $1', [read.batch.fingerprint])).rows[0];
+  const allBefore = (await milton.loadControl()).records.length;
+  const rollback = (await readFile(new URL('../supabase/admin/rollback_control_batch.sql.example', import.meta.url), 'utf8'))
+    .replaceAll('<UUID_LOTE>', batch.id).replaceAll('<UUID_HOGAR>', u.household).replaceAll('<RECUENTO_MOVIMIENTOS>', String(decided.records.length));
+  await db.exec(rollback);
+  assert.equal((await milton.loadControl()).records.length, allBefore - decided.records.length, 'other lots and manual entries remain');
+  assert.equal((await db.query('select id from public.control_import_batches where id = $1', [batch.id])).rows.length, 0);
+  assert.equal((await db.query('select id from public.control_movement_reviews where movement_id = $1', [dollar.id])).rows.length, 0);
+  assert.ok((await db.query("select id from public.audit_events where record_id = $1 and action = 'delete'", [dollar.id])).rows.length > 0, 'audit is retained');
 });

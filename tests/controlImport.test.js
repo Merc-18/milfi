@@ -105,3 +105,13 @@ test('the plan month is an allocation: assigning it never makes a review stale',
   assert.deepEqual(prepareControlPlanAssignment({ id: withdrawal.id, expectedRevision: 1, planPeriod: { year: 2031, month: 1 } }, imported).errors, ['SAVINGS_DEPOSIT_REQUIRED']);
   assert.equal(prepareControlPlanAssignment({ id: savings.id, expectedRevision: 1, planPeriod: null }, imported).value.planPeriod, null);
 });
+
+test('month prefixes are accepted exactly as requested; empty future rows never become movements', async () => {
+  for (const label of [' 1Enero', '1Enero', ' 1 Marzo']) {
+    const read = await readControlWorkbook(syntheticControlXlsx({ overrides: { A5: label, A7: 'Diciembre', B7: 2099,
+      D7: { f: '', v: undefined } } }));
+    assert.equal(read.ok, true);
+    assert.equal(read.records.find(record => record.provenance.operation.amountRef === 'C5').period.month, label.includes('Marzo') ? 3 : 1);
+    assert.ok(read.records.every(record => record.period?.year !== 2099), 'future month with no deposit is absent, including empty formula cells');
+  }
+});

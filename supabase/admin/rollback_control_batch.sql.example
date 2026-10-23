@@ -1,0 +1,30 @@
+-- Ejecutar SOLO por el propietario en el SQL Editor de Supabase, rol postgres.
+-- Sustituir los tres marcadores con el lote/hogar y recuento comprobados.
+-- Elimina únicamente ese lote. Las revisiones se eliminan por FK ON DELETE CASCADE.
+-- La auditoría permanece; no se toca el esquema ni las finanzas de Fiorella.
+begin;
+do $$
+declare
+  target_batch uuid := '<UUID_LOTE>';
+  target_household uuid := '<UUID_HOGAR>';
+  expected_movements integer := <RECUENTO_MOVIMIENTOS>;
+  actual_movements integer;
+begin
+  perform 1 from public.control_import_batches
+    where id = target_batch and household_id = target_household for update;
+  if not found then raise exception 'LOTE_NO_ENCONTRADO'; end if;
+  perform 1 from public.control_movements
+    where import_batch_id = target_batch and household_id = target_household for update;
+  select count(*) into actual_movements from public.control_movements
+    where import_batch_id = target_batch and household_id = target_household;
+  if actual_movements <> expected_movements then
+    raise exception 'RECUENTO_DISTINTO: se esperaba %, hay %', expected_movements, actual_movements;
+  end if;
+  delete from public.control_movements
+    where import_batch_id = target_batch and household_id = target_household;
+  delete from public.control_import_batches
+    where id = target_batch and household_id = target_household;
+  raise notice 'Movimientos eliminados: %', actual_movements;
+end;
+$$;
+commit;

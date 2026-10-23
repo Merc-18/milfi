@@ -140,7 +140,7 @@ export function recognizeControlWorkbook(capture) {
       if (excluded.length) notes.push({ code: 'TOTAL_FORMULAS_EXCLUDED', sheet: sheet.name, refs: excluded });
       for (const row of rows) for (const column of table.amounts) {
         const amountCell = grid.cellAt(column, row);
-        if (!hasValue(amountCell)) continue;
+        if (!hasValue(amountCell) || amountCell.type === 'blank' || amountCell.value === '') continue;
         const amountRef = ensure(cover(column, row));
         const headerRef = cover(column, table.headerRow);
         const monthRef = ensure(address(table.monthColumn, row));
