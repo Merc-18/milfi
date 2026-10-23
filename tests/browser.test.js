@@ -127,7 +127,11 @@ test('browser regression: redirects, simulation history and financial isolation'
     });
 
     await context.test('Fiorella GV accumulates, edits and handles duplicate-looking demos without redistribution', async () => {
-      await clickLink('/fiorella/gastos', 'Gastos GV');
+      await clickLink('/fiorella/gastos', 'Gastos');
+      // The GF actual saved in Presupuestos shows here at once, although there is no GV yet.
+      await browser.waitFor('document.querySelector("[data-fixed-id=servicios-gas]")?.textContent.includes("S/ 110.05")');
+      assert.ok((await visibleText()).includes('Sin gastos variables registrados'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 110.05")'));
       const expense = async (description, amount, category = 'salud', date = '2038-04-09') => {
         await fill('gv-date', date); await fill('gv-description', description); await fill('gv-amount', amount);
         await browser.evaluate(`(() => { const select = document.getElementById('gv-category'); select.value = ${JSON.stringify(category)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
@@ -154,6 +158,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '2038-05');
       await fill('fiorella-period', '2038-04');
       await browser.waitFor('document.querySelectorAll("article").length === 4');
+      // Total = GF real 110.05 + GV real 1000.50, each counted once; partial while GF has 1/19 actuals.
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 1,110.55")'));
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('03-gastos-movil.png');
       await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
@@ -162,13 +168,17 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await visibleText()).includes('S/ 125.20 → S/ 110.05'));
       assert.ok((await visibleText()).includes('otro gasto con datos coincidentes'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 1);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("[data-demo-period=\'2038-04\'] h4")).filter(h => h.textContent.startsWith("GV")).length'), 4);
       await capture('04-historial-movil.png');
+      await clickLink('/fiorella', 'Finanzas de Fiorella');
+      const total = await browser.evaluate('document.querySelector("[data-testid=expense-total]").textContent');
+      assert.ok(total.includes('S/ 1,110.55') && total.includes('parcial'), total);
     });
 
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos GV'], ['/fiorella/historial', 'Historial']]) {
+        for (const [path, heading] of [['/fiorella', 'Finanzas de Fiorella'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,

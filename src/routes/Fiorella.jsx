@@ -10,9 +10,8 @@ import { useLedgerStore } from '../store/ledgerStore.js';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
 import { controlMoney } from '../presentation/control.js';
 import { inspectLedger } from '../domain/controlLedger.js';
-import { fiorellaEvolution, registeredSavingsDeposits } from '../domain/fiorellaDashboard.js';
+import { fiorellaEvolution, registeredSavingsDeposits, summarizeExpenses } from '../domain/fiorellaDashboard.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
-import { addAmounts } from '../domain/amounts.js';
 import DistributionDetails from '../components/DistributionDetails.jsx';
 import { buttonClass, cardClass, Comparison, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
 
@@ -100,17 +99,18 @@ export default function Fiorella() {
   const evolution = useMemo(() => fiorellaEvolution(records, persisted ? 'real' : 'simulated'), [records, persisted]);
   const demo = useDemoLabel();
   const projected = summary.monthly?.planStatus === 'projected';
-  const variableTotal = summary.variable.length ? summary.variable.map(record => record.amount).reduce(addAmounts, '0') : null;
+  const expenses = summarizeExpenses(summary);
+  const variableTotal = expenses.variable.amount;
   const variableAllocation = summary.calculation.status === 'calculated' ? summary.calculation.distribution.variable.total : null;
   return <div className="pb-10 space-y-4">
     <PageHeader title="Finanzas de Fiorella 🌸"><PeriodPicker /></PageHeader>
     <SessionNotice />
     {manage ? <div className="flex flex-wrap gap-2">
-      <Link to="/fiorella/gastos" className="inline-flex items-center gap-2 rounded-xl bg-texto text-white font-bold px-4 py-3 min-h-11"><Plus size={18} aria-hidden="true" />Registrar gasto</Link>
+      <Link to="/fiorella/gastos?nuevo" className="inline-flex items-center gap-2 rounded-xl bg-texto text-white font-bold px-4 py-3 min-h-11"><Plus size={18} aria-hidden="true" />Registrar gasto</Link>
       <Link to="/fiorella/presupuestos" className="inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-4 py-3 min-h-11"><SlidersHorizontal size={18} aria-hidden="true" />Editar GF</Link>
     </div> : <ReadOnlyNotice>Administra Fiorella.</ReadOnlyNotice>}
     {projected && <p className="text-sm font-bold rounded-xl bg-acento/50 px-3 py-2" role="note">Mes proyectado: importes escritos por adelantado, no recibidos.</p>}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="monthly-summary">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3" data-testid="monthly-summary">
       <Kpi label={`Ingreso${projected ? ' · proyectado' : ''}${demo}`} amount={summary.monthly?.income} />
       <Kpi label="GF aplicado" amount={summary.monthly?.appliedFixedExpense}><Progress value={summary.monthly?.appliedFixedExpense} limit={FINANCIAL_RULES.fixedExpenseCap} label="GF aplicado frente al tope" /></Kpi>
       <Kpi label={`Gasto GF real${demo}`} amount={summary.actual.amount}>
@@ -121,6 +121,9 @@ export default function Fiorella() {
         <p className="text-xs">de {variableAllocation == null ? '—' : formatAmount(variableAllocation)} · {summary.variable.length} gasto(s)</p>
         <Progress value={variableTotal ?? '0'} limit={variableAllocation} label="Gasto GV frente a lo asignado" />
       </Kpi>
+      <div className="col-span-2 lg:col-span-1" data-testid="expense-total"><Kpi label={`Total gastado${expenses.total.partial && expenses.total.amount !== null ? ' · parcial' : ''}${demo}`} amount={expenses.total.amount} tone="bg-principal/40">
+        <p className="text-xs">GF real + GV real{expenses.total.partial ? ` · GF ${expenses.fixed.registered}/${expenses.fixed.expected}` : ''}</p>
+        <Link to="/fiorella/gastos" className="text-xs underline font-bold">Ver gastos</Link></Kpi></div>
     </div>
     {summary.requiresRoundingDecision && <p className="text-sm">Hay fracciones de céntimo: se muestran exactas; su redondeo está pendiente.</p>}
     <div className="grid gap-4 lg:grid-cols-3">

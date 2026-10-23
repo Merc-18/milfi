@@ -5,7 +5,8 @@ import { useModuleAccess } from '../presentation/moduleAccess.js';
 import { canManage } from '../domain/access.js';
 import { useStore } from '../store/useStore.js';
 import { FIXED_CATEGORIES } from '../domain/fiorellaCategories.js';
-import { addAmounts, compareAmounts } from '../domain/amounts.js';
+import { compareAmounts } from '../domain/amounts.js';
+import { fixedGroups } from '../domain/fiorellaDashboard.js';
 import { FINANCIAL_RULES } from '../domain/financialRules.js';
 import { formatAmount } from '../presentation/format.js';
 import { buttonClass, cardClass, Comparison, FixedTotalComparison, Help, Kpi, MoneyInput, PageHeader, PeriodPicker, Progress, SessionNotice } from '../components/FiorellaSession.jsx';
@@ -41,8 +42,6 @@ function BudgetRow({ category, record, period }) {
   </form>;
 }
 
-const subtotal = (records, field) => { const values = records.map(record => record[field]).filter(value => typeof value === 'string'); return values.length ? values.reduce(addAmounts, '0') : null; };
-
 export default function PresupuestosGF() {
   const manage = canManage(useModuleAccess('fiorella'));
   const { input, period, summary } = useFiorellaPeriod();
@@ -61,9 +60,9 @@ export default function PresupuestosGF() {
     {summary.requiresRoundingDecision && <p className="text-sm">Hay fracciones de céntimo. Se muestran exactas, sin decidir su redondeo monetario.</p>}
     {!manage && <ReadOnlyNotice>Administra Fiorella.</ReadOnlyNotice>}
     <div className="grid gap-3 xl:grid-cols-2 items-start">
-    {FIXED_CATEGORIES.map(group => { const records = summary.fixed.filter(item => item.categoryId.startsWith(`${group.id}-`)); const budget = subtotal(records, 'budgetAmount'); const actual = subtotal(records, 'actualAmount');
+    {fixedGroups(summary).map(({ id, name, budget, actual }) => { const group = FIXED_CATEGORIES.find(item => item.id === id);
       return <details key={group.id} className={cardClass} open={group.id === 'servicios'}>
-      <summary className="cursor-pointer min-h-11 flex flex-wrap items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span className="font-bold">▾ {group.name}</span><span className="text-sm">{actual == null ? '—' : formatAmount(actual)} de {budget == null ? '—' : formatAmount(budget)}</span></summary>
+      <summary className="cursor-pointer min-h-11 flex flex-wrap items-center justify-between gap-2 list-none [&::-webkit-details-marker]:hidden"><span className="font-bold">▾ {name}</span><span className="text-sm">{actual == null ? '—' : formatAmount(actual)} de {budget == null ? '—' : formatAmount(budget)}</span></summary>
       {group.children.map(category => { const record = summary.fixed.find(item => item.categoryId === category.id);
         return manage ? <BudgetRow key={`${input}:${category.id}`} category={category} period={period} record={record} />
           : <div key={category.id} className="border-t border-secundario py-4 text-sm space-y-1"><h3 className="font-bold">{category.name}</h3>

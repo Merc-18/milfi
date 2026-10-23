@@ -25,7 +25,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/historial', 'Historial real aún no importado'],
       ['/fiorella/configuracion', 'Configuración oficial'],
       ['/fiorella/presupuestos', 'Presupuestos GF'],
-      ['/fiorella/gastos', 'Gastos GV'],
+      ['/fiorella/gastos', 'Gastos'],
       ['/fiorella/simulador', 'Escenarios hipotéticos'],
       ['/control', 'Historial real pendiente de importación'],
       // No Excel upload screen for end users: the history is loaded once, administratively.

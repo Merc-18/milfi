@@ -6,7 +6,9 @@ import { syntheticControlXlsx } from './helpers/xlsxBuilder.js';
 import { serial, syntheticFiorellaXlsx } from './helpers/fiorellaFixture.js';
 import { readXlsxCapture } from '../src/infrastructure/xlsx/workbook.js';
 import { recognizeFiorellaWorkbook } from '../src/domain/fiorellaWorkbook.js';
-import { prepareFiorellaDemo } from '../src/domain/fiorellaSession.js';
+import { prepareFiorellaDemo, summarizeFiorella } from '../src/domain/fiorellaSession.js';
+import { fixedGroups, summarizeExpenses } from '../src/domain/fiorellaDashboard.js';
+import { addAmounts } from '../src/domain/amounts.js';
 import { readControlWorkbook } from '../src/application/controlPreimport.js';
 import { applyControlDecisions, controlLoadPreview, fiorellaLoadPayload, fiorellaLoadPreview } from '../src/application/historicalLoad.js';
 import { createMilfiPersistence } from '../src/application/persistence.js';
@@ -161,4 +163,34 @@ test('daily use after the load: Fiorella saves new and imported records through 
   assert.equal(milton.getState().fiorellaDemoRecords.length, records().length);
   const refused = await milton.getState().saveFiorellaDemo(command('variable-expense', null, { categoryId: 'ocio', effectiveDate: '2031-02-16', description: 'Intento de Milton', amount: '1' }));
   assert.deepEqual(refused, { ok: false, errors: ['FORBIDDEN'] });
+});
+
+test('expenses: GF real + GV real counted once; NULL stays unregistered, 0 counts; budgets and plans are never spending', async () => {
+  const { plan } = await recognize();
+  const db = await createDatabase();
+  const u = await seedSynthetic(db);
+  assert.equal((await as(db, u.fiorella, 'select public.import_fiorella_history($1::jsonb)', [JSON.stringify(fiorellaLoadPayload(plan, u.household))])).ok, true);
+  const { records } = await createMilfiPersistence(createPgRestClient(db, u.fiorella), { householdId: u.household }).loadFiorella();
+  const month = m => summarizeFiorella(records, { year: 2031, month: m }, 'real');
+  // January: 19 GF actuals of 12.3 and no GV → the month is not empty.
+  let expenses = summarizeExpenses(month(1));
+  assert.deepEqual([expenses.fixed.amount, expenses.fixed.registered, expenses.variable.amount, expenses.variable.count, expenses.total.amount, expenses.total.partial],
+    ['233.7', 19, null, 0, '233.7', false]);
+  // February: Luz has a budget but no actual → partial 18/19; it is not turned into zero.
+  const february = month(2);
+  expenses = summarizeExpenses(february);
+  assert.deepEqual([expenses.fixed.amount, expenses.fixed.registered, expenses.variable.amount, expenses.total.amount, expenses.total.partial], ['90', 18, '32.3', '122.3', true]);
+  const servicios = fixedGroups(february).find(group => group.id === 'servicios');
+  assert.equal(servicios.rows.find(row => row.category.id === 'servicios-luz').record.actualAmount, null);
+  assert.deepEqual([servicios.budget, servicios.actual], ['120', '25']);
+  assert.equal(fixedGroups(february).flatMap(group => group.rows).length, 19);
+  // The total never includes budgets, GV allocations or the applied GF.
+  assert.notEqual(expenses.total.amount, addAmounts(february.budget.amount, expenses.variable.amount));
+  // March is projected: its plan exists, but nothing has been spent.
+  const march = month(3);
+  assert.equal(march.monthly.planStatus, 'projected');
+  assert.deepEqual([summarizeExpenses(march).total.amount, summarizeExpenses(march).fixed.registered], [null, 0]);
+  // A recorded actual of zero is spending of zero, not a missing value.
+  const zero = summarizeExpenses({ actual: { amount: '0', registered: 1, expected: 19, status: 'partial' }, variable: [] });
+  assert.deepEqual([zero.total.amount, zero.total.partial], ['0', true]);
 });
