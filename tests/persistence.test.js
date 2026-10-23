@@ -83,11 +83,14 @@ test('Control manual movements persist with reviews that expire on edit; Fiorell
   const milton = session('milton');
   const entry = input => prepareControlEntry({ id: crypto.randomUUID(), householdId: u.household, expectedRevision: 0, operationId: crypto.randomUUID(),
     kind: 'deposit', effectiveDate: '2031-02-10', period: { year: 2031, month: 2 }, currency: 'PEN', amount: '50.05', contributorId: 'fiorella',
-    purpose: 'savings', description: 'Movimiento inventado', provenanceNote: 'Referencia sintética', actorId: 'milton', ...input }, []);
+    purpose: 'savings', planPeriod: { year: 2031, month: 1 }, description: 'Movimiento inventado', provenanceNote: 'Referencia sintética', actorId: 'milton', ...input }, []);
+  // A new savings deposit names its Fiorella plan month; it is never inferred.
+  assert.deepEqual(entry({ planPeriod: null }).errors, ['MISSING_PLAN_PERIOD']);
   const prepared = entry();
   const saved = await milton.saveControlEntry(prepared.value, null);
   assert.equal(saved.ok, true, JSON.stringify(saved.errors));
   assert.deepEqual([saved.value.origin, saved.value.validationStatus, saved.value.amount, saved.value.revision], ['real', 'pending', '50.05', 1]);
+  assert.deepEqual(saved.value.planPeriod, { year: 2031, month: 1 }, 'the plan month round-trips through plan_year/plan_month');
   assert.deepEqual(await session('fiorella').saveControlEntry(entry().value, null), { ok: false, errors: ['FORBIDDEN'] });
   let records = (await session('fiorella').loadControl()).records;
   assert.equal(records.length, 1);
@@ -108,7 +111,7 @@ test('Control manual movements persist with reviews that expire on edit; Fiorell
   // Identical values need an explicit reason before they are stored as a distinct operation.
   const again = prepareControlEntry({ id: crypto.randomUUID(), householdId: u.household, expectedRevision: 0, operationId: crypto.randomUUID(), kind: 'deposit',
     effectiveDate: '2031-02-10', period: { year: 2031, month: 2 }, currency: 'PEN', amount: '50.06', contributorId: 'fiorella', purpose: 'savings',
-    description: 'Otro', provenanceNote: 'Ref', actorId: 'milton' }, (await milton.loadControl()).records);
+    planPeriod: { year: 2031, month: 2 }, description: 'Otro', provenanceNote: 'Ref', actorId: 'milton' }, (await milton.loadControl()).records);
   assert.deepEqual(again.errors, ['POSSIBLE_DUPLICATE_REQUIRES_REVIEW']);
   const history = await session('fiorella').loadControlHistory();
   assert.deepEqual(history.events.filter(event => event.recordId === saved.value.id).map(event => event.action), ['create', 'edit']);

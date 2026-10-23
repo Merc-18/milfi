@@ -43,6 +43,7 @@ const SOURCE_CLASSIFICATION = Object.freeze({
  * effectiveDate: string|null, description: string|null,
  * evidenceReviews?: Array<{id: string, field: string, decision: 'accepted', binding: string,
  * reason: string, reviewedBy: string, reviewedAt: string, evidenceReference: string}>,
+ * planPeriod?: Period|null (Fiorella plan month of a savings deposit; not a reviewed fact),
  * periodAssignment?: {decision: 'accepted'|'inconsistent', effectivePeriod: Period,
  * postingPeriod: Period, reason: string, reviewedBy: string, evidenceReference: string}}} Movement
  * @typedef {{id: string, moduleId: string, categoryId: string, period: Period,
@@ -139,6 +140,7 @@ export function inspectMovement(record, evidenceContext) {
   if (record.currency !== null && !isKnownCurrency(record.currency)) errors.push('INVALID_CURRENCY');
   if (record.effectiveDate !== null && !isValidDate(record.effectiveDate)) errors.push('INVALID_DATE');
   if (record.description !== null && typeof record.description !== 'string') errors.push('INVALID_DESCRIPTION');
+  if (record.planPeriod != null && (!isValidPeriod(record.planPeriod) || record.kind !== 'deposit' || record.purpose !== 'savings')) errors.push('INVALID_PLAN_PERIOD');
   if (record.evidenceReviews !== undefined) {
     if (!Array.isArray(record.evidenceReviews) || record.evidenceReviews.some(review => !isEvidenceReview(review))) errors.push('INVALID_EVIDENCE_REVIEW');
     else if (new Set(record.evidenceReviews.map(review => review.id.trim())).size !== record.evidenceReviews.length) errors.push('DUPLICATE_REVIEW_ID');

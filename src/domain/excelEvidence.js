@@ -211,7 +211,8 @@ function fieldValue(field, cells) {
     if (direct && Number(direct[1]) >= 1 && Number(direct[2]) >= 1 && Number(direct[2]) <= 12) return { year: Number(direct[1]), month: Number(direct[2]) };
     const years = cells.filter(cell => cell.role === 'year' && /^\d{4}$/.test(cell.value?.trim() ?? '')).map(cell => Number(cell.value.trim()));
     const found = cells.filter(cell => cell.role === 'month').flatMap(cell => {
-      const label = cell.value?.trim().toLowerCase().replace(/^\d{1,2}[.)-]?\s+/, '');
+      // Month labels may carry a leading number, with or without a space: "1 Marzo", " 1Enero".
+      const label = cell.value?.trim().toLowerCase().replace(/^\d{1,2}[.)-]?\s*/, '');
       return months.flatMap((month, index) => label === month ? [index + 1] : []);
     });
     return years.length === 1 && years[0] >= 1 && found.length === 1 ? { year: years[0], month: found[0] } : null;

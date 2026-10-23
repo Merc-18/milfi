@@ -13,6 +13,8 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : plain(v
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 const json = value => JSON.stringify(canonical(value));
 const fail = (...errors) => ({ ok: false, errors });
+// planPeriod is deliberately not a fact: assigning or changing the plan month of a
+// savings deposit is an allocation, so it never makes a review stale.
 const FACTS = ['kind', 'effectiveDate', 'period', 'currency', 'amount', 'contributorId', 'purpose', 'description'];
 const facts = record => Object.fromEntries(FACTS.map(key => [key, record[key] ?? null]));
 const sameMonth = (date, period) => Number(date.slice(0, 4)) === period.year && Number(date.slice(5, 7)) === period.month;
@@ -28,13 +30,22 @@ export function inspectLedger(records) {
     const source = record?.provenance?.type;
     if (source === 'control-excel') {
       // Evidence captures are not stored, so imported rows are shown with the
-      // decision they were imported with, never re-declared as verified. Rows
-      // loaded without a "prepared" decision stay pending with what is missing.
-      const decision = (record.preimportDecisions ?? []).at(-1) ?? null;
-      if (decision?.decision === 'prepared') return { record, errors: [], pendingReasons: [], status: 'imported', review: decision, staleReviews: 0 };
+      // decision they were imported with, never re-declared as verified. An
+      // in-app review bound to the current state (see prepareImportedReview)
+      // takes over; otherwise rows without a "prepared" decision stay pending.
+      // "imported" only counts when no review reason is left on the row.
       const missing = inspection.pendingReasons.filter(reason => !['MISSING_CONFIRMED_HOUSEHOLD', 'SOURCE_NOT_VERIFIED'].includes(reason));
       if (record.amount === '0') missing.push('ZERO_AMOUNT_POLICY_PENDING');
-      return { record, errors: [], pendingReasons: [...new Set(missing.length ? missing : ['IMPORT_REVIEW_REQUIRED'])], status: 'pending', review: null, staleReviews: 0 };
+      const unique = [...new Set(missing)];
+      const reviews = record.manualReviews ?? [];
+      const binding = ledgerReviewBinding(record);
+      const current = reviews.findLast(review => review.binding === binding) ?? null;
+      if (current?.decision === 'rejected') return { record, errors: [], pendingReasons: unique, status: 'rejected', review: current, staleReviews: 0 };
+      if (current?.decision === 'accepted' && !unique.length) return { record, errors: [], pendingReasons: [], status: 'reviewed', review: current, staleReviews: 0 };
+      const decision = (record.preimportDecisions ?? []).at(-1) ?? null;
+      if (decision?.decision === 'prepared' && !unique.length) return { record, errors: [], pendingReasons: [], status: 'imported', review: decision, staleReviews: 0 };
+      return { record, errors: [], pendingReasons: unique.length ? unique : ['IMPORT_REVIEW_REQUIRED'], status: 'pending', review: null,
+        staleReviews: reviews.filter(review => review.binding !== binding).length };
     }
     const errors = [...inspection.errors];
     if (source !== 'control-manual' || record.origin !== 'real' || record.validationStatus !== 'pending') errors.push('LEDGER_SOURCE_REQUIRED');
@@ -66,8 +77,13 @@ export function prepareControlEntry(input, records = []) {
   const current = { kind: input.kind, effectiveDate: input.effectiveDate, period: { year: input.period.year, month: input.period.month },
     currency: input.currency, amount: normalizeAmount(input.amount), contributorId: input.contributorId, purpose: input.purpose,
     description: input.description.trim() || null };
+  // A new savings deposit says which Fiorella plan month it belongs to (chosen, never inferred).
+  const planPeriod = input.planPeriod ?? previous?.planPeriod ?? null;
+  if (planPeriod !== null && !isValidPeriod(planPeriod)) return fail('INVALID_PLAN_PERIOD');
+  if (!previous && current.kind === 'deposit' && current.purpose === 'savings' && planPeriod === null) return fail('MISSING_PLAN_PERIOD');
   const record = { id: input.id, schemaVersion: 1, moduleId: 'control-mf', origin: 'real', validationStatus: 'pending',
     householdId: input.householdId, revision: previous?.revision ?? 0, actorId: input.actorId, ...current,
+    planPeriod: current.kind === 'deposit' && current.purpose === 'savings' && planPeriod ? { year: planPeriod.year, month: planPeriod.month } : null,
     provenance: previous
       ? { ...structuredClone(previous.provenance), statement: input.provenanceNote.trim() }
       : { type: 'control-manual', sourceId: 'milfi-app', operationId: input.operationId.trim(), statement: input.provenanceNote.trim(),
@@ -99,6 +115,60 @@ export function prepareControlEntryReview(input, records = []) {
   if (input.decision === 'accepted' && inspection.pendingReasons.length) return fail(...inspection.pendingReasons);
   return { ok: true, record, changed, review: { review_type: 'manual', field: null, decision: input.decision, binding: ledgerReviewBinding(record),
     reason: input.reason.trim(), evidence_reference: input.evidenceReference.trim() } };
+}
+
+const CORRECTABLE = ['amount', 'currency', 'contributorId', 'effectiveDate', 'period', 'description'];
+
+/**
+ * In-app review of a movement loaded from the workbook: optional corrections of
+ * its unresolved fields (the original values stay in provenance), then an
+ * accepted or rejected review bound to the corrected state. Accepting requires
+ * no pending reason left; a cross-period assignment is accepted explicitly.
+ */
+export function prepareImportedReview(input, records = []) {
+  const previous = records.find(record => record.id === input?.id);
+  if (!previous) return fail('MOVEMENT_NOT_FOUND');
+  if (previous.provenance?.type !== 'control-excel') return fail('IMPORTED_MOVEMENT_REQUIRED');
+  if (input.expectedRevision !== previous.revision) return fail('STALE_REVISION');
+  if (!['accepted', 'rejected'].includes(input.decision) || !identity(input.reviewedBy) || !text(input.reason) || !text(input.evidenceReference)) {
+    return fail('INCOMPLETE_DEMO_REVIEW');
+  }
+  const corrections = plain(input.corrections) ? input.corrections : {};
+  if (Object.keys(corrections).some(key => !CORRECTABLE.includes(key))) return fail('INVALID_CORRECTION');
+  const record = structuredClone(previous);
+  let changed = false;
+  for (const [field, value] of Object.entries(corrections)) {
+    const next = field === 'amount' ? (typeof value === 'string' ? normalizeAmount(value) : null)
+      : field === 'period' ? (isValidPeriod(value) ? { year: value.year, month: value.month } : null)
+        : field === 'effectiveDate' ? (isValidDate(value) ? value : null) : typeof value === 'string' && value.trim() ? value.trim() : null;
+    if (next === null) return fail(`INVALID_${field.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
+    if (json(record[field] ?? null) !== json(next)) { record[field] = next; changed = true; }
+  }
+  if (input.decision === 'accepted' && input.acceptPeriodAssignment === true && isValidDate(record.effectiveDate) && isValidPeriod(record.period)
+    && !sameMonth(record.effectiveDate, record.period)) {
+    record.periodAssignment = { decision: 'accepted', effectivePeriod: { year: Number(record.effectiveDate.slice(0, 4)), month: Number(record.effectiveDate.slice(5, 7)) },
+      postingPeriod: structuredClone(record.period), reason: input.reason.trim(), reviewedBy: input.reviewedBy, evidenceReference: input.evidenceReference.trim() };
+    changed = true;
+  }
+  const inspection = inspectLedger(records.map(other => other.id === record.id ? record : other)).find(item => item.record.id === record.id);
+  if (inspection.errors.length) return fail(...inspection.errors);
+  if (input.decision === 'accepted') {
+    const left = inspection.pendingReasons.filter(reason => reason !== 'IMPORT_REVIEW_REQUIRED');
+    if (left.length) return fail(...left);
+  }
+  return { ok: true, record, changed, review: { review_type: 'manual', field: null, decision: input.decision, binding: ledgerReviewBinding(record),
+    reason: input.reason.trim(), evidence_reference: input.evidenceReference.trim() } };
+}
+
+/** Assigns (or clears) the Fiorella plan month of a savings deposit, manual or imported. */
+export function prepareControlPlanAssignment(input, records = []) {
+  const previous = records.find(record => record.id === input?.id);
+  if (!previous) return fail('MOVEMENT_NOT_FOUND');
+  if (input.expectedRevision !== previous.revision) return fail('STALE_REVISION');
+  if (previous.kind !== 'deposit' || previous.purpose !== 'savings') return fail('SAVINGS_DEPOSIT_REQUIRED');
+  if (input.planPeriod !== null && !isValidPeriod(input.planPeriod)) return fail('INVALID_PLAN_PERIOD');
+  const record = { ...structuredClone(previous), planPeriod: input.planPeriod ? { year: input.planPeriod.year, month: input.planPeriod.month } : null };
+  return { ok: true, value: record, previous };
 }
 
 /** Reviewed movements (manual or imported as prepared) per currency/kind/destination; never a balance. */

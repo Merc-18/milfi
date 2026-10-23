@@ -223,3 +223,18 @@ test('Data API: authenticated has explicit schema usage; anon cannot execute fut
     await db.exec('drop function public.synthetic_future_rpc()');
   }
 });
+
+test('plan month: only savings deposits carry one, both parts or none', async () => {
+  const savings = ok(await as(db, u.milton, ...controlInsert())).rows[0];
+  const plan = (year, month, id) => as(db, u.milton, 'update public.control_movements set plan_year = $2, plan_month = $3, revision = revision + 1 where id = $1', [id, year, month]);
+  assert.equal(ok(await plan(2031, 2, savings.id)).affected, 1);
+  assert.deepEqual((await db.query('select plan_year, plan_month from public.control_movements where id = $1', [savings.id])).rows[0], { plan_year: 2031, plan_month: 2 });
+  denied(await plan(2031, null, savings.id));
+  denied(await plan(2031, 13, savings.id));
+  const expenses = ok(await as(db, u.milton, ...controlInsert({ purpose: 'expenses', contributor: 'milton' }))).rows[0];
+  denied(await plan(2031, 2, expenses.id));
+  const withdrawal = ok(await as(db, u.milton, ...controlInsert({ kind: 'withdrawal', contributor: null }))).rows[0];
+  denied(await plan(2031, 2, withdrawal.id));
+  // Fiorella reads Control but cannot assign plan months.
+  assert.equal(ok(await as(db, u.fiorella, 'update public.control_movements set plan_year = 2031, plan_month = 3 where id = $1', [savings.id])).affected, 0);
+});

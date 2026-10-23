@@ -45,14 +45,17 @@ export function fiorellaLoadPreview(plan, existing = {}) {
 }
 
 // ── Control Finanzas M&F ─────────────────────────────────────────────────────
-// decisions: { reviewedBy, resolutions: [{ field, value, match, reason, evidenceReference }] }
-// match: { kind?, purpose?, header? (column header text), refs? (amount cells) }.
+// decisions: { reviewedBy, zeroAmounts?: 'omit', resolutions: [{ field, value, match, reason, evidenceReference }] }
+// match: { kind?, purpose?, header? (column header text), refs? (amount cells),
+//          amountInterpreted? (true: only amounts read as plain numbers, never "$…" text) }.
 // value "month-of-date" assigns each withdrawal the month of its own date.
+// zeroAmounts "omit": a deposit of 0 means there was none; it is not loaded nor reviewed.
 function selects(record, match = {}) {
   const source = record.provenance;
   if (match.kind && record.kind !== match.kind) return false;
   if (match.purpose && record.purpose !== match.purpose) return false;
   if (match.refs && !match.refs.includes(source.operation?.amountRef)) return false;
+  if (match.amountInterpreted === true && record.amount === null) return false;
   if (match.header && normalizeLabel(source.original?.contributorId ?? source.original?.purpose ?? '') !== normalizeLabel(match.header)) return false;
   return true;
 }
@@ -62,8 +65,15 @@ export function applyControlDecisions(read, decisions, occurredAt) {
   const context = { workbooks: new Map([[read.batch.fingerprint, read.workbook]]) };
   let records = structuredClone(read.records);
   const applied = [];
+  let omittedZero = 0;
   if (decisions) {
     if (!IDENTITIES.some(identity => identity.id === decisions.reviewedBy) || !Array.isArray(decisions.resolutions)) return fail('INVALID_DECISIONS_FILE');
+    if (decisions.zeroAmounts !== undefined && decisions.zeroAmounts !== 'omit') return fail('INVALID_DECISIONS_FILE');
+    if (decisions.zeroAmounts === 'omit') {
+      const kept = records.filter(record => !(record.kind === 'deposit' && record.amount === '0'));
+      omittedZero = records.length - kept.length;
+      records = kept;
+    }
     for (const [index, resolution] of decisions.resolutions.entries()) {
       const targets = records.filter(record => selects(record, resolution.match));
       if (!targets.length) { applied.push({ index, field: resolution.field, matched: 0 }); continue; }
@@ -97,7 +107,7 @@ export function applyControlDecisions(read, decisions, occurredAt) {
     counts: { identified: entries.length, deposits: loadable.filter(entry => entry.record.kind === 'deposit').length,
       withdrawals: loadable.filter(entry => entry.record.kind === 'withdrawal').length,
       prepared: loadable.filter(entry => entry.status === 'prepared').length, pendingReview: loadable.filter(entry => entry.status === 'pending').length,
-      excludedInvalid: entries.filter(entry => entry.errors.length).length },
+      excludedInvalid: entries.filter(entry => entry.errors.length).length, omittedZero },
     pendingReasons: reasons, excluded: entries.filter(entry => entry.errors.length).map(entry => ({ ref: entry.record.provenance?.operation?.amountRef, errors: entry.errors })) };
 }
 

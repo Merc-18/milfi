@@ -9,7 +9,7 @@ export const COLUMNS = Object.freeze({
   fiorella_fixed_budgets: `id, household_id, period_year, period_month, category_id, budget_amount::text, actual_amount::text, provenance, currency, origin, validation_status, ${AUDIT}`,
   fiorella_variable_expenses: `id, household_id, period_year, period_month, category_id, subcategory, effective_date, description, amount::text, notes, distinct_operation_reason, provenance, source_ref, currency, origin, validation_status, ${AUDIT}`,
   fiorella_savings_goals: `id, household_id, title, target_amount::text, months, deadline_year, deadline_month, deadline_label, status, notes, provenance, source_ref, scope, currency, origin, validation_status, ${AUDIT}`,
-  control_movements: `id, household_id, kind, purpose, contributor_identity, currency, amount::text, effective_date, period_year, period_month, description, origin, validation_status, source_type, source_fingerprint, source_sheet, source_amount_ref, import_batch_id, provenance, period_assignment, ${AUDIT}`,
+  control_movements: `id, household_id, kind, purpose, contributor_identity, currency, amount::text, effective_date, period_year, period_month, plan_year, plan_month, description, origin, validation_status, source_type, source_fingerprint, source_sheet, source_amount_ref, import_batch_id, provenance, period_assignment, ${AUDIT}`,
   control_movement_reviews: 'id, household_id, movement_id, review_type, field, decision, binding, reason, evidence_reference, reviewed_by, reviewed_at',
 });
 
@@ -26,7 +26,8 @@ export function controlMovementToRow(record, householdId) {
   const excel = source?.type === 'control-excel';
   return { household_id: householdId, kind: record.kind, purpose: record.purpose ?? null, contributor_identity: record.contributorId ?? null,
     currency: record.currency ?? null, amount: record.amount ?? null, effective_date: record.effectiveDate ?? null,
-    period_year: record.period?.year ?? null, period_month: record.period?.month ?? null, description: record.description ?? null,
+    period_year: record.period?.year ?? null, period_month: record.period?.month ?? null,
+    plan_year: record.planPeriod?.year ?? null, plan_month: record.planPeriod?.month ?? null, description: record.description ?? null,
     origin: record.origin, validation_status: record.validationStatus, source_type: source.type,
     source_fingerprint: excel ? source.sourceFingerprint.toLowerCase() : null, source_sheet: excel ? source.sheet : null,
     source_amount_ref: excel ? source.operation.amountRef : null, provenance: source, period_assignment: record.periodAssignment ?? null };
@@ -46,7 +47,8 @@ export function controlMovementFromRow(row, reviews = []) {
   return { id: row.id, schemaVersion: 1, householdId: row.household_id, revision: row.revision, moduleId: 'control-mf', origin: row.origin,
     validationStatus: row.validation_status, actorId: row.provenance?.enteredBy ?? null, kind: row.kind, purpose: row.purpose, contributorId: row.contributor_identity,
     currency: row.currency, amount: money(row.amount), effectiveDate: isoDate(row.effective_date),
-    period: period(row), description: row.description, provenance: row.provenance,
+    period: period(row), planPeriod: row.plan_year == null ? null : { year: row.plan_year, month: row.plan_month },
+    description: row.description, provenance: row.provenance,
     ...(row.period_assignment ? { periodAssignment: row.period_assignment } : {}),
     evidenceReviews: typed('evidence'), preimportResolutions: typed('resolution'), preimportDecisions: typed('decision'), demoReviews: typed('demo'), manualReviews: typed('manual'),
     createdAt: isoTime(row.created_at), updatedAt: isoTime(row.updated_at) };
