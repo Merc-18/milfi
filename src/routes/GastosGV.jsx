@@ -104,7 +104,10 @@ function VariableWorkspace({ input, period, summary, manage, onFeedback }) {
           <p className="break-words">{record.description}</p>
           {record.notes && <p className="break-words text-texto-light">{record.notes}</p>}
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs text-texto-light">{persisted ? (record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi') : 'Demostración'} · Revisión {record.revision}</p>
+            <details className="text-xs text-texto-light">
+              <summary className="cursor-pointer min-h-11 flex items-center">Detalles</summary>
+              <p className="pb-2">{persisted ? (record.provenance?.type === 'fiorella-excel' ? 'Cargado del Excel' : 'Registrado en MilFi') : 'Demostración'} · Revisión {record.revision}</p>
+            </details>
             {manage && <button type="button" className="underline font-bold min-h-11" onClick={() => { setEditing(record.id); onFeedback(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar<span className="sr-only"> {record.description}</span></button>}
           </div>
         </article>)}
