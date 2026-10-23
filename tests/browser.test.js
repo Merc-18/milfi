@@ -19,15 +19,20 @@ test('browser regression: redirects, simulation history and financial isolation'
     browser = await openBrowser(executable, profile);
     const navigate = async (path, heading) => {
       await browser.page('Page.navigate', { url: origin + path });
-      await browser.waitFor(`location.pathname === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
     const clickLink = async (path, heading) => {
       await browser.evaluate(`document.querySelector('a[href="${path}"]').click()`);
-      await browser.waitFor(`location.pathname === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
     // Calculadora and Presupuestos left the tab bar: they open from Metas and Gastos.
     const openCalculator = async () => { await clickLink('/fiorella/simulador', 'Simulador y metas'); await clickLink('/fiorella/calculadora', 'Simular distribución'); };
-    const openBudgets = async () => { await clickLink('/fiorella/gastos', 'Gastos'); await clickLink('/fiorella/presupuestos', 'Presupuestos GF'); };
+    // Budgets are the fixed view of Gastos.
+    const openBudgets = async () => {
+      await clickLink('/fiorella/gastos', 'Gastos');
+      await browser.evaluate('document.getElementById("gastos-tab-fijos").click()');
+      await browser.waitFor('location.search === "?tipo=fijos" && document.querySelectorAll("[data-budget-id]").length === 19');
+    };
     const editBudget = async categoryId => {
       await browser.evaluate(`document.querySelector('[data-budget-id="${categoryId}"] button').click()`);
       await browser.waitFor(`!!document.getElementById("budget-${categoryId}")`);
@@ -149,13 +154,15 @@ test('browser regression: redirects, simulation history and financial isolation'
       await closeSheet();
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('01-resumen-movil.png');
-      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await clickLink('/fiorella/gastos?tipo=fijos', 'Gastos');
       await fill('budget-servicios-gas', '120.10'); await fill('actual-servicios-gas', '125.20');
       await submitForm('Presupuesto servicios-gas');
       await browser.waitFor('document.body.textContent.includes("S/ 5.10")');
       await fill('actual-servicios-gas', '110.05'); await submitForm('Presupuesto servicios-gas');
       await browser.waitFor('document.body.textContent.includes("S/ 10.05")');
-      assert.ok((await visibleText()).includes('GF aplicado a la distribución'));
+      // The three GF figures are explained once, with the applied GF as "reserved".
+      assert.ok((await testText('budget-totals')).includes('Reservado (GF aplicado)') && (await testText('budget-totals')).includes('S/ 1,500.00'));
+      assert.doesNotMatch(await visibleText(), />?Ayuda</);
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('02-presupuestos-movil.png');
       await editBudget('servicios-gas');
@@ -165,42 +172,74 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('Fiorella GV accumulates, edits and handles duplicate-looking demos without redistribution', async () => {
       await clickLink('/fiorella/gastos', 'Gastos');
-      // The GF actual saved in Presupuestos shows here at once, although there is no GV yet.
-      await browser.waitFor('document.querySelector("[data-fixed-id=servicios-gas]")?.textContent.includes("S/ 110.05")');
-      assert.ok((await visibleText()).includes('Sin gastos variables registrados'));
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 110.05")'));
+      await browser.waitFor('document.getElementById("gastos-tab-variables")?.getAttribute("aria-selected") === "true"');
+      // The GF actual saved in the fixed view counts in the page total at once, although there is no GV yet.
+      assert.ok((await testText('expense-summary')).includes('S/ 110.05') && (await testText('expense-summary')).includes('Parcial'));
+      assert.ok((await visibleText()).includes('Aún no hay gastos variables en abril de 2038'));
+      // April 2038 has not started: the pace sentence speaks in the future.
+      assert.equal(await testText('pace-phrase'), 'Este mes aún no empieza: tendrás S/ 1,572.804 para 30 días.');
+      const rows = () => browser.evaluate('document.querySelectorAll("[data-expense-id]").length');
+      const openNew = async () => {
+        await browser.waitFor('!document.querySelector("dialog[open]")');
+        await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Registrar gasto").click()');
+        await browser.waitFor('!!document.querySelector("dialog[open] #gv-amount") && document.activeElement?.id === "gv-amount"');
+      };
       const expense = async (description, amount, category = 'salud', date = '2038-04-09') => {
-        await fill('gv-date', date); await fill('gv-description', description); await fill('gv-amount', amount);
-        await browser.evaluate(`(() => { const select = document.getElementById('gv-category'); select.value = ${JSON.stringify(category)}; select.dispatchEvent(new Event('change', {bubbles:true})); })()`);
+        await openNew();
+        await fill('gv-amount', amount);
+        await browser.evaluate(`document.getElementById('gv-category-${category}').click()`);
+        await fill('gv-description', description); await fill('gv-date', date);
         await submitForm('Gasto variable');
       };
-      await expense('Ejemplo sintético A', '0.10'); await browser.waitFor('document.querySelectorAll("article").length === 1');
-      await expense('Ejemplo sintético B', '0.20'); await browser.waitFor('document.querySelectorAll("article").length === 2');
-      assert.ok((await visibleText()).includes('S/ 0.30'));
-      await expense('Ejemplo sintético ocio', '1000', 'ocio'); await browser.waitFor('document.querySelectorAll("article").length === 3');
-      assert.ok((await visibleText()).includes('S/ 213.598'));
-      await browser.evaluate('Array.from(document.querySelectorAll("button")).find(button => button.textContent === "Editar Ejemplo sintético A").click()');
+      await expense('Ejemplo sintético A', '0.10'); await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
+      assert.ok(await browser.evaluate('!document.querySelector("dialog[open]")'), 'the sheet closes after saving');
+      await expense('Ejemplo sintético B', '0.20'); await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
+      assert.ok((await testText('expense-summary')).includes('S/ 110.35'));
+      await expense('Ejemplo sintético ocio', '1000', 'ocio'); await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 3');
+      assert.ok((await testText('category-cards')).includes('Te pasaste por S/ 213.598'));
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      await browser.evaluate('document.querySelector("[data-expense-id] button[aria-label^=\'Editar Ejemplo sintético A\']").click()');
+      await browser.waitFor('document.querySelector("dialog[open] [data-testid=expense-source]")?.textContent === "Revisión 1."');
+      assert.equal(await browser.evaluate('document.querySelector("dialog[open] h2").textContent'), 'Editar gasto');
       await fill('gv-amount', '0.15'); await submitForm('Gasto variable');
-      await browser.waitFor('document.body.textContent.includes("S/ 0.35")');
+      await browser.waitFor('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 1,110.40")');
+      // An identical expense on the same day asks first; "Guardar de todas formas" saves it.
       await expense('Ejemplo sintético A', '0.15');
-      await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("mismos datos")');
-      assert.equal(await browser.evaluate('document.querySelectorAll("article").length'), 3);
-      await browser.evaluate('document.getElementById("gv-similar").click()');
-      await submitForm('Gasto variable');
-      await browser.waitFor('document.querySelectorAll("article").length === 4');
-      assert.ok((await visibleText()).includes('S/ 0.50'));
+      await browser.waitFor('document.querySelector("dialog[open] [data-testid=duplicate-warning]")?.textContent.includes("Ya hay un gasto igual ese día")');
+      assert.equal(await rows(), 3);
+      assert.equal(await browser.evaluate('document.querySelectorAll("#gv-similar").length'), 0);
+      await capture('19-duplicado-movil.png');
+      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Guardar de todas formas").click()');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
+      assert.ok((await testText('expense-summary')).includes('S/ 1,110.55'));
       // An expense dated in another month is saved in that month and the view follows it.
       await expense('Gasto ficticio de mayo', '2', 'salud', '2038-05-01');
-      await browser.waitFor('document.querySelector("[role=status]")?.textContent.includes("mayo de 2038") && document.querySelectorAll("article").length === 1');
+      await browser.waitFor('document.querySelector("[role=status]")?.textContent.includes("mayo de 2038") && document.querySelectorAll("[data-expense-id]").length === 1');
       assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '2038-05');
       await fill('fiorella-period', '2038-04');
-      await browser.waitFor('document.querySelectorAll("article").length === 4');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
       // Total = GF real 110.05 + GV real 1000.50, each counted once; partial while GF has 1/19 actuals.
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent.includes("S/ 1,110.55")'));
+      // Day groups, search and chips.
+      assert.equal(await browser.evaluate('document.querySelector("[aria-label=\'Gastos variables\'] h3").textContent'), '9 abr');
+      await browser.evaluate('Array.from(document.querySelectorAll("[aria-label=Categoría] button")).find(button => button.textContent === "Ocio").click()');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
+      await browser.evaluate('Array.from(document.querySelectorAll("[aria-label=Categoría] button")).find(button => button.textContent === "Todas").click()');
+      await fill('gv-filter-text', 'sintético B');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
+      await fill('gv-filter-text', '');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
+      // ?nuevo opens the sheet (here from the floating button) and closing removes it from the URL.
+      await browser.waitFor('!document.querySelector("dialog[open]")');
+      await browser.evaluate('document.querySelector(\'a[href="/fiorella/gastos?nuevo"]\').click()');
+      await browser.waitFor('location.search.startsWith("?nuevo") && !!document.querySelector("dialog[open] #gv-amount")');
+      await capture('20-gasto-nuevo-movil.png');
+      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Cancelar").click()');
+      await browser.waitFor('location.search === "" && !document.querySelector("dialog[open]")');
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
       await capture('03-gastos-movil.png');
-      await browser.evaluate('document.querySelector("form").scrollIntoView({block:"start"})');
-      await capture('07-formulario-gv-movil.png');
+      await browser.evaluate('document.querySelector("[data-testid=pace-chart]").scrollIntoView({block:"start"})');
+      await capture('07-ritmo-gv-movil.png');
       await clickLink('/fiorella/historial', 'Historial');
       assert.ok((await visibleText()).includes('S/ 125.20 → S/ 110.05'));
       assert.ok((await visibleText()).includes('otro gasto con datos coincidentes'));
@@ -235,7 +274,7 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Resumen'], ['/fiorella/presupuestos', 'Presupuestos GF'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
+        for (const [path, heading] of [['/fiorella', 'Resumen'], ['/fiorella/gastos?tipo=fijos', 'Gastos'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,
@@ -276,24 +315,52 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('period edits preserve native drafts and applied data while incomplete GF totals stay unavailable', async () => {
       await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
-      await clickLink('/fiorella/presupuestos', 'Presupuestos GF');
+      await openBudgets();
       await fill('fiorella-period', '2040-01');
       await fill('budget-servicios-gas', '80'); await submitForm('Presupuesto servicios-gas');
       await fill('actual-servicios-celular', '30'); await submitForm('Presupuesto servicios-celular');
-      assert.ok((await visibleText()).includes('Cobertura 0/19 con ambos importes'));
+      assert.ok((await testText('budget-totals')).includes('1/19 subcategorías con presupuesto') && (await testText('budget-totals')).includes('1/19 subcategorías con gasto'));
       assert.doesNotMatch(await visibleText(), /Diferencia a favor: S\/ 50\.00/);
       await fill('actual-servicios-gas', '90'); await submitForm('Presupuesto servicios-gas');
       assert.ok((await visibleText()).includes('−S/ 10.00'));
-      assert.ok((await visibleText()).includes('Cobertura 1/19 con ambos importes'));
+      assert.ok((await testText('budget-totals')).includes('2/19 subcategorías con gasto'));
       await fill('fiorella-period', '');
       assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '');
       assert.equal(await browser.evaluate('document.querySelectorAll("[role=alert]").length'), 0);
       assert.ok((await visibleText()).includes('S/ 80.00'));
       await browser.evaluate('document.getElementById("fiorella-period").focus(); document.getElementById("fiorella-period").blur()');
       await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("AAAA-MM")');
+      const copyButton = () => browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent.includes("Copiar presupuestos"))?.disabled');
+      // January's previous month (December 2039) has no budgets: copying is off and says why.
+      assert.equal(await copyButton(), true);
+      assert.ok((await visibleText()).includes('Diciembre de 2039 no tiene presupuestos.'));
       await fill('fiorella-period', '2040-02');
       await editBudget('servicios-gas');
       assert.equal(await browser.evaluate('document.getElementById("budget-servicios-gas").value'), '');
+      await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+      await browser.waitFor('!document.querySelector("main form")');
+      // February copies only January's budgets (Gas 80), never its actuals.
+      assert.equal(await copyButton(), false);
+      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent.includes("Copiar presupuestos")).click()');
+      await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=copy-preview]")');
+      const preview = await browser.evaluate('document.querySelector("dialog[open] [data-testid=copy-preview]").textContent');
+      assert.ok(preview.includes('Gas') && preview.includes('S/ 80.00') && preview.includes('Copiar 1 presupuesto') && !preview.includes('Celular'), preview);
+      await capture('21-copiar-presupuestos-movil.png');
+      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Copiar 1 presupuesto").click()');
+      await browser.waitFor('document.querySelector("dialog[open] [data-testid=copy-result]")?.textContent.includes("Se guardaron 1 de 1")');
+      await closeSheet();
+      assert.equal(await copyButton(), true);
+      assert.ok((await visibleText()).includes('Ya tienes presupuesto en todas las subcategorías del mes anterior.'));
+      assert.ok((await browser.evaluate('document.querySelector(\'[data-budget-id="servicios-gas"]\').textContent')).includes('Gasto sin registrar, presupuesto S/ 80.00'));
+      // "Solo sin registrar" keeps only rows missing a budget or an actual.
+      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Solo sin registrar").click()');
+      assert.equal(await browser.evaluate('document.querySelectorAll("[data-budget-id]").length'), 19);
+      // Tapping a group in the chart opens its section and moves focus there.
+      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Solo sin registrar").click()');
+      await browser.evaluate('document.querySelector(\'[aria-controls="gf-rows-comida"]\').click()');
+      await browser.waitFor('document.querySelector(\'[aria-controls="gf-rows-comida"]\').getAttribute("aria-expanded") === "false"');
+      await browser.evaluate('Array.from(document.querySelectorAll("figure button")).find(button => button.textContent.startsWith("Comida")).click()');
+      await browser.waitFor('document.querySelector(\'[aria-controls="gf-rows-comida"]\').getAttribute("aria-expanded") === "true" && document.activeElement === document.querySelector(\'[aria-controls="gf-rows-comida"]\')');
       await fill('fiorella-period', '2040-01');
       await browser.evaluate('document.querySelector("[data-testid=budget-totals]").scrollIntoView({block:"start"})');
       await capture('08-gf-incompleto-movil.png');
