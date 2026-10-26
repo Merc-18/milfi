@@ -55,7 +55,7 @@ export default function MovementList({ entries, selected, onOpen }) {
                 {record.kind === 'deposit' && <span className="block text-[10px] text-texto-light">{contributionLabel(record)}</span>}
                 {currencyOriginWarning(record) && <span className="block text-[10px]">Moneda por confirmar</span>}</span>
               {!['reviewed', 'imported'].includes(status) && <Badge tone={statusTone(status)}>{statusName(status)}</Badge>}
-              <span className="shrink-0 text-sm font-bold tabular-nums">{controlMoney(record.amount, record.currency)}</span>
+              <span className="max-w-[45%] text-right text-sm font-bold tabular-nums">{controlMoney(record.amount, record.currency)}</span>
             </button>
           </li>)}</ul>
         </section>;
