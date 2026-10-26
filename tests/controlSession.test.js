@@ -293,7 +293,7 @@ test('Control: malformed commands and reviews fail safely without throwing', () 
 });
 
 test('Control: presentation preserves explicit currency and exact decimals without inventing zero totals', () => {
-  assert.equal(controlMoney('0.1', 'USD'), 'USD 0.10'); assert.equal(controlMoney('1234.567', 'PEN'), 'PEN 1,234.567');
+  assert.equal(controlMoney('0.1', 'USD'), 'US$ 0.10'); assert.equal(controlMoney('1234.567', 'PEN'), 'S/ 1,234.567');
   assert.equal(controlMoney('12', null), 'Importe o moneda pendiente');
   assert.deepEqual(summary([]).groups, []);
 });

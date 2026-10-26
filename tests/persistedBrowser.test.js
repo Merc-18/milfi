@@ -143,7 +143,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await mount('fiorella', '/control', '2031-01');
       await browser.waitFor('!!document.querySelector("[data-testid=control-balance]")');
       const summary = await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent');
-      assert.ok(summary.includes('PEN 22.50') && summary.includes('por revisar'));
+      assert.ok(summary.includes('S/ 22.50') && summary.includes('por revisar'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=balance-chart]")'));
       const table = await browser.evaluate(`({
         heads: Array.from(document.querySelectorAll('[data-testid=control-monthly] thead th')).map(cell => cell.textContent),
@@ -187,13 +187,13 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!document.querySelector("dialog[open]")');
       assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-03"] [data-light]').dataset.light`), 'amarillo');
       assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'gris');
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 22.50'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'));
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-amount")');
       assert.equal(await browser.evaluate('document.getElementById("review-amount").value'), '7.5');
       // The old fixture decided PEN for every value; the owner template tested elsewhere leaves this blank.
       await fill('review-reference', 'Extracto inventado');
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 22.50'), 'opening the suggestion cannot change totals');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'), 'opening the suggestion cannot change totals');
       await browser.evaluate('document.getElementById("review-rejected").click()');
       await fill('review-reason', 'No corresponde: prueba inventada'); await click('Rechazar');
       await browser.waitFor('!document.querySelector("dialog[open]")');
@@ -204,7 +204,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await fill('review-date', '2031-02-20'); await fill('review-period', '2031-02');
       await fill('review-reference', 'Voucher inventado con fecha'); await click('Aceptar');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 19.50'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 19.50'));
       assert.deepEqual(browser.exceptions, []);
     });
 

@@ -1,11 +1,22 @@
 import { isValidPeriod } from '../domain/models.js';
 
-// All exact decimal places are displayed. Padding does not introduce rounding.
-export function formatAmount(amount) {
-  if (typeof amount !== 'string' || !/^\d+(?:\.\d+)?$/.test(amount)) return '—';
+const SYMBOLS = { PEN: 'S/', USD: 'US$' };
+
+/** True for an exact unsigned decimal string, the only amounts the formatters accept. */
+export const isAmountText = amount => typeof amount === 'string' && /^\d+(?:\.\d+)?$/.test(amount);
+
+// The one money format of the app: "S/ 1,234.56" or "US$ 1,234.56". All exact
+// decimal places are displayed; padding does not introduce rounding.
+export function formatMoney(amount, currency = 'PEN') {
+  if (!isAmountText(amount)) return '—';
   const [whole, decimals = ''] = amount.split('.');
-  return `S/ ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${decimals.padEnd(2, '0')}`;
+  return `${SYMBOLS[currency] ?? currency} ${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${decimals.padEnd(2, '0')}`;
 }
+
+export const formatAmount = amount => formatMoney(amount, 'PEN');
+
+/** "1 gasto", "3 gastos"; irregular plurals are passed in. */
+export const plural = (count, singular, many = `${singular}s`) => `${count} ${count === 1 ? singular : many}`;
 
 export function formatPeriod(period) {
   if (!isValidPeriod(period)) return 'Periodo pendiente';

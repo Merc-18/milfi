@@ -1,5 +1,5 @@
 import { controlMoney } from '../../presentation/control.js';
-import { formatShortPeriod } from '../../presentation/format.js';
+import { formatShortPeriod, plural } from '../../presentation/format.js';
 
 const WIDTH = 300;
 const HEIGHT = 120;
@@ -21,7 +21,7 @@ export default function BalanceSteps({ series, selected, label, currency = 'PEN'
   const last = steps.at(-1);
   return <figure className="space-y-2">
     <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="h-40 w-full overflow-visible" role="img"
-      aria-label={`${label}: ${signedMoney(last.balance, currency)} al cierre de ${formatShortPeriod(last.period)}, con ${withdrawals.length} retiro(s) en ${currency}.`}>
+      aria-label={`${label}: ${signedMoney(last.balance, currency)} al cierre de ${formatShortPeriod(last.period)}, con ${plural(withdrawals.length, 'retiro')} en ${currency === 'USD' ? 'dólares' : 'soles'}.`}>
       {index >= 0 && <rect x={index * slot} y="0" width={slot} height={HEIGHT} className="fill-principal/60" />}
       <line x1="0" x2={WIDTH} y1={y(0)} y2={y(0)} className="stroke-secundario" strokeWidth="1" vectorEffect="non-scaling-stroke" />
       <path d={path} fill="none" className="stroke-texto" strokeWidth="2.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />

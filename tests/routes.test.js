@@ -47,7 +47,7 @@ test('module routes render with real-history notices and no simulated financial 
       if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
       assert.doesNotMatch(html, /Demostración temporal/, path);
     }
-    assert.ok(renderPath('/control').includes('PEN 0.00'));
+    assert.ok(renderPath('/control').includes('S/ 0.00'));
     assert.ok(renderPath('/control').includes('Aportes de Milton') && renderPath('/control').includes('Aportes de Fiorella'));
     assert.doesNotMatch(renderPath('/control'), /solo Fiorella|únicamente Fiorella/);
     assert.ok(renderPath('/control').includes('Registrar movimiento'));

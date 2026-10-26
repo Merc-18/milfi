@@ -9,7 +9,7 @@ export default function ControlOverview({ balance, usdBalance, onReview }) {
     <p className="text-3xl font-bold tabular-nums break-all" data-testid="control-usd-balance">{usdBalance.negative ? '−' : ''}{controlMoney(usdBalance.amount, 'USD')}</p>
     {(balance.usdWithdrawn || balance.pending > 0) && <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
       {balance.usdWithdrawn && <span>Retirado en dólares: <strong className="tabular-nums">
-        {controlMoney(balance.usdWithdrawn, 'USD').replace('USD', 'US$')}</strong></span>}
+        {controlMoney(balance.usdWithdrawn, 'USD')}</strong></span>}
       {balance.pending > 0 && <button type="button" onClick={onReview} className="min-h-11 font-bold underline">
         {balance.pending} {balance.pending === 1 ? 'movimiento' : 'movimientos'} por revisar</button>}
     </p>}

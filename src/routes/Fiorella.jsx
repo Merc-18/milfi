@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
-import { formatAmount, formatShortPeriod } from '../presentation/format.js';
+import { formatAmount, formatShortPeriod, plural } from '../presentation/format.js';
 import { controlMoney } from '../presentation/control.js';
 import { MISSING, MISSING_READ, remainingToSpend, USAGE_TEXT, usageBadge } from '../presentation/status.js';
 import { coveredSavings, planLight } from '../presentation/controlLedgerView.js';
@@ -160,7 +160,7 @@ export default function Fiorella() {
           detail={applied === null ? 'Sin GF aplicado' : `de ${formatAmount(applied)} aplicado · ${summary.actual.registered}/${summary.actual.expected} con gasto`}
           badges={[usageBadge(fixedSpent, applied), budgetAboveApplied && { tone: 'aviso', text: 'Presupuesto mayor al GF aplicado' }].filter(Boolean)} />
         <StatLink lit to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
-          detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${expenses.variable.count} gasto(s)` : 'Sin asignación del mes'}
+          detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${plural(expenses.variable.count, 'gasto')}` : 'Sin asignación del mes'}
           badges={[usageBadge(variableSpent, distribution?.variable.total ?? null)].filter(Boolean)} />
         <StatLink lit to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
           value={deposited == null ? 'Sin depósitos asignados' : controlMoney(deposited, 'PEN')}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store/useStore.js';
 import { usePeriodStore } from '../store/periodStore.js';
-import { formatAmount, formatPeriod, parsePeriodInput } from '../presentation/format.js';
+import { formatAmount, formatPeriod, parsePeriodInput, plural } from '../presentation/format.js';
 import { fieldClass } from '../components/FiorellaSession.jsx';
 import { FIXED_CATEGORIES, FIXED_SUBCATEGORIES } from '../domain/fiorellaCategories.js';
 import { fiorellaHistory } from '../domain/fiorellaSession.js';
@@ -111,7 +111,7 @@ export default function Historial() {
       {!records.length && <p className="text-sm mb-5">Todavía no hay registros.</p>}
       {!!records.length && !visible.length && <p className="text-sm mb-5">Ningún registro {month === 'all' ? 'coincide con el filtro' : 'en este mes con ese filtro'}.{month !== 'all' && <button type="button" className="underline font-bold ml-2 min-h-11" onClick={() => { setMonth('all'); setShown(PAGE); }}>Ver todos los meses</button>}</p>}
       {visible.map(group => <section key={group.key} className="space-y-3 mb-6" data-demo-period={group.key}>
-        <h2 className="font-bold first-letter:uppercase">{formatPeriod(group.period)} · {group.total} registro(s)</h2>
+        <h2 className="font-bold first-letter:uppercase">{formatPeriod(group.period)} · {plural(group.total, 'registro')}</h2>
         <div className="grid gap-2 md:grid-cols-2">{group.shown.map(record => <HistoryRecord key={record.id} record={record} persisted={persisted} />)}</div>
         {!!group.events.length && <details className="text-sm bg-secundario/20 p-3 rounded-2xl"><summary className="cursor-pointer font-bold min-h-11 py-2">Historial de cambios ({group.events.length})</summary>
           {group.events.map(event => <article key={event.id} className="border-t border-secundario py-2">

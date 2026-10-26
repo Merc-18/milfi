@@ -70,7 +70,7 @@ test('daily Control browser: explicit extras, people/currencies, reload and perm
       await deposit({ amount: '600', type: 'habitual', description: 'Habitual inventado' });
       await deposit({ amount: '100', type: 'extraordinary', description: 'Extra inventado' });
       const expenseText = await browser.evaluate('document.querySelector("[data-contribution-group=\\"milton:PEN:expenses\\"]").textContent');
-      assert.ok(expenseText.includes('PEN 600.00') && expenseText.includes('PEN 100.00') && expenseText.includes('PEN 700.00'));
+      assert.ok(expenseText.includes('S/ 600.00') && expenseText.includes('S/ 100.00') && expenseText.includes('S/ 700.00'));
       // Deliberately invalid split: no extra transfer is manufactured.
       await click('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
       await browser.evaluate('document.getElementById("control-purpose-savings").click();document.getElementById("control-contributor-milton").click()');
@@ -79,26 +79,26 @@ test('daily Control browser: explicit extras, people/currencies, reload and perm
       await browser.waitFor('document.querySelector("form[aria-label=\\"Movimiento de Control\\"] [role=alert]")?.textContent.includes("coincidir exactamente")');
       assert.equal((await snapshot()).control.records.length, 4);
       await fill('control-extra', '100'); await submit('Movimiento de Control'); await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 50.00'), 'pending transfer excluded');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 50.00'), 'pending transfer excluded');
       await accept('Combinado inventado');
       const data = await snapshot();
       assert.equal(data.control.records.length, 5);
       const combined = data.control.records.find(item => item.description === 'Combinado inventado');
       assert.deepEqual(combined.provenance.contribution, { version: 1, regular: '600', extra: '100' });
       assert.deepEqual([combined.amount, combined.period, combined.planPeriod, combined.effectiveDate], ['700', period, null, '2031-10-12']);
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('PEN 750.00'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 750.00'));
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-monthly] [data-month=\\"2031-10\\"]").textContent')).includes('Sin asignación confirmada'));
     });
     await context.test('USD extraordinary deposit stays USD, agreements are explicit and do not create deposits', async () => {
       await deposit({ who: 'fiorella', purpose: 'savings', currency: 'USD', amount: '20', type: 'extraordinary', description: 'Extra USD inventado' });
       const count = (await snapshot()).control.records.length;
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-usd-balance]").textContent')).includes('USD 20.00'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-usd-balance]").textContent')).includes('US$ 20.00'));
       await click('Definir compromiso del mes'); await browser.waitFor('!!document.getElementById("commitment-amount")');
       await fill('commitment-amount', '600'); await browser.evaluate('document.getElementById("commitment-confirm").click()');
       await submit('Compromiso de aporte'); await browser.waitFor('!document.querySelector("dialog[open]")');
       const data = await snapshot(); assert.equal(data.control.records.length, count); assert.equal(data.control.commitments[0].amount, '600');
       await deposit({ purpose: 'savings', currency: 'USD', amount: '999', type: 'extraordinary', description: 'Extra pendiente', review: false });
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-usd-balance]").textContent')).includes('USD 20.00'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-usd-balance]").textContent')).includes('US$ 20.00'));
       assert.equal((await snapshot()).control.commitments[0].amount, '600');
     });
     await context.test('single movement history filters by person/currency/destination/period and opens transfer details', async () => {

@@ -110,7 +110,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.doesNotMatch(await visibleText(), /Simulaciones de esta sesión|4,000\.01|600\.0024/);
       await clickLink('/control', 'Control M&F');
       const control = await browser.evaluate('document.body.textContent');
-      assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024/);
+      assert.doesNotMatch(control, /S\/\s*(?!0\.00(?!\d))\d|4,000\.01|600\.0024/);
       assert.ok(control.includes('Saldo de ahorro según lo registrado'));
     });
 
@@ -560,9 +560,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-selected-period', '2043-07');
       assert.equal(await count(), 0);
       await enter();
-      assert.ok((await balance()).includes('PEN 0.00') && (await balance()).includes('1 movimiento por revisar'));
+      assert.ok((await balance()).includes('S/ 0.00') && (await balance()).includes('1 movimiento por revisar'));
       await accept();
-      assert.ok((await balance()).includes('PEN 100.00'));
+      assert.ok((await balance()).includes('S/ 100.00'));
       const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr")).map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
       assert.ok(rows.find(row => row.key === '2043-07').cells[2].includes('100.00'));
       assert.ok(rows.find(row => row.key === '2043-07').cells[4].includes('100.00'));
@@ -571,7 +571,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 0);
       await enter({ amount: '20', kind: 'withdrawal', description: 'Retiro inventado', date: '2043-07-12' });
       await accept();
-      assert.ok((await balance()).includes('PEN 80.00'));
+      assert.ok((await balance()).includes('S/ 80.00'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 1);
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=balance-chart] svg circle title").textContent')).includes('Retiro inventado'));
       // USD is recorded separately and never subtracted from the PEN balance.
@@ -581,7 +581,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-amount', '7.5'); await select('control-currency', 'USD');
       await fill('control-date', '2043-07-13'); await fill('control-description', 'Retiro USD inventado');
       await submitForm('Movimiento de Control'); await browser.waitFor('!document.querySelector("dialog[open]")'); await accept();
-      assert.ok((await balance()).includes('PEN 80.00') && (await balance()).includes('US$ 7.50'));
+      assert.ok((await balance()).includes('S/ 80.00') && (await balance()).includes('US$ 7.50'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -597,8 +597,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('!!document.getElementById("control-actor") || !!document.getElementById("control-operation") || !!document.getElementById("control-period")'), false);
       await fill('control-amount', '150'); await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await balance()).includes('−PEN 20.00'));
-      await accept(); assert.ok((await balance()).includes('PEN 130.00'));
+      assert.ok((await balance()).includes('−S/ 20.00'));
+      await accept(); assert.ok((await balance()).includes('S/ 130.00'));
       await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
       await browser.evaluate('document.getElementById("control-purpose-savings").click()');
       await select('control-contribution-type', 'habitual');
@@ -614,7 +614,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('document.getElementById("review-rejected").click()');
       await fill('review-reason', 'Registro inventado descartado'); await submitForm('Revisar movimiento');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await balance()).includes('PEN 130.00'));
+      assert.ok((await balance()).includes('S/ 130.00'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-review-id]").length'), 0);
     });
 
@@ -635,11 +635,11 @@ test('browser regression: redirects, simulation history and financial isolation'
       await capture('30-control-fase4.png');
       await fill('control-selected-period', '2043-08'); assert.equal(await count(), 0);
       await fill('control-selected-period', '2043-07'); assert.equal(await count(), 4);
-      await clickLink('/fiorella', 'Resumen'); assert.doesNotMatch(await visibleText(), /Retiro inventado|PEN 130.00/);
+      await clickLink('/fiorella', 'Resumen'); assert.doesNotMatch(await visibleText(), /Retiro inventado|S\/ 130\.00/);
       await clickLink('/control', 'Control M&F'); assert.equal(await count(), 4);
       await browser.page('Page.reload');
       await browser.waitFor('!!document.querySelector("[data-testid=control-balance]") && !document.body.textContent.includes("Cargando")');
-      assert.equal(await count(), 0); assert.ok((await balance()).includes('PEN 0.00'));
+      assert.equal(await count(), 0); assert.ok((await balance()).includes('S/ 0.00'));
       assert.deepEqual(browser.exceptions, []);
     });
 

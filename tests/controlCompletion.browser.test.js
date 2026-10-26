@@ -53,22 +53,22 @@ test('Control completion in browser: currency balances, charts and contribution 
         monthly: document.querySelector('[data-testid=control-monthly] [data-month="2031-02"]').textContent,
         penPoints: document.querySelectorAll('[data-currency-chart=PEN] svg circle').length,
         usdPoints: document.querySelectorAll('[data-currency-chart=USD] svg circle').length })`);
-      assert.ok(view.balance.includes('PEN 90.15') && view.balance.includes('USD 25.30'));
-      assert.ok(view.pen.includes('PEN 90.15') && !view.pen.includes('USD'));
-      assert.ok(view.usd.includes('USD 25.30') && !view.usd.includes('PEN'));
+      assert.ok(view.balance.includes('S/ 90.15') && view.balance.includes('US$ 25.30'));
+      assert.ok(view.pen.includes('S/ 90.15') && !view.pen.includes('USD'));
+      assert.ok(view.usd.includes('US$ 25.30') && !view.usd.includes('PEN'));
       assert.deepEqual([view.penPoints, view.usdPoints], [1, 1]);
-      assert.ok(view.monthly.includes('PEN 70.25') && view.monthly.includes('USD 30.40'));
+      assert.ok(view.monthly.includes('S/ 70.25') && view.monthly.includes('US$ 30.40'));
       assert.doesNotMatch(view.balance, /900\.00|115\.45/);
     });
     await context.test('history separates contributors, currencies and destinations and retains cumulative monthly deposits', async () => {
       const groups = await browser.evaluate(`Array.from(document.querySelectorAll('[data-contribution-group]')).map(el => ({ key: el.dataset.contributionGroup, text: el.textContent }))`);
       assert.equal(groups.length, 4);
       const fiorella = groups.find(group => group.key === 'fiorella:PEN:savings').text;
-      assert.ok(fiorella.includes('PEN 100.25') && fiorella.includes('PEN 70.25'));
+      assert.ok(fiorella.includes('S/ 100.25') && fiorella.includes('S/ 70.25'));
       assert.doesNotMatch(fiorella, /90\.15|900\.00/);
-      assert.ok(groups.find(group => group.key === 'fiorella:USD:savings').text.includes('USD 30.40'));
-      assert.ok(groups.find(group => group.key === 'milton:PEN:expenses').text.includes('PEN 12.00'));
-      assert.ok(groups.find(group => group.key === 'milton:USD:expenses').text.includes('USD 7.00'));
+      assert.ok(groups.find(group => group.key === 'fiorella:USD:savings').text.includes('US$ 30.40'));
+      assert.ok(groups.find(group => group.key === 'milton:PEN:expenses').text.includes('S/ 12.00'));
+      assert.ok(groups.find(group => group.key === 'milton:USD:expenses').text.includes('US$ 7.00'));
       for (const width of [360, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
         assert.equal(await browser.evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1'), true);
