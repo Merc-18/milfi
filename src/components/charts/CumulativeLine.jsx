@@ -45,12 +45,16 @@ export default function CumulativeLine({ series, label }) {
       {allocation !== null && <li className="flex items-center gap-1.5"><span className="w-5 border-t-2 border-dashed border-texto-light" />Ritmo ideal</li>}
       {allocation !== null && <li className="flex items-center gap-1.5"><span className="h-px w-5 bg-texto-light" />Asignado</li>}
     </ul>
-    <table className="sr-only">
-      <caption>{allocation === null ? 'Gasto acumulado por día'
-        : `Gasto acumulado por día; el ritmo ideal reparte ${formatAmount(allocation)} en ${days} días`}</caption>
-      <thead><tr><th scope="col">Día</th><th scope="col">Acumulado</th></tr></thead>
-      <tbody>{reached.map(point => <tr key={point.day}><th scope="row">{point.day}</th><td>{formatAmount(point.actual)}</td></tr>)}
-        {later.map(point => <tr key={point.day}><th scope="row">{point.day}, con fecha posterior a hoy</th><td>{formatAmount(point.actual)}</td></tr>)}</tbody>
-    </table>
+    {/* Wrapped: an sr-only table can still widen the page on some engines. */}
+    <div className="sr-only">
+      <table>
+        <caption>{allocation === null ? 'Gasto acumulado por día'
+          : `Gasto acumulado por día; el ritmo ideal reparte ${formatAmount(allocation)} en ${days} días`}</caption>
+        <thead><tr><th scope="col">Día</th><th scope="col">Acumulado</th></tr></thead>
+        <tbody>{reached.map(point => <tr key={point.day}><th scope="row">{point.day}</th><td>{formatAmount(point.actual)}</td></tr>)}
+          {later.map(point => <tr key={point.day}><th scope="row">{point.day}, con fecha posterior a hoy</th>
+            <td>{formatAmount(point.actual)}</td></tr>)}</tbody>
+      </table>
+    </div>
   </figure>;
 }

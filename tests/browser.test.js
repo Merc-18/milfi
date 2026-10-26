@@ -24,11 +24,13 @@ test('browser regression: redirects, simulation history and financial isolation'
     browser = await openBrowser(executable, profile);
     const navigate = async (path, heading) => {
       await browser.page('Page.navigate', { url: origin + path });
-      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} ` +
+        `&& document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
     const clickLink = async (path, heading) => {
       await browser.evaluate(`document.querySelector('a[href="${path}"]').click()`);
-      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+      await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(path)} ` +
+        `&& document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
     };
     // Budgets are the fixed view of Gastos.
     const openBudgets = async () => {
@@ -44,7 +46,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       if (/^(budget|actual)-/.test(id) && !await browser.evaluate(`!!document.getElementById(${JSON.stringify(id)})`)) {
         await editBudget(id.replace(/^(budget|actual)-/, ''));
       }
-      await browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      await browser.evaluate(`(() => { const input = document.getElementById(${JSON.stringify(id)}); ` +
+        `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(value)}); ` +
+        `input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     };
 
     const captures = process.env.MILFI_CAPTURE_DIR ?? join(tmpdir(), 'milfi-fase3-2-capturas');
@@ -82,7 +86,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       for (const [oldPath, target, heading] of aliases) {
         await navigate('/', 'MilFi');
         await browser.page('Page.navigate', { url: origin + oldPath });
-        await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(target)} && document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
+        await browser.waitFor(`location.pathname + location.search === ${JSON.stringify(target)} ` +
+          `&& document.querySelector('h1')?.textContent.includes(${JSON.stringify(heading)})`);
         await browser.evaluate('history.back()');
         await browser.waitFor('location.pathname === "/" && document.querySelector("h1")?.textContent.includes("MilFi")');
       }
@@ -98,7 +103,8 @@ test('browser regression: redirects, simulation history and financial isolation'
 
     await context.test('the "¿y si…?" previews a distribution without saving anything or touching Control', async () => {
       await browser.page('Page.navigate', { url: origin + '/fiorella/calculadora' });
-      await browser.waitFor('location.pathname + location.search === "/fiorella/metas?simular" && !!document.querySelector("dialog[open] [data-testid=page-whatif-panel]")');
+      await browser.waitFor('location.pathname + location.search === "/fiorella/metas?simular" ' +
+        '&& !!document.querySelector("dialog[open] [data-testid=page-whatif-panel]")');
       await fill('page-whatif-income', '4000.01');
       await browser.waitFor('document.querySelector("[data-testid=page-whatif-result]").textContent.includes("Ahorro de pareja: S/ 600.0024 al mes")');
       await browser.evaluate(`Array.from(${topSheet()}.querySelectorAll("button")).find(button => button.textContent === "Ver reparto completo").click()`);
@@ -110,13 +116,14 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.doesNotMatch(await visibleText(), /Simulaciones de esta sesión|4,000\.01|600\.0024/);
       await clickLink('/control', 'Control M&F');
       const control = await browser.evaluate('document.body.textContent');
-      assert.doesNotMatch(control, /S\/\s*\d|4,000\.01|600\.0024/);
-      assert.ok(control.includes('Saldo de ahorro según lo registrado'));
+      assert.doesNotMatch(control, /S\/\s*(?!0\.00(?!\d))\d|4,000\.01|600\.0024/);
+      assert.ok(control.includes('Ahorro disponible'));
     });
 
     await context.test('the "¿y si…?" explains deficit, zero surplus and the GF cap without a split', async () => {
       await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/metas', 'Metas');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent.includes("Registra el ingreso del mes para estimar tus metas")'));
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=goal-capacity]").textContent' +
+        '.includes("Registra el ingreso del mes para estimar tus metas")'));
       await capture('22-metas-vacio-movil.png');
       await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "¿Y si…?").click()');
       await browser.waitFor('location.search.startsWith("?simular") && !!document.getElementById("page-whatif-income")');
@@ -138,7 +145,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       // The demo is explained once, by the header badge.
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
       await clickLink('/control', 'Control M&F');
-      assert.ok(await browser.evaluate('document.body.textContent.includes("Saldo de ahorro según lo registrado")'));
+      assert.ok(await browser.evaluate('document.body.textContent.includes("Ahorro disponible")'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -229,12 +236,14 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("#gv-similar").length'), 0);
       assert.equal(await browser.evaluate('document.activeElement.textContent'), 'Guardar de todas formas');
       await capture('19-duplicado-movil.png');
-      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Guardar de todas formas").click()');
+      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button"))' +
+        '.find(button => button.textContent === "Guardar de todas formas").click()');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
       assert.ok((await testText('expense-summary')).includes('S/ 1,110.55'));
       // An expense dated in another month is saved in that month and the view follows it.
       await expense('Gasto ficticio de mayo', '2', 'salud', '2038-05-01');
-      await browser.waitFor('document.querySelector("[role=status]")?.textContent.includes("mayo de 2038") && document.querySelectorAll("[data-expense-id]").length === 1');
+      await browser.waitFor('document.querySelector("[role=status]")?.textContent.includes("mayo de 2038") ' +
+        '&& document.querySelectorAll("[data-expense-id]").length === 1');
       assert.equal(await browser.evaluate('document.getElementById("fiorella-period").value'), '2038-05');
       await fill('fiorella-period', '2038-04');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
@@ -251,7 +260,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 4');
       // The header's single "Registrar gasto" opens the sheet as ?nuevo; closing removes it from the URL.
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).filter(button => button.textContent === "Registrar gasto").length'), 1);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button"))' +
+        '.filter(button => button.textContent === "Registrar gasto").length'), 1);
       await browser.evaluate('Array.from(document.querySelectorAll("main header button")).find(button => button.textContent === "Registrar gasto").click()');
       await browser.waitFor('location.search.startsWith("?nuevo") && !!document.querySelector("dialog[open] #gv-amount")');
       await capture('20-gasto-nuevo-movil.png');
@@ -265,7 +275,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await visibleText()).includes('S/ 125.20 → S/ 110.05'));
       assert.ok((await visibleText()).includes('otro gasto con datos coincidentes'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-demo-period]").length'), 1);
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("[data-demo-period=\'2038-04\'] h4")).filter(h => h.textContent.startsWith("GV")).length'), 4);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("[data-demo-period=\'2038-04\'] h4"))' +
+        '.filter(h => h.textContent.startsWith("GV")).length'), 4);
       await capture('04-historial-movil.png');
       await clickLink('/fiorella', 'Resumen');
       // One figure per card: GF real 110.05 of 1,500 applied, GV real 1,000.50 of 1,572.804 assigned.
@@ -297,27 +308,31 @@ test('browser regression: redirects, simulation history and financial isolation'
       const preview = () => testText('fixed-preview');
       await openFixed();
       // Grouped subcategories with their display names, and no date field.
-      assert.ok(await browser.evaluate('Array.from(document.querySelectorAll("#gf-category optgroup")).map(group => group.label).join() === "Servicios,Transporte,Comida,Bienestar,Otros"'));
+      assert.ok(await browser.evaluate('Array.from(document.querySelectorAll("#gf-category optgroup")).map(group => group.label).join() ' +
+        '=== "Servicios,Transporte,Comida,Bienestar,Otros"'));
       assert.ok(await browser.evaluate('Array.from(document.querySelectorAll("#gf-category option")).some(option => option.textContent === "Carbohidratos")'));
       assert.equal(await browser.evaluate('document.querySelectorAll("dialog[open] input[type=date]").length'), 0);
       await choose('servicios-luz'); await fill('gf-amount', '80');
       assert.ok((await preview()).includes('Se suma a abril de 2038') && (await preview()).includes('Luz: sin registrar → S/ 80.00 este mes'), await preview());
       await capture('27-gasto-fijo-movil.png');
       await submitForm('Gasto fijo');
-      await browser.waitFor('!document.querySelector("dialog[open]") && document.querySelector("[role=status]")?.textContent.includes("Luz: S/ 80.00 en abril de 2038")');
+      await browser.waitFor('!document.querySelector("dialog[open]") ' +
+        '&& document.querySelector("[role=status]")?.textContent.includes("Luz: S/ 80.00 en abril de 2038")');
       await openFixed(); await choose('servicios-luz'); await fill('gf-amount', '80');
       assert.ok((await preview()).includes('Luz: S/ 80.00 → S/ 160.00 este mes'));
       await submitForm('Gasto fijo');
       await openFixed(); await choose('servicios-gas'); await fill('gf-amount', '1500');
       await browser.evaluate('document.getElementById("gf-mode-replace").click()');
-      assert.ok((await preview()).includes('Reemplaza el total de abril de 2038') && (await preview()).includes('Gas: S/ 110.05 → S/ 1,500.00 este mes'), await preview());
+      assert.ok((await preview()).includes('Reemplaza el total de abril de 2038')
+        && (await preview()).includes('Gas: S/ 110.05 → S/ 1,500.00 este mes'), await preview());
       await submitForm('Gasto fijo');
       await browser.waitFor('!document.querySelector("dialog[open]")');
       // The budgets stay as they were: Gas keeps 120.10 and Luz has none.
       await browser.evaluate('document.getElementById("gastos-tab-fijos").click()');
       await browser.waitFor('!!document.querySelector("[data-budget-id=servicios-gas]")');
       assert.ok((await browser.evaluate('document.querySelector("[data-budget-id=servicios-gas]").textContent')).includes('S/ 1,500.00 de S/ 120.10'));
-      assert.ok((await browser.evaluate('document.querySelector("[data-budget-id=servicios-luz]").textContent')).includes('S/ 160.00, presupuesto sin registrar'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-budget-id=servicios-luz]").textContent'))
+        .includes('S/ 160.00, presupuesto sin registrar'));
       // GF real 1,660 above the S/ 1,500 reserved: the summary shows the excess.
       await clickLink('/fiorella', 'Resumen');
       assert.ok((await testText('fixed-stat')).includes('Exceso: −S/ 160.00'), await testText('fixed-stat'));
@@ -327,12 +342,13 @@ test('browser regression: redirects, simulation history and financial isolation'
         return [card.dataset.light, getComputedStyle(card).color, card.querySelector('[data-testid=' + id + '-state]')?.textContent]; })`);
       assert.deepEqual(lights.map(([light]) => light), ['excedido', 'ok', 'neutral']);
       assert.equal(lights[0][1], 'rgb(255, 255, 255)', 'white text on the red card');
-      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Pendiente']);
+      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Se deposita en mayo']);
       await capture('28-resumen-semaforo-movil.png');
       // Historial: the month-by-month table is always visible at the top with a word next to each light.
       await clickLink('/fiorella/historial', 'Historial');
       assert.equal(await browser.evaluate('document.querySelector("[data-testid=monthly-evolution]").tagName'), 'SECTION');
-      const april = await browser.evaluate('Array.from(document.querySelectorAll("[data-month=\'2038-04\'] [data-light]")).map(cell => [cell.dataset.light, cell.textContent])');
+      const april = await browser.evaluate('Array.from(document.querySelectorAll("[data-month=\'2038-04\'] [data-light]"))' +
+        '.map(cell => [cell.dataset.light, cell.textContent])');
       assert.deepEqual(april.map(([light]) => light), ['rojo', 'verde']);
       assert.ok(april[0][1].includes('S/ 1,660.00 / S/ 1,500.00') && april[0][1].endsWith('Excedido') && april[1][1].endsWith('Bien'), JSON.stringify(april));
       await capture('29-historial-semaforo-movil.png');
@@ -341,11 +357,13 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Fiorella responsive routes fit 320px, 390px, tablet and desktop with labeled forms', async () => {
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width >= 768 ? 1024 : 844, deviceScaleFactor: 1, mobile: width < 768 });
-        for (const [path, heading] of [['/fiorella', 'Resumen'], ['/fiorella/gastos?tipo=fijos', 'Gastos'], ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
+        for (const [path, heading] of [['/fiorella', 'Resumen'], ['/fiorella/gastos?tipo=fijos', 'Gastos'],
+          ['/fiorella/gastos', 'Gastos'], ['/fiorella/historial', 'Historial']]) {
           await clickLink(path, heading);
           const geometry = await browser.evaluate(`(() => { const main = document.querySelector('main'); return { width: window.innerWidth,
             document: document.documentElement.scrollWidth, main: main.clientWidth, content: main.scrollWidth,
-            unlabeled: Array.from(document.querySelectorAll('input,select')).filter(input => !document.querySelector('label[for="' + input.id + '"]')).length }; })()`);
+            unlabeled: Array.from(document.querySelectorAll('input,select'))
+              .filter(input => !document.querySelector('label[for="' + input.id + '"]')).length }; })()`);
           assert.ok(geometry.document <= geometry.width, `${width} ${path}: document overflow ${JSON.stringify(geometry)}`);
           assert.ok(geometry.content <= geometry.main + 1, `${width} ${path}: content overflow ${JSON.stringify(geometry)}`);
           assert.equal(geometry.unlabeled, 0, `${width} ${path}: inputs without explicit labels`);
@@ -353,7 +371,8 @@ test('browser regression: redirects, simulation history and financial isolation'
           const register = await browser.evaluate(`({ links: document.querySelectorAll('a[href="/fiorella/gastos?nuevo"]').length,
             buttons: Array.from(document.querySelectorAll('button')).filter(button => button.textContent === 'Registrar gasto').length,
             header: !!Array.from(document.querySelectorAll('main header button')).find(button => button.textContent === 'Registrar gasto') })`);
-          assert.deepEqual(register, path.startsWith('/fiorella/gastos') ? { links: 0, buttons: 1, header: true } : { links: 0, buttons: 0, header: false }, `${width} ${path}`);
+          assert.deepEqual(register, path.startsWith('/fiorella/gastos')
+            ? { links: 0, buttons: 1, header: true } : { links: 0, buttons: 0, header: false }, `${width} ${path}`);
           if (path === '/fiorella' && width === 360) { await browser.evaluate('window.scrollTo(0, 0)'); await capture('18-resumen-360.png'); }
         }
       }
@@ -362,7 +381,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/control', 'Control M&F');
       assert.equal(await browser.evaluate('document.querySelector("main").scrollTop'), 0);
       assert.doesNotMatch(await visibleText(), /5432|Ejemplo sintético/);
-      assert.ok((await visibleText()).includes('Saldo de ahorro según lo registrado'));
+      assert.ok((await visibleText()).includes('Ahorro disponible'));
     });
 
     await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
@@ -387,7 +406,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('fiorella-period', '2040-01');
       await fill('budget-servicios-gas', '80'); await submitForm('Presupuesto servicios-gas');
       await fill('actual-servicios-celular', '30'); await submitForm('Presupuesto servicios-celular');
-      assert.ok((await testText('budget-totals')).includes('1/19 subcategorías con presupuesto') && (await testText('budget-totals')).includes('1/19 subcategorías con gasto'));
+      assert.ok((await testText('budget-totals')).includes('1/19 subcategorías con presupuesto')
+        && (await testText('budget-totals')).includes('1/19 subcategorías con gasto'));
       assert.doesNotMatch(await visibleText(), /Diferencia a favor: S\/ 50\.00/);
       await fill('actual-servicios-gas', '90'); await submitForm('Presupuesto servicios-gas');
       assert.ok((await visibleText()).includes('−S/ 10.00'));
@@ -398,7 +418,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await visibleText()).includes('S/ 80.00'));
       await browser.evaluate('document.getElementById("fiorella-period").focus(); document.getElementById("fiorella-period").blur()');
       await browser.waitFor('document.querySelector("[role=alert]")?.textContent.includes("AAAA-MM")');
-      const copyButton = () => browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent.includes("Copiar presupuestos"))?.disabled');
+      const copyButton = () => browser.evaluate('Array.from(document.querySelectorAll("main button"))' +
+        '.find(button => button.textContent.includes("Copiar presupuestos"))?.disabled');
       // January's previous month (December 2039) has no budgets: copying is off and says why.
       assert.equal(await copyButton(), true);
       assert.ok((await visibleText()).includes('Diciembre de 2039 no tiene presupuestos.'));
@@ -414,12 +435,14 @@ test('browser regression: redirects, simulation history and financial isolation'
       const preview = await browser.evaluate('document.querySelector("dialog[open] [data-testid=copy-preview]").textContent');
       assert.ok(preview.includes('Gas') && preview.includes('S/ 80.00') && preview.includes('Copiar 1 presupuesto') && !preview.includes('Celular'), preview);
       await capture('21-copiar-presupuestos-movil.png');
-      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Copiar 1 presupuesto").click()');
-      await browser.waitFor('document.querySelector("dialog[open] [data-testid=copy-result]")?.textContent.includes("Se guardaron 1 de 1")');
+      await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button"))' +
+        '.find(button => button.textContent === "Copiar 1 presupuesto").click()');
+      await browser.waitFor('document.querySelector("dialog[open] [data-testid=copy-result]")?.textContent.includes("Guardados: 1 de 1 presupuesto.")');
       await closeSheet();
       assert.equal(await copyButton(), true);
       assert.ok((await visibleText()).includes('Ya tienes presupuesto en todas las subcategorías del mes anterior.'));
-      assert.ok((await browser.evaluate('document.querySelector(\'[data-budget-id="servicios-gas"]\').textContent')).includes('Gasto sin registrar, presupuesto S/ 80.00'));
+      assert.ok((await browser.evaluate('document.querySelector(\'[data-budget-id="servicios-gas"]\').textContent'))
+        .includes('Gasto sin registrar, presupuesto S/ 80.00'));
       // "Solo sin registrar" keeps only rows missing a budget or an actual.
       await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Solo sin registrar").click()');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-budget-id]").length'), 19);
@@ -428,7 +451,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('document.querySelector(\'[aria-controls="gf-rows-comida"]\').click()');
       await browser.waitFor('document.querySelector(\'[aria-controls="gf-rows-comida"]\').getAttribute("aria-expanded") === "false"');
       await browser.evaluate('Array.from(document.querySelectorAll("figure button")).find(button => button.textContent.startsWith("Comida")).click()');
-      await browser.waitFor('document.querySelector(\'[aria-controls="gf-rows-comida"]\').getAttribute("aria-expanded") === "true" && document.activeElement === document.querySelector(\'[aria-controls="gf-rows-comida"]\')');
+      await browser.waitFor('document.querySelector(\'[aria-controls="gf-rows-comida"]\').getAttribute("aria-expanded") === "true" ' +
+        '&& document.activeElement === document.querySelector(\'[aria-controls="gf-rows-comida"]\')');
       await fill('fiorella-period', '2040-01');
       await browser.evaluate('document.querySelector("[data-testid=budget-totals]").scrollIntoView({block:"start"})');
       await capture('08-gf-incompleto-movil.png');
@@ -437,7 +461,8 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('goals: months prefilled from the plan, preview, arrival from the current month and on-time state', async () => {
       // Without a distribution the page asks for the month's income, right there.
       await clickLink('/fiorella/metas', 'Metas');
-      await browser.evaluate('Array.from(document.querySelectorAll("main button")).find(button => button.textContent === "Registra el ingreso del mes").click()');
+      await browser.evaluate('Array.from(document.querySelectorAll("main button"))' +
+        '.find(button => button.textContent === "Registra el ingreso del mes").click()');
       await browser.waitFor('!!document.querySelector("dialog[open] #monthly-income")');
       await fill('monthly-income', '5432.01'); await submitForm('Datos mensuales');
       await closeTop();
@@ -467,7 +492,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok((await testText('goal-preview')).startsWith('Necesitas S/ 1,666.67 al mes; llegas en unos 22 meses'));
       await submitForm('Meta de ahorro');
       await browser.waitFor('document.querySelectorAll("[data-goal-id]").length === 2 && !document.querySelector("dialog[open]")');
-      const card = title => browser.evaluate(`Array.from(document.querySelectorAll("[data-goal-id]")).find(item => item.textContent.includes(${JSON.stringify(title)})).textContent`);
+      const card = title => browser.evaluate(`Array.from(document.querySelectorAll("[data-goal-id]"))` +
+        `.find(item => item.textContent.includes(${JSON.stringify(title)})).textContent`);
       const trip = await card('Viaje inventado');
       assert.ok(trip.includes('Vas a tiempo') && trip.includes(`Llegas en unos 2 meses (${arrival(2)})`) && trip.includes('Necesitas S/ 200.00 al mes'), trip);
       const car = await card('Auto inventado');
@@ -476,7 +502,8 @@ test('browser regression: redirects, simulation history and financial isolation'
     });
 
     await context.test('goal detail draws its path and the "¿y si…?" changes the arrival without saving', async () => {
-      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Auto inventado")).click()');
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button"))' +
+        '.find(button => button.textContent.includes("Auto inventado")).click()');
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail] svg[role=img]")');
       const reading = await testText('goal-reading');
       assert.ok(reading.includes(`Llegas en unos 22 meses (${arrival(22)})`) && reading.includes('te faltan S/ 722.99 al mes'), reading);
@@ -491,22 +518,26 @@ test('browser regression: redirects, simulation history and financial isolation'
       await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-detail] details summary").click()');
       await fill('goal-whatif-income', '10000');
       // C' = 24 % of 8,500 = 2,040; M' = ⌈20000 / 2040⌉ = 10.
-      await browser.waitFor('document.querySelector("[data-testid=goal-whatif-result]").textContent.includes("Ahorro de pareja: S/ 2,040.00 al mes (antes S/ 943.6824)")');
+      await browser.waitFor('document.querySelector("[data-testid=goal-whatif-result]").textContent' +
+        '.includes("Ahorro de pareja: S/ 2,040.00 al mes (antes S/ 943.6824)")');
       assert.ok((await testText('goal-whatif-result')).includes(`Llegarías en unos 10 meses (${arrival(10)})`));
       assert.equal(await browser.evaluate('document.querySelectorAll("dialog[open] [data-testid=goal-detail] svg polyline").length'), 2);
       await browser.evaluate('document.querySelector("dialog[open] [data-testid=goal-whatif-panel]").scrollIntoView({block:"center"})');
       await capture('25-meta-y-si-movil.png');
       await closeTop();
       // Nothing was saved: the card keeps its estimate and Historial has the same records.
-      assert.ok((await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id]")).find(item => item.textContent.includes("Auto")).textContent')).includes('22 meses'));
-      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Viaje inventado")).click()');
+      assert.ok((await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id]"))' +
+        '.find(item => item.textContent.includes("Auto")).textContent')).includes('22 meses'));
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button"))' +
+        '.find(button => button.textContent.includes("Viaje inventado")).click()');
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
       assert.ok((await browser.evaluate(`${topSheet()}.textContent`)).includes('Revisión 1.'));
       await browser.evaluate(`Array.from(${topSheet()}.querySelectorAll("button")).find(button => button.textContent === "Editar").click()`);
       await browser.waitFor('document.getElementById("goal-months")?.value === "6" && document.getElementById("goal-target").value === "1200"');
       await fill('goal-target', '1300'); await submitForm('Meta de ahorro');
       await browser.waitFor('!document.querySelector("dialog[open]") && document.querySelector("[role=status]")?.textContent === "Meta actualizada."');
-      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button")).find(button => button.textContent.includes("Viaje inventado")).click()');
+      await browser.evaluate('Array.from(document.querySelectorAll("[data-goal-id] button"))' +
+        '.find(button => button.textContent.includes("Viaje inventado")).click()');
       await browser.waitFor(`${topSheet()}?.textContent.includes("Revisión 2.") && ${topSheet()}.textContent.includes("S/ 1,300.00")`);
       await closeTop();
     });
@@ -514,7 +545,8 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Metas fits phone and desktop, leaves demo GF untouched and resets goals on reload', async () => {
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
-        const sizes = await browser.evaluate('({width:document.documentElement.clientWidth, document:document.documentElement.scrollWidth, main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
+        const sizes = await browser.evaluate('({width:document.documentElement.clientWidth, document:document.documentElement.scrollWidth, ' +
+          'main:document.querySelector("main").clientWidth, content:document.querySelector("main").scrollWidth})');
         assert.ok(sizes.document <= sizes.width && sizes.content <= sizes.main + 1, JSON.stringify(sizes));
         assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
       }
@@ -531,8 +563,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-goal-id]").length'), 0);
       assert.deepEqual(browser.exceptions, []);
     });
-    const clickText = async text => browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(text)}).click()`);
-    const select = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    const clickText = async text => browser.evaluate(`Array.from(document.querySelectorAll('button'))` +
+      `.find(button => button.textContent === ${JSON.stringify(text)}).click()`);
+    const select = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById(${JSON.stringify(id)}); ` +
+      `el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     const balance = () => testText('control-balance');
     const count = () => browser.evaluate('document.querySelectorAll("[data-ledger-id]").length');
     const enter = async ({amount = '100', kind = 'deposit', purpose = 'savings', date = '2043-07-10', plan = '2043-06', description = ''} = {}) => {
@@ -542,12 +576,17 @@ test('browser regression: redirects, simulation history and financial isolation'
       if (kind === 'deposit') await browser.evaluate(`document.getElementById('control-purpose-${purpose}').click()`);
       await fill('control-date', date); await fill('control-amount', amount);
       if (kind === 'deposit') await select('control-contribution-type', 'habitual');
-      if (kind === 'deposit' && purpose === 'savings') { await browser.evaluate('document.getElementById("control-assign-plan").click()'); await fill('control-plan', plan); }
+      if (kind === 'deposit' && purpose === 'savings') {
+        await browser.evaluate('document.getElementById("control-assign-plan").click()'); await fill('control-plan', plan);
+      }
       if (description) await fill('control-description', description);
       await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
     };
+    // "Por revisar" unfolds from the task strip.
+    const openTasks = () => browser.evaluate('document.querySelector("[data-testid=control-tasks] button[aria-expanded=false]")?.click()');
     const accept = async () => {
+      await openTasks();
       await browser.evaluate('document.querySelector("[data-review-id] button").click()');
       await browser.waitFor('!!document.getElementById("review-reference")');
       await fill('review-reference', 'Voucher inventado');
@@ -560,18 +599,18 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-selected-period', '2043-07');
       assert.equal(await count(), 0);
       await enter();
-      assert.ok((await balance()).includes('PEN 0.00') && (await balance()).includes('1 movimiento por revisar'));
+      assert.ok((await balance()).includes('S/ 0.00') && (await testText('control-tasks')).includes('Tienes 1 tarea: 1 por confirmar'));
       await accept();
-      assert.ok((await balance()).includes('PEN 100.00'));
-      const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr")).map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
+      assert.ok((await balance()).includes('S/ 100.00'));
+      const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr"))' +
+        '.map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
       assert.ok(rows.find(row => row.key === '2043-07').cells[2].includes('100.00'));
-      assert.ok(rows.find(row => row.key === '2043-07').cells[4].includes('100.00'));
-      assert.ok(rows.find(row => row.key === '2043-07').cells[3].includes('Plan: junio de 2043'));
+      assert.ok(rows.find(row => row.key === '2043-07').cells[3].includes('S/ 100.00 asignado (plan de junio)'));
       assert.equal(rows.some(row => row.key === '2043-06'), false, 'the original plan month is not an invented receipt month');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 0);
       await enter({ amount: '20', kind: 'withdrawal', description: 'Retiro inventado', date: '2043-07-12' });
       await accept();
-      assert.ok((await balance()).includes('PEN 80.00'));
+      assert.ok((await balance()).includes('S/ 80.00'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 1);
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=balance-chart] svg circle title").textContent')).includes('Retiro inventado'));
       // USD is recorded separately and never subtracted from the PEN balance.
@@ -581,7 +620,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-amount', '7.5'); await select('control-currency', 'USD');
       await fill('control-date', '2043-07-13'); await fill('control-description', 'Retiro USD inventado');
       await submitForm('Movimiento de Control'); await browser.waitFor('!document.querySelector("dialog[open]")'); await accept();
-      assert.ok((await balance()).includes('PEN 80.00') && (await balance()).includes('US$ 7.50'));
+      assert.ok((await balance()).includes('S/ 80.00') && (await balance()).includes('US$ 7.50'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -594,11 +633,12 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok(references.includes('Mes recibido') && references.includes('julio de 2043'));
       assert.ok(references.includes('Mes del plan asignado') && references.includes('junio de 2043'));
       await clickText('Editar'); await browser.waitFor('!!document.getElementById("control-amount")');
-      assert.equal(await browser.evaluate('!!document.getElementById("control-actor") || !!document.getElementById("control-operation") || !!document.getElementById("control-period")'), false);
+      assert.equal(await browser.evaluate('!!document.getElementById("control-actor") || !!document.getElementById("control-operation") ' +
+        '|| !!document.getElementById("control-period")'), false);
       await fill('control-amount', '150'); await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await balance()).includes('−PEN 20.00'));
-      await accept(); assert.ok((await balance()).includes('PEN 130.00'));
+      assert.ok((await balance()).includes('−S/ 20.00'));
+      await accept(); assert.ok((await balance()).includes('S/ 130.00'));
       await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
       await browser.evaluate('document.getElementById("control-purpose-savings").click()');
       await select('control-contribution-type', 'habitual');
@@ -609,37 +649,38 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await count(), 3);
       await fill('control-distinct', 'Otro depósito inventado con voucher distinto'); await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      await browser.evaluate('document.querySelector("[data-review-id] button").click()');
+      await openTasks(); await browser.evaluate('document.querySelector("[data-review-id] button").click()');
       await browser.waitFor('!!document.getElementById("review-rejected")');
       await browser.evaluate('document.getElementById("review-rejected").click()');
       await fill('review-reason', 'Registro inventado descartado'); await submitForm('Revisar movimiento');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.ok((await balance()).includes('PEN 130.00'));
+      assert.ok((await balance()).includes('S/ 130.00'));
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-review-id]").length'), 0);
     });
 
     await context.test('Control filters, responsive screens and form; state survives navigation and clears on reload', async () => {
       await clickText('Retiros'); assert.equal(await count(), 2);
       await clickText('Depósitos'); assert.equal(await count(), 2);
-      await clickText('Por revisar'); assert.equal(await count(), 0);
       await clickText('Todos'); assert.equal(await count(), 4);
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });
-        const fits = await browser.evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1');
+        const fits = await browser.evaluate('document.documentElement.scrollWidth <= innerWidth ' +
+          '&& document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1');
         assert.equal(fits, true, `Control fits ${width}`);
         await clickText('Registrar movimiento'); await browser.waitFor('!!document.getElementById("control-amount")');
-        assert.equal(await browser.evaluate('document.querySelector("dialog[open]").scrollWidth <= document.querySelector("dialog[open]").clientWidth + 1'), true);
+        assert.equal(await browser.evaluate('document.querySelector("dialog[open]").scrollWidth ' +
+          '<= document.querySelector("dialog[open]").clientWidth + 1'), true);
         assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("input,select")).filter(input => !input.labels?.length).length'), 0);
         await closeSheet();
       }
       await capture('30-control-fase4.png');
       await fill('control-selected-period', '2043-08'); assert.equal(await count(), 0);
       await fill('control-selected-period', '2043-07'); assert.equal(await count(), 4);
-      await clickLink('/fiorella', 'Resumen'); assert.doesNotMatch(await visibleText(), /Retiro inventado|PEN 130.00/);
+      await clickLink('/fiorella', 'Resumen'); assert.doesNotMatch(await visibleText(), /Retiro inventado|S\/ 130\.00/);
       await clickLink('/control', 'Control M&F'); assert.equal(await count(), 4);
       await browser.page('Page.reload');
       await browser.waitFor('!!document.querySelector("[data-testid=control-balance]") && !document.body.textContent.includes("Cargando")');
-      assert.equal(await count(), 0); assert.ok((await balance()).includes('PEN 0.00'));
+      assert.equal(await count(), 0); assert.ok((await balance()).includes('S/ 0.00'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -648,7 +689,8 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/fiorella', 'Resumen'); await clickLink('/fiorella/gastos', 'Gastos'); await clickText('Registrar gasto');
       await browser.waitFor('!!document.getElementById("gasto-tipo-fijo")');
       await browser.evaluate('document.getElementById("gasto-tipo-fijo").click()');
-      const labels = await browser.evaluate('Array.from(document.querySelectorAll("label[for^=gf-mode]")).map(el => ({text: el.textContent, height: el.clientHeight, line: parseFloat(getComputedStyle(el).lineHeight)}))');
+      const labels = await browser.evaluate('Array.from(document.querySelectorAll("label[for^=gf-mode]"))' +
+        '.map(el => ({text: el.textContent, height: el.clientHeight, line: parseFloat(getComputedStyle(el).lineHeight)}))');
       assert.deepEqual(labels.map(item => item.text), ['Sumar', 'Reemplazar']);
       assert.ok(labels.every(item => item.height < item.line * 3), JSON.stringify(labels));
       await closeSheet();
@@ -678,7 +720,9 @@ test('browser regression: redirects, simulation history and financial isolation'
       for (const opener of ['[aria-label="Reglas de Fiorella"]', '[data-testid=demo-mode]']) {
         await browser.evaluate(`(() => { const button = document.querySelector('${opener}'); button.focus(); button.click(); })()`);
         await browser.waitFor('!!document.querySelector("dialog[open]")');
-        if (opener.includes('Reglas')) assert.equal((await browser.evaluate('document.querySelector("dialog[open]").textContent')).match(/50% de variables/g).length, 2);
+        if (opener.includes('Reglas')) {
+          assert.equal((await browser.evaluate('document.querySelector("dialog[open]").textContent')).match(/50% de variables/g).length, 2);
+        }
         else assert.ok((await browser.evaluate('document.querySelector("dialog[open]").textContent')).includes('se borran al recargar'));
         await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
         await browser.waitFor('!document.querySelector("dialog[open]")');
@@ -697,8 +741,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       const header = await browser.evaluate(`(() => { const stamp = document.querySelector('[data-testid=build-stamp]').getBoundingClientRect();
         const badge = document.querySelector('[data-testid=demo-mode]').getBoundingClientRect(); const bar = document.querySelector('header > div');
         return { stamp: document.querySelector('[data-testid=build-stamp]').textContent, overlap: stamp.right > badge.left && stamp.bottom > badge.top,
-          fits: bar.scrollWidth <= bar.clientWidth && document.documentElement.scrollWidth <= document.documentElement.clientWidth, width: stamp.width }; })()`);
-      assert.ok(/Actualizado:/.test(header.stamp) && /Versión/.test(header.stamp) && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
+          fits: bar.scrollWidth <= bar.clientWidth && document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+          width: stamp.width }; })()`);
+      assert.ok(/^Actualizado (sin fecha|\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}) · \S+$/.test(header.stamp)
+        && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
       await capture('26-cabecera-320.png');
       assert.equal(await browser.evaluate('document.querySelectorAll("#login-email, #login-password").length'), 0);
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));

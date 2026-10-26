@@ -13,6 +13,10 @@ const MODULES = [
   { to: '/control', icon: Users, label: 'Control M&F', end: false },
 ];
 
+const linkClass = 'flex items-center gap-2 rounded-xl py-2 min-h-11 text-sm';
+const mobileNavClass = 'md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-secundario rounded-t-[28px] '
+  + 'shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-safe pt-2 px-6 flex justify-between items-center';
+
 export default function Layout() {
   const { pathname } = useLocation();
   useEffect(() => { window.scrollTo({ top: 0 }); }, [pathname]);
@@ -24,19 +28,21 @@ export default function Layout() {
           <div className="flex min-w-0 flex-col">
             <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11">
               <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
-            <span className="text-[10px] leading-tight tabular-nums text-texto" data-testid="build-stamp" title={versionLabel} aria-label={versionLabel}>
-              <time className="block" dateTime={BUILD_DETAILS?.dateTime}>Actualizado: {BUILD_DETAILS?.label ?? 'sin fecha disponible'}</time>
-              <span className="block" data-testid="commit-version">Versión {APP_VERSION}</span>
+            {/* One small line, e.g. "Actualizado 26/10/2026 09:37 · 4884fa2"; the full label is in title/aria-label. */}
+            <span className="whitespace-nowrap text-[10px] leading-tight tabular-nums text-texto" data-testid="build-stamp"
+              title={versionLabel} aria-label={versionLabel}>
+              Actualizado <time dateTime={BUILD_DETAILS?.dateTime}>{BUILD_DETAILS?.short ?? 'sin fecha'}</time>
+              {' · '}<span data-testid="commit-version">{APP_VERSION}</span>
             </span>
           </div>
           <nav aria-label="Módulos de MilFi" className="hidden md:flex items-center gap-1">
             {MODULES.map(item => <NavLink key={item.to} to={item.to} end={item.end}
-              className={({ isActive }) => `flex items-center gap-2 rounded-xl px-4 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
+              className={({ isActive }) => `${linkClass} px-4 ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
               <item.icon size={18} aria-hidden="true" />{item.label}</NavLink>)}
           </nav>
           <div className="flex items-center gap-1 sm:gap-2">
           <DemoBadge />
-          <NavLink to="/acceso" className={({ isActive }) => `flex items-center gap-2 rounded-xl px-3 py-2 min-h-11 text-sm ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
+          <NavLink to="/acceso" className={({ isActive }) => `${linkClass} px-3 ${isActive ? 'bg-principal font-bold' : 'hover:bg-white'}`}>
             <UserRound size={18} aria-hidden="true" />Acceso</NavLink>
           </div>
         </div>
@@ -49,11 +55,12 @@ export default function Layout() {
       </main>
 
 
-      <nav aria-label="Módulos de MilFi (móvil)" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur-md border-t border-secundario rounded-t-[28px] shadow-[0_-8px_30px_rgba(0,0,0,0.04)] pb-safe pt-2 px-6 flex justify-between items-center">
+      <nav aria-label="Módulos de MilFi (móvil)" className={mobileNavClass}>
         {MODULES.map(item => (
           <NavLink key={item.to} to={item.to} end={item.end} className="flex-1 flex justify-center">
             {({ isActive }) => (
-              <div className={`flex flex-col items-center justify-center w-20 h-14 rounded-2xl transition-colors ${isActive ? 'bg-principal text-texto font-bold' : 'text-texto-light'}`}>
+              <div className={`flex flex-col items-center justify-center w-20 h-14 rounded-2xl transition-colors
+                ${isActive ? 'bg-principal text-texto font-bold' : 'text-texto-light'}`}>
                 <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} aria-hidden="true" />
                 <span className="text-[11px] mt-0.5">{item.label}</span>
               </div>

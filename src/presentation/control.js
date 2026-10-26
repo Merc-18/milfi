@@ -1,3 +1,4 @@
+import { formatMoney, isAmountText } from './format.js';
 export const controlFieldClass = 'w-full min-w-0 min-h-11 rounded-xl border border-secundario bg-white px-3 py-3 text-base';
 export const controlButtonClass = 'min-h-11 rounded-xl bg-principal px-4 py-3 font-bold disabled:opacity-50';
 export const controlCardClass = 'min-w-0 rounded-[24px] bg-white p-5 shadow-soft space-y-3';
@@ -6,14 +7,14 @@ export const purposeName = purpose => ({ expenses: 'Gastos', savings: 'Ahorro' }
 // Review states as palette tones; the label always states the state in words.
 export const statusTone = status => ({ pending: 'aviso', invalid: 'aviso', rejected: 'excedido' }[status] ?? 'neutral');
 export const kindName = kind => kind === 'deposit' ? 'Depósito' : 'Retiro';
-export const statusName = status => ({ reviewed: 'Revisado', imported: 'Cargado del Excel', pending: 'Por revisar', rejected: 'Rechazado', invalid: 'Inválido' }[status]
+export const statusName = status => ({ reviewed: 'Revisado', imported: 'Cargado del Excel', pending: 'Por revisar', rejected: 'Rechazado',
+  invalid: 'Inválido' }[status]
   ?? 'Por revisar');
 
 // Currency is always explicit. Preserve every decimal digit, without Number/rounding.
 export function controlMoney(amount, currency) {
-  if (!currency || typeof amount !== 'string' || !/^\d+(\.\d+)?$/.test(amount)) return 'Importe o moneda pendiente';
-  const [integer, fraction = ''] = amount.split('.');
-  return `${currency} ${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction.padEnd(2, '0')}`;
+  if (!currency || !isAmountText(amount)) return 'Importe o moneda pendiente';
+  return formatMoney(amount, currency);
 }
 
 export const currencyOriginWarning = record => record.provenance?.type === 'control-excel' && record.currency === 'PEN'

@@ -27,10 +27,13 @@ export function BulletTrack({ budget, actual, tone = 'neutral', className = 'h-4
 export default function BulletBars({ items, label, onSelect }) {
   return <figure className="space-y-1">
     <figcaption className="sr-only">{label}</figcaption>
-    <table className="sr-only">
-      <thead><tr><th scope="col">Grupo</th><th scope="col">Gastado</th><th scope="col">Presupuesto</th></tr></thead>
-      <tbody>{items.map(item => <tr key={item.key}><th scope="row">{item.label}</th><td>{money(item.actual)}</td><td>{money(item.budget)}</td></tr>)}</tbody>
-    </table>
+    {/* Wrapped: an sr-only table can still widen the page on some engines. */}
+    <div className="sr-only">
+      <table>
+        <thead><tr><th scope="col">Grupo</th><th scope="col">Gastado</th><th scope="col">Presupuesto</th></tr></thead>
+        <tbody>{items.map(item => <tr key={item.key}><th scope="row">{item.label}</th><td>{money(item.actual)}</td><td>{money(item.budget)}</td></tr>)}</tbody>
+      </table>
+    </div>
     {items.map(item => {
       const Row = onSelect ? 'button' : 'div';
       return <Row key={item.key} {...(onSelect ? { type: 'button', onClick: () => onSelect(item.key) } : { 'aria-hidden': true })}

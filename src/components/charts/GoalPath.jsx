@@ -52,15 +52,18 @@ export default function GoalPath({ target, capacity, months, termMonths, alterna
       {termMonths && <li className="flex items-center gap-1.5">
         <span className="w-5 border-t-2 border-dashed border-excedido/60" />Plazo: {monthsText(termMonths)}</li>}
     </ul>
-    <table className="sr-only">
-      <caption>Ahorro de pareja acumulado proyectado por mes</caption>
-      <thead><tr><th scope="col">Mes desde hoy</th><th scope="col">Con tu plan</th>{alternative?.months && <th scope="col">Con el «¿y si…?»</th>}</tr></thead>
-      <tbody>{milestones.map(month => <tr key={month}>
-        <th scope="row">Mes {month}{month === termMonths ? ', plazo' : ''}{month === months ? `, llegada (${monthLabel(months)})` : ''}
-          {month === alternative?.months ? `, llegada con el «¿y si…?» (${monthLabel(month)})` : ''}</th>
-        <td>{capacity ? formatAmount(times(capacity, month)) : 'Sin estimación'}</td>
-        {alternative?.months && <td>{formatAmount(times(alternative.capacity, month))}</td>}
-      </tr>)}</tbody>
-    </table>
+    {/* Wrapped: an sr-only table can still widen the page on some engines. */}
+    <div className="sr-only">
+      <table>
+        <caption>Ahorro de pareja acumulado proyectado por mes</caption>
+        <thead><tr><th scope="col">Mes desde hoy</th><th scope="col">Con tu plan</th>{alternative?.months && <th scope="col">Con el «¿y si…?»</th>}</tr></thead>
+        <tbody>{milestones.map(month => <tr key={month}>
+          <th scope="row">Mes {month}{month === termMonths ? ', plazo' : ''}{month === months ? `, llegada (${monthLabel(months)})` : ''}
+            {month === alternative?.months ? `, llegada con el «¿y si…?» (${monthLabel(month)})` : ''}</th>
+          <td>{capacity ? formatAmount(times(capacity, month)) : 'Sin estimación'}</td>
+          {alternative?.months && <td>{formatAmount(times(alternative.capacity, month))}</td>}
+        </tr>)}</tbody>
+      </table>
+    </div>
   </figure>;
 }

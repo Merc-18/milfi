@@ -29,7 +29,8 @@ test('GF category coverage preserves null, zero, exact decimals and incomplete c
   assert.deepEqual(budgetGroups(equal).at(-1).comparison, { status: 'equal', amount: '0' });
   equal.fixed.find(record => record.categoryId === 'otros-otros').actualAmount = '1.005';
   assert.deepEqual(budgetGroups(equal).at(-1).comparison, { status: 'over', amount: '1.005' });
-  assert.ok(budgetGroups(summarizeFiorella([], { year: 2038, month: 6 }, 'real')).every(group => !group.complete && group.actual === null && group.budget === null));
+  assert.ok(budgetGroups(summarizeFiorella([], { year: 2038, month: 6 }, 'real'))
+    .every(group => !group.complete && group.actual === null && group.budget === null));
 });
 
 test('GF fixed view renders 5 groups and 19 rows with inline editors; open groups need attention; Milton only reads', async () => {
@@ -49,7 +50,7 @@ test('GF fixed view renders 5 groups and 19 rows with inline editors; open group
     assert.doesNotMatch(html, /<form|<progress|>Ayuda</);
     assert.ok(html.includes('data-testid="budget-totals"') && html.includes('Reservado para gastos fijos') && html.includes('Presupuesto detallado'));
     assert.ok(html.includes('Sin registrar') && html.includes('Cobertura parcial'));
-    assert.ok(html.includes('<table class="sr-only">'), 'the bullet chart has an equivalent table');
+    assert.ok(html.includes('<div class="sr-only"><table>'), 'the bullet chart has an equivalent table');
     const read = render('read');
     assert.equal((read.match(/data-budget-id=/g) ?? []).length, 19);
     assert.doesNotMatch(read, /aria-label="Editar |<form|Copiar presupuestos/);

@@ -1,28 +1,32 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { balanceSeries, coveredSavings, monthlyRows, planLight, reviewQueue, reviewReasons, savingsBalance } from '../src/presentation/controlLedgerView.js';
+import { balanceSeries, coveredSavings, monthlyRows, planLight, reviewReasons, reviewTasks, savingsBalance } from '../src/presentation/controlLedgerView.js';
 
 // Invented entries (record + ledger status), as inspectLedger returns them.
 let sequence = 0;
-const entry = (fields, status = 'reviewed', pendingReasons = []) => ({ status, pendingReasons, record: { id: `m${++sequence}`, kind: 'deposit', purpose: 'savings',
-  currency: 'PEN', contributorId: 'fiorella', amount: '100', period: { year: 2030, month: 11 }, effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
+const entry = (fields, status = 'reviewed', pendingReasons = []) => ({ status, pendingReasons, record: { id: `m${++sequence}`,
+  kind: 'deposit', purpose: 'savings', currency: 'PEN', contributorId: 'fiorella', amount: '100', period: { year: 2030, month: 11 },
+  effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
 const nov = { year: 2030, month: 11 };
 const dec = { year: 2030, month: 12 };
 const jan = { year: 2031, month: 1 };
 
-test('saldo de ahorro = Σ savings deposits PEN − Σ withdrawals PEN; dollars apart; pending excluded and counted', () => {
+test('saldo de ahorro = Σ savings deposits PEN − Σ withdrawals PEN; dollars apart; pending excluded', () => {
   const entries = [entry({ amount: '300' }), entry({ amount: '50.5', status: 'imported' }, 'imported'),
-    entry({ kind: 'withdrawal', amount: '120', effectiveDate: '2030-11-20' }), entry({ kind: 'withdrawal', currency: 'USD', amount: '30', effectiveDate: '2030-11-21' }),
+    entry({ kind: 'withdrawal', amount: '120', effectiveDate: '2030-11-20' }),
+    entry({ kind: 'withdrawal', currency: 'USD', amount: '30', effectiveDate: '2030-11-21' }),
     entry({ amount: '999' }, 'pending', ['UNRESOLVED_MONEY']), entry({ purpose: 'expenses', amount: '400' }), entry({ amount: '1' }, 'rejected')];
   const balance = savingsBalance(entries);
-  assert.deepEqual([balance.negative, balance.amount, balance.deposits, balance.withdrawals, balance.usdWithdrawn, balance.pending],
-    [false, '230.5', '350.5', '120', '30', 1]);
+  assert.deepEqual([balance.negative, balance.amount, balance.deposits, balance.withdrawals, balance.usdWithdrawn],
+    [false, '230.5', '350.5', '120', '30']);
+  assert.equal(reviewTasks(entries).toConfirm.length, 1, 'the pending movement is a task, not a balance field');
   assert.deepEqual(savingsBalance([entry({ kind: 'withdrawal', amount: '10' })]).negative, true);
   assert.equal(savingsBalance([entry({})]).usdWithdrawn, null);
 });
 
 test('balance steps: deposits raise, PEN withdrawals lower, USD never moves it, pending excluded, across the year', () => {
-  const entries = [entry({ amount: '200', period: nov }), entry({ kind: 'withdrawal', amount: '50', period: null, effectiveDate: '2030-12-05', description: 'Retiro inventado' }),
+  const entries = [entry({ amount: '200', period: nov }),
+    entry({ kind: 'withdrawal', amount: '50', period: null, effectiveDate: '2030-12-05', description: 'Retiro inventado' }),
     entry({ kind: 'withdrawal', currency: 'USD', amount: '20', period: null, effectiveDate: '2030-12-06' }), entry({ amount: '80', period: jan }),
     entry({ amount: '500', period: dec }, 'pending', ['IMPORT_REVIEW_REQUIRED'])];
   const series = balanceSeries(entries, { year: 2031, month: 2 });
@@ -48,8 +52,10 @@ test('semáforo del plan: completo, parcial, pendiente y sin plan; deposits of s
 });
 
 test('reasons in plain language, with suggestions to confirm and the inverted-date warning', () => {
-  const excel = (fields, original) => entry({ provenance: { type: 'control-excel', sheet: 'Hoja', row: fields.row ?? 1, original }, ...fields }, 'pending', fields.reasons ?? []);
-  const dollar = excel({ kind: 'withdrawal', amount: null, currency: null, period: null, effectiveDate: '2031-02-15', reasons: ['UNRESOLVED_MONEY', 'MISSING_CONFIRMED_PERIOD'] },
+  const excel = (fields, original) => entry({ provenance: { type: 'control-excel', sheet: 'Hoja', row: fields.row ?? 1, original }, ...fields },
+    'pending', fields.reasons ?? []);
+  const dollar = excel({ kind: 'withdrawal', amount: null, currency: null, period: null, effectiveDate: '2031-02-15',
+    reasons: ['UNRESOLVED_MONEY', 'MISSING_CONFIRMED_PERIOD'] },
     { amount: '$7.5', date: '15/02/2031' });
   assert.deepEqual(reviewReasons(dollar), { reasons: ['El monto está en dólares: confirma el importe en US$', 'Falta el mes del retiro'],
     suggestion: { amount: '7.5', currency: 'USD', period: { year: 2031, month: 2 } } });
@@ -62,9 +68,12 @@ test('reasons in plain language, with suggestions to confirm and the inverted-da
     excel({ kind: 'withdrawal', row: 2, effectiveDate: '2031-03-05' }, { date: '47182' }),
     excel({ kind: 'withdrawal', row: 3, effectiveDate: '2031-02-20' }, { date: '47169' })];
   assert.deepEqual(rows.map(item => reviewReasons(item, rows).reasons.includes('La fecha puede tener día y mes invertidos')), [false, true, false]);
-  assert.equal(reviewQueue([...rows, noPlan, entry({ planPeriod: nov })]).length, 4);
+  const withPlan = reviewTasks([...rows, noPlan, entry({ planPeriod: nov })], new Map([['2030-10', '90']]));
+  assert.deepEqual([withPlan.total, withPlan.toConfirm.length, withPlan.withoutPlan.length, withPlan.noPlan.length], [4, 3, 1, 0]);
   const reviewedWarning = { ...rows[1], status: 'reviewed' };
-  assert.equal(reviewQueue([rows[0], reviewedWarning, rows[2]]).some(item => item.entry === reviewedWarning), false, 'the inverted date is only a notice');
+  const warned = reviewTasks([rows[0], reviewedWarning, rows[2]]);
+  assert.equal([...warned.toConfirm, ...warned.withoutPlan, ...warned.noPlan].some(item => item.entry === reviewedWarning), false,
+    'the inverted date is only a notice');
 });
 
 test('monthly columns include plan-only months and Gastos (Milton) excludes other contributors', () => {

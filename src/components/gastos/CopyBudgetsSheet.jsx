@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { applyBudgetCopy } from '../../presentation/budgetCopy.js';
 import { displayName } from '../../presentation/categoryLabels.js';
 import { sessionResultMessage, usePersisted } from '../../presentation/fiorellaSession.js';
-import { formatAmount, formatPeriod } from '../../presentation/format.js';
+import { formatAmount, formatPeriod, plural } from '../../presentation/format.js';
 import { noticeClass } from '../../presentation/tones.js';
 import { FIXED_CATEGORIES } from '../../domain/fiorellaCategories.js';
 import { useStore } from '../../store/useStore.js';
@@ -26,7 +26,7 @@ function CopyPreview({ plan: live, period, onClose }) {
     setSaving(false);
   };
   if (result) return <div className="space-y-3" data-testid="copy-result">
-    <p role="status" className="text-sm font-bold">Se guardaron {result.saved.length} de {items.length} presupuestos.</p>
+    <p role="status" className="text-sm font-bold">Guardados: {result.saved.length} de {plural(items.length, 'presupuesto')}.</p>
     {!!result.failed.length && <div role="alert" className={noticeClass()}>
       <p className="font-bold">No se guardaron:</p>
       <ul>{result.failed.map(item => <li key={item.category.id}>{displayName(item.category)}: {sessionResultMessage(item.result, persisted)}</li>)}</ul>
@@ -44,7 +44,7 @@ function CopyPreview({ plan: live, period, onClose }) {
     <p className={`${rowClass} font-bold`}><span>Total</span><span className="tabular-nums">{formatAmount(plan.total)}</span></p>
     <div className="flex flex-wrap gap-3">
       <button type="button" className={buttonClass} onClick={copy} disabled={saving} data-autofocus>
-        {saving ? 'Guardando…' : `Copiar ${items.length} presupuesto${items.length === 1 ? '' : 's'}`}</button>
+        {saving ? 'Guardando…' : `Copiar ${plural(items.length, 'presupuesto')}`}</button>
       <button type="button" className="min-h-11 px-3 underline text-sm" onClick={onClose} disabled={saving}>Cancelar</button>
     </div>
   </div>;

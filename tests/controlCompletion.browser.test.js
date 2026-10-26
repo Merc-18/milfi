@@ -18,9 +18,11 @@ function record(fields, pending = false) {
   assert.equal(prepared.ok, true, JSON.stringify(prepared.errors));
   const saved = { ...prepared.value, revision: 1 };
   if (pending) return saved;
-  const reviewed = prepareControlEntryReview({ id: saved.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton', reason: 'Prueba', evidenceReference: 'Inventado' }, [saved]);
+  const reviewed = prepareControlEntryReview({ id: saved.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton', reason: 'Prueba',
+    evidenceReference: 'Inventado' }, [saved]);
   assert.equal(reviewed.ok, true, JSON.stringify(reviewed.errors));
-  return { ...saved, manualReviews: [{ ...reviewed.review, id: crypto.randomUUID(), reviewedBy: 'milton', reviewedAt: '2031-02-20T00:00:00.000Z', evidenceReference: 'Inventado' }] };
+  return { ...saved, manualReviews: [{ ...reviewed.review, id: crypto.randomUUID(), reviewedBy: 'milton', reviewedAt: '2031-02-20T00:00:00.000Z',
+    evidenceReference: 'Inventado' }] };
 }
 
 test('Control completion in browser: currency balances, charts and contribution history only', { timeout: 60000 }, async context => {
@@ -41,7 +43,8 @@ test('Control completion in browser: currency balances, charts and contribution 
     await browser.page('Page.navigate', { url: `http://127.0.0.1:${server.httpServer.address().port}/tests/harness/persisted.html` });
     await browser.waitFor('typeof window.mountMilfi === "function"');
     const mount = async identity => {
-      await browser.evaluate(`window.mountMilfi(${JSON.stringify({ fixture, identity, access: APPROVED_ACCESS[identity], path: '/control', period: '2031-02' })})`);
+      const mountOptions = { fixture, identity, access: APPROVED_ACCESS[identity], path: '/control', period: '2031-02' };
+      await browser.evaluate(`window.mountMilfi(${JSON.stringify(mountOptions)})`);
       await browser.waitFor('!!document.querySelector("[data-testid=control-contributions]") && !document.body.textContent.includes("Cargando")');
     };
     await mount('milton');
@@ -53,31 +56,34 @@ test('Control completion in browser: currency balances, charts and contribution 
         monthly: document.querySelector('[data-testid=control-monthly] [data-month="2031-02"]').textContent,
         penPoints: document.querySelectorAll('[data-currency-chart=PEN] svg circle').length,
         usdPoints: document.querySelectorAll('[data-currency-chart=USD] svg circle').length })`);
-      assert.ok(view.balance.includes('PEN 90.15') && view.balance.includes('USD 25.30'));
-      assert.ok(view.pen.includes('PEN 90.15') && !view.pen.includes('USD'));
-      assert.ok(view.usd.includes('USD 25.30') && !view.usd.includes('PEN'));
+      assert.ok(view.balance.includes('S/ 90.15') && view.balance.includes('US$ 25.30'));
+      assert.ok(view.pen.includes('S/ 90.15') && !view.pen.includes('USD'));
+      assert.ok(view.usd.includes('US$ 25.30') && !view.usd.includes('PEN'));
       assert.deepEqual([view.penPoints, view.usdPoints], [1, 1]);
-      assert.ok(view.monthly.includes('PEN 70.25') && view.monthly.includes('USD 30.40'));
+      assert.ok(view.monthly.includes('S/ 70.25') && view.monthly.includes('US$ 30.40'));
       assert.doesNotMatch(view.balance, /900\.00|115\.45/);
     });
     await context.test('history separates contributors, currencies and destinations and retains cumulative monthly deposits', async () => {
-      const groups = await browser.evaluate(`Array.from(document.querySelectorAll('[data-contribution-group]')).map(el => ({ key: el.dataset.contributionGroup, text: el.textContent }))`);
+      const groups = await browser.evaluate(`Array.from(document.querySelectorAll('[data-contribution-group]'))` +
+        `.map(el => ({ key: el.dataset.contributionGroup, text: el.textContent }))`);
       assert.equal(groups.length, 4);
       const fiorella = groups.find(group => group.key === 'fiorella:PEN:savings').text;
-      assert.ok(fiorella.includes('PEN 100.25') && fiorella.includes('PEN 70.25'));
+      assert.ok(fiorella.includes('S/ 100.25') && fiorella.includes('S/ 70.25'));
       assert.doesNotMatch(fiorella, /90\.15|900\.00/);
-      assert.ok(groups.find(group => group.key === 'fiorella:USD:savings').text.includes('USD 30.40'));
-      assert.ok(groups.find(group => group.key === 'milton:PEN:expenses').text.includes('PEN 12.00'));
-      assert.ok(groups.find(group => group.key === 'milton:USD:expenses').text.includes('USD 7.00'));
+      assert.ok(groups.find(group => group.key === 'fiorella:USD:savings').text.includes('US$ 30.40'));
+      assert.ok(groups.find(group => group.key === 'milton:PEN:expenses').text.includes('S/ 12.00'));
+      assert.ok(groups.find(group => group.key === 'milton:USD:expenses').text.includes('US$ 7.00'));
       for (const width of [360, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
-        assert.equal(await browser.evaluate('document.documentElement.scrollWidth <= innerWidth && document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1'), true);
+        assert.equal(await browser.evaluate('document.documentElement.scrollWidth <= innerWidth ' +
+          '&& document.querySelector("main").scrollWidth <= document.querySelector("main").clientWidth + 1'), true);
       }
     });
     await context.test('Fiorella can read the same history without write actions', async () => {
       await mount('fiorella');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-contribution-group]").length'), 4);
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Registrar movimiento")'), false);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button"))' +
+        '.some(button => button.textContent === "Registrar movimiento")'), false);
       assert.deepEqual(browser.exceptions, []);
     });
   } finally {

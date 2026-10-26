@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { balanceSeries, coveredSavings, monthlyRows, planLight, previousPlanPeriod, reviewQueue, savingsBalance } from '../src/presentation/controlLedgerView.js';
+import {
+  balanceSeries, coveredSavings, monthlyRows, planLight, previousPlanPeriod, reviewTasks, savingsBalance,
+} from '../src/presentation/controlLedgerView.js';
 import { inspectLedger, prepareControlEntry, summarizeLedger } from '../src/domain/controlLedger.js';
 import { fiorellaEvolution } from '../src/domain/fiorellaDashboard.js';
 import { fiorellaHistory, prepareFiorellaDemo, summarizeFiorella } from '../src/domain/fiorellaSession.js';
@@ -78,7 +80,8 @@ test('4. Matching unassigned deposits remain unassigned and pending even when th
   const entries = freeze([entry()]);
   const row = rowFor(entries, plans());
   assert.deepEqual([row.plan, row.covered, row.light.word], ['500', null, 'Pendiente']);
-  assert.equal(reviewQueue(entries).length, 1);
+  const tasks = reviewTasks(entries, plans());
+  assert.deepEqual([tasks.total, tasks.withoutPlan[0].plan.exact], [1, true], 'suggested, never assigned by itself');
   assert.equal(entries[0].record.planPeriod, null);
 });
 

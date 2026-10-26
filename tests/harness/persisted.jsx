@@ -14,8 +14,12 @@ import { usePeriodStore } from '../../src/store/periodStore.js';
 let root = null;
 window.mountMilfi = async ({ fixture, identity, access, path, period }) => {
   root?.unmount();
-  const control = createMemoryControlPersistence({ householdId: fixture.householdId, actor: identity, initialRecords: fixture.control.records, initialCommitments: fixture.control.commitments ?? [] });
-  const persistence = { ...control, householdId: fixture.householdId,
+  const control = createMemoryControlPersistence({ householdId: fixture.householdId, actor: identity,
+    initialRecords: fixture.control.records, initialCommitments: fixture.control.commitments ?? [] });
+  // window.failControlSaves (ids) makes those writes fail, to test partial failures.
+  const saveControlEntry = async (record, previous) => window.failControlSaves?.includes(record.id)
+    ? { ok: false, errors: ['STALE_REVISION'] } : control.saveControlEntry(record, previous);
+  const persistence = { ...control, saveControlEntry, householdId: fixture.householdId,
     loadFiorella: async () => structuredClone(fixture.fiorella), loadFiorellaHistory: async () => ({ ok: true, events: [] }),
     loadControl: control.loadControl, loadControlHistory: control.loadControlHistory };
   usePeriodStore.getState().selectPeriod(period);
@@ -26,6 +30,7 @@ window.mountMilfi = async ({ fixture, identity, access, path, period }) => {
   await new Promise(resolve => setTimeout(resolve, 50));
   await useStore.getState().connectRemote(persistence);
   await useLedgerStore.getState().connect(persistence, identity);
-  window.controlSnapshot = async () => ({ householdId: fixture.householdId, fiorella: structuredClone(fixture.fiorella), control: await control.loadControl() });
+  window.controlSnapshot = async () => ({ householdId: fixture.householdId, fiorella: structuredClone(fixture.fiorella),
+    control: await control.loadControl() });
   return true;
 };

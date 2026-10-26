@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { controlReviewBinding, inspectControlSession, possibleControlDuplicates, prepareControlDemo, prepareControlReview, summarizeControlDemo } from '../src/domain/controlSession.js';
+import {
+  controlReviewBinding, inspectControlSession, possibleControlDuplicates, prepareControlDemo, prepareControlReview, summarizeControlDemo,
+} from '../src/domain/controlSession.js';
 import { inspectMovement, partitionMovements } from '../src/domain/models.js';
 import { sumConfirmedMovements } from '../src/domain/movementTotals.js';
 import { createControlStore } from '../src/store/controlStore.js';
@@ -13,7 +15,8 @@ import { createPeriodStore } from '../src/store/periodStore.js';
 const period = { year: 2042, month: 6 };
 const input = (changes = {}) => ({ id: 'invented-1', operationId: 'operation-1', sessionId: 'invented-session', eventId: 'event-1', expectedRevision: 0,
   occurredAt: '2042-06-12T10:00:00.000Z', kind: 'deposit', effectiveDate: '2042-06-10', period, currency: 'PEN', amount: '12.30',
-  contributorId: 'fiorella', purpose: 'expenses', actorId: 'milton', description: 'Operación enteramente inventada', provenanceNote: 'Referencia ficticia uno', ...changes });
+  contributorId: 'fiorella', purpose: 'expenses', actorId: 'milton', description: 'Operación enteramente inventada',
+  provenanceNote: 'Referencia ficticia uno', ...changes });
 const create = changes => prepareControlDemo(input(changes)).value;
 const reviewInput = (record, changes = {}) => ({ id: record.id, expectedRevision: record.revision, eventId: 'review-event', reviewId: 'review-1',
   occurredAt: '2042-06-12T11:00:00.000Z', reviewedBy: 'milton', reason: 'Revisión explícita de todos los datos ficticios',
@@ -131,7 +134,8 @@ test('Control: explicit rejection is traced and excluded from reviewed totals', 
 
 test('Control: editing invalidates old review, preserves originals and requires another explicit review', () => {
   const original = accept(create());
-  const result = prepareControlDemo(input({ expectedRevision: original.revision, amount: '20', eventId: 'edit', occurredAt: '2042-06-12T12:00:00.000Z' }), [original]);
+  const result = prepareControlDemo(input({ expectedRevision: original.revision, amount: '20', eventId: 'edit',
+    occurredAt: '2042-06-12T12:00:00.000Z' }), [original]);
   assert.equal(result.ok, true); assert.equal(result.value.id, original.id);
   assert.equal(result.value.provenance.original.amount, '12.30'); assert.equal(result.value.amount, '20');
   assert.equal(result.event.before.amount, '12.3'); assert.equal(result.event.after.amount, '20');
@@ -248,7 +252,8 @@ test('Control: distinct deposits in two columns of a row remain separate and use
   b.provenance.operation.amountRef = 'D5'; b.provenance.cells.amount = 'D5'; b.provenance.evidence.amount = [ref('D5')];
   b.provenance.original.contributorId = 'milton'; b.provenance.cells.contributorId = 'D4'; b.provenance.evidence.contributorId = [ref('D4')];
   sheet.cells.D5 = { type: 'number', value: a.provenance.original.amount };
-  sheet.operations.D5 = structuredClone(sheet.operations.C5); sheet.operations.D5.fields.amount = [ref('D5')]; sheet.operations.D5.fields.contributorId = [ref('D4')];
+  sheet.operations.D5 = structuredClone(sheet.operations.C5);
+  sheet.operations.D5.fields.amount = [ref('D5')]; sheet.operations.D5.fields.contributorId = [ref('D4')];
   assert.ok(inspectControlSession([a, b], context).every(entry => !entry.errors.length && !entry.pendingReasons.length));
 });
 
@@ -293,7 +298,7 @@ test('Control: malformed commands and reviews fail safely without throwing', () 
 });
 
 test('Control: presentation preserves explicit currency and exact decimals without inventing zero totals', () => {
-  assert.equal(controlMoney('0.1', 'USD'), 'USD 0.10'); assert.equal(controlMoney('1234.567', 'PEN'), 'PEN 1,234.567');
+  assert.equal(controlMoney('0.1', 'USD'), 'US$ 0.10'); assert.equal(controlMoney('1234.567', 'PEN'), 'S/ 1,234.567');
   assert.equal(controlMoney('12', null), 'Importe o moneda pendiente');
   assert.deepEqual(summary([]).groups, []);
 });

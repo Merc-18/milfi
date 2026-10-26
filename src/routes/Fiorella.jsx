@@ -7,10 +7,10 @@ import { Link } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
-import { formatAmount, formatShortPeriod } from '../presentation/format.js';
+import { currentPeriodInput, formatAmount, formatShortPeriod, parsePeriodInput, plural } from '../presentation/format.js';
 import { controlMoney } from '../presentation/control.js';
 import { MISSING, MISSING_READ, remainingToSpend, USAGE_TEXT, usageBadge } from '../presentation/status.js';
-import { coveredSavings, planLight } from '../presentation/controlLedgerView.js';
+import { coupleSavingsLight, coveredSavings } from '../presentation/controlLedgerView.js';
 import { addAmounts, compareAmounts } from '../domain/amounts.js';
 import { inspectLedger } from '../domain/controlLedger.js';
 import { fiorellaEvolution, summarizeExpenses } from '../domain/fiorellaDashboard.js';
@@ -28,7 +28,8 @@ import { cardClass, PageHeader, SessionNotice } from '../components/FiorellaSess
 const sectionClass = `${cardClass} space-y-3`;
 const actionClass = 'inline-flex items-center gap-2 rounded-xl bg-texto text-white font-bold px-4 py-3 min-h-11';
 const quietButtonClass = 'inline-flex items-center gap-2 rounded-xl bg-white shadow-soft font-bold px-3 py-2 min-h-11 text-sm hover:bg-principal/60';
-const SEGMENTS = [['fixed', 'Gastos fijos', 'fill-principal', 'bg-principal'], ['variable', 'Gastos variables', 'fill-acento', 'bg-acento'], ['savings', 'Ahorro', 'fill-exito', 'bg-exito']];
+const SEGMENTS = [['fixed', 'Gastos fijos', 'fill-principal', 'bg-principal'], ['variable', 'Gastos variables', 'fill-acento', 'bg-acento'],
+  ['savings', 'Ahorro', 'fill-exito', 'bg-exito']];
 
 // Empty state: what is missing, as a direct action (only for who can act).
 function MissingAction({ status, manage, onEdit }) {
@@ -86,7 +87,8 @@ function DistributionChart({ summary, remaining, deposited, manage, onEdit }) {
           <dd className="tabular-nums break-all">Real {id === 'savings' && deposited == null ? 'sin depósitos' : formatAmount(real[id])}</dd>
         </div>)}
       </dl>} />}
-    {calculated && <p className="text-xs text-texto-light">Real: gastado hasta hoy y ahorro asignado a este mes en Control (PEN). Lo no usado queda en blanco.</p>}
+    {calculated && <p className="text-xs text-texto-light">
+      Real: gastado hasta hoy y ahorro asignado a este mes en Control (PEN). Lo no usado queda en blanco.</p>}
     <Sheet open={detail} onClose={() => setDetail(false)} title="Distribución del mes">
       {distribution && <DistributionDetails distribution={distribution} />}
     </Sheet>
@@ -119,7 +121,8 @@ function RecentExpenses({ records }) {
     {!recent.length ? <p className="text-sm text-texto-light">Sin gastos este mes.</p> : <ul className="divide-y divide-secundario/60 text-sm">
       {recent.map(record => <li key={record.id} className="flex justify-between gap-3 py-2">
         <span className="min-w-0"><span className="block truncate">{record.description}</span>
-          <span className="text-xs text-texto-light">{record.effectiveDate.slice(8)}/{record.effectiveDate.slice(5, 7)} · {record.categoryId === 'salud' ? 'Salud' : 'Ocio'}{record.subcategory ? ` / ${record.subcategory}` : ''}</span></span>
+          <span className="text-xs text-texto-light">{record.effectiveDate.slice(8)}/{record.effectiveDate.slice(5, 7)}
+            {' · '}{record.categoryId === 'salud' ? 'Salud' : 'Ocio'}{record.subcategory ? ` / ${record.subcategory}` : ''}</span></span>
         <span className="font-bold shrink-0">{formatAmount(record.amount)}</span></li>)}
     </ul>}
   </section>;
@@ -144,7 +147,7 @@ export default function Fiorella() {
   const fixedSpent = summary.actual.amount ?? '0';
   const variableSpent = expenses.variable.amount ?? '0';
   const budgetAboveApplied = applied !== null && summary.budget.amount !== null && compareAmounts(summary.budget.amount, applied) > 0;
-  const savings = planLight(deposited, distribution?.savings.couple ?? null);
+  const savings = coupleSavingsLight(deposited, distribution?.savings.couple ?? null, period, parsePeriodInput(currentPeriodInput()));
   const edit = () => setEditing(true);
   return <div className="pb-10 space-y-4">
     <PageHeader title="Resumen"><PeriodPicker /></PageHeader>
@@ -157,15 +160,17 @@ export default function Fiorella() {
       </div>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 content-start min-w-0">
         <StatLink lit to="/fiorella/gastos?tipo=fijos" testId="fixed-stat" title="Gastos fijos" value={formatAmount(fixedSpent)}
-          detail={applied === null ? 'Sin GF aplicado' : `de ${formatAmount(applied)} aplicado · ${summary.actual.registered}/${summary.actual.expected} con gasto`}
+          detail={applied === null ? 'Sin GF aplicado'
+            : `de ${formatAmount(applied)} aplicado · ${summary.actual.registered}/${summary.actual.expected} con gasto`}
           badges={[usageBadge(fixedSpent, applied), budgetAboveApplied && { tone: 'aviso', text: 'Presupuesto mayor al GF aplicado' }].filter(Boolean)} />
         <StatLink lit to="/fiorella/gastos" testId="variable-stat" title="Gastos variables" value={formatAmount(variableSpent)}
-          detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${expenses.variable.count} gasto(s)` : 'Sin asignación del mes'}
+          detail={distribution ? `de ${formatAmount(distribution.variable.total)} asignado · ${plural(expenses.variable.count, 'gasto')}`
+            : 'Sin asignación del mes'}
           badges={[usageBadge(variableSpent, distribution?.variable.total ?? null)].filter(Boolean)} />
         <StatLink lit to="/fiorella/metas" testId="savings-tracking" title="Ahorro de pareja"
-          value={deposited == null ? 'Sin depósitos asignados' : controlMoney(deposited, 'PEN')}
+          value={deposited != null ? controlMoney(deposited, 'PEN') : savings.upcoming ? 'Sin depósitos aún' : 'Sin depósitos asignados'}
           detail={[distribution && `de ${formatAmount(distribution.savings.couple)} planificado`,
-            waiting > 0 && `${waiting} por revisar en Control`].filter(Boolean).join(', ')}
+            waiting > 0 && `${plural(waiting, 'depósito')} por revisar en Control`].filter(Boolean).join(', ')}
           badges={[{ tone: savings.tone, text: savings.word }]} />
       </div>
     </div>

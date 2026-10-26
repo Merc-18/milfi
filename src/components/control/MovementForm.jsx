@@ -1,11 +1,12 @@
 import { normalizeAmount, subtractAmounts, compareAmounts } from '../../domain/amounts.js';
 import { contributionParts } from '../../domain/controlContributions.js';
 import { useState } from 'react';
-import { controlExplanation, controlMoney } from '../../presentation/control.js';
+import { controlExplanation } from '../../presentation/control.js';
 import { noticeClass } from '../../presentation/tones.js';
 import { useLedgerStore } from '../../store/ledgerStore.js';
 import { buttonClass, fieldClass } from '../FiorellaSession.jsx';
 import { segmentClass, segmentGroupClass } from '../gastos/formStyles.js';
+import ContributionFields from './ContributionFields.jsx';
 import PlanMonthField from './PlanMonthField.jsx';
 
 const DUPLICATE = 'POSSIBLE_DUPLICATE_REQUIRES_REVIEW';
@@ -38,13 +39,12 @@ export default function MovementForm({ record, selected, onDone, onCancel }) {
   const [contributionType, setContributionType] = useState(record ? contributionParts(record).kind : '');
   const [extra, setExtra] = useState(record?.provenance?.contribution?.extra ?? '');
   const [description, setDescription] = useState(record?.description ?? '');
-  const [note, setNote] = useState(record?.provenance?.statement && record.provenance.statement !== 'Registrado en MilFi' ? record.provenance.statement : '');
+  const statement = record?.provenance?.statement;
+  const [note, setNote] = useState(statement && statement !== 'Registrado en MilFi' ? statement : '');
   const [distinct, setDistinct] = useState('');
   const [duplicate, setDuplicate] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const totalValue = normalizeAmount(amount); const extraValue = normalizeAmount(extra);
-  const regularPreview = totalValue !== null && extraValue !== null && compareAmounts(extraValue, totalValue) <= 0 ? subtractAmounts(totalValue, extraValue) : null;
   const savings = kind === 'deposit' && purpose === 'savings';
   // Until chosen, the contributor follows the workbook columns: gastos → Milton, ahorro → Fiorella.
   const who = contributor ?? (purpose === 'savings' ? 'fiorella' : 'milton');
@@ -57,12 +57,14 @@ export default function MovementForm({ record, selected, onDone, onCancel }) {
       if (contributionType === 'combined' && (total === null || extraPart === null || compareAmounts(extraPart, total) > 0)) {
         setSaving(false); setError(controlExplanation('INVALID_CONTRIBUTION_SPLIT')); return;
       }
-      contribution = { version: 1, regular: contributionType === 'extraordinary' ? '0' : contributionType === 'combined' ? subtractAmounts(total, extraPart) : amount,
+      contribution = { version: 1,
+        regular: contributionType === 'extraordinary' ? '0' : contributionType === 'combined' ? subtractAmounts(total, extraPart) : amount,
         extra: contributionType === 'habitual' ? '0' : contributionType === 'combined' ? extra : amount };
     }
     const result = await useLedgerStore.getState().saveEntry({ id: record?.id ?? crypto.randomUUID(), expectedRevision: record?.revision ?? 0,
       operationId: record ? undefined : crypto.randomUUID(), kind, effectiveDate: date, period: monthOf(date), currency, amount,
-      contributorId: kind === 'deposit' ? who : null, purpose: kind === 'deposit' ? purpose : 'savings', planPeriod: savings && assignPlan ? plan : null, contribution,
+      contributorId: kind === 'deposit' ? who : null, purpose: kind === 'deposit' ? purpose : 'savings',
+      planPeriod: savings && assignPlan ? plan : null, contribution,
       description, provenanceNote: note.trim() || 'Registrado en MilFi', distinctOperationReason: distinct });
     setSaving(false);
     if (result.ok) { onDone(record ? 'Movimiento actualizado, pendiente de revisión.' : 'Movimiento registrado, pendiente de revisión.'); return; }
@@ -89,19 +91,11 @@ export default function MovementForm({ record, selected, onDone, onCancel }) {
     <div>{label('control-date', 'Fecha')}
       <input id="control-date" type="date" min="0001-01-01" max="9999-12-31" required className={fieldClass} value={date}
         onChange={event => { setDate(event.target.value); setDuplicate(false); }} /></div>
-    {kind === 'deposit' && <>
-      <div>{label('control-contribution-type', 'Tipo de aporte')}
-        <select id="control-contribution-type" className={fieldClass} required value={contributionType} onChange={event => setContributionType(event.target.value)}>
-          <option value="">Elige el tipo de aporte</option>
-          {record && !record.provenance?.contribution && <option value="unclassified">Sin clasificación histórica</option>}
-          <option value="habitual">Habitual</option><option value="extraordinary">Extraordinario</option><option value="combined">Habitual + extraordinario (una transferencia)</option>
-        </select></div>
-      {contributionType === 'combined' && <div>{label('control-extra', 'Parte extraordinaria del importe total')}
-        <input id="control-extra" inputMode="decimal" className={fieldClass} required value={extra} onChange={event => setExtra(event.target.value)} />
-        <p className="text-sm" aria-live="polite">Parte habitual: {regularPreview === null ? 'completa el importe total y el extra' : controlMoney(regularPreview, currency)}. Se guarda una sola transferencia.</p></div>}
-    </>}
+    {kind === 'deposit' && <ContributionFields record={record} type={contributionType} onType={setContributionType} extra={extra} onExtra={setExtra}
+      amount={amount} currency={currency} />}
     {savings && <>
-      <label className="flex gap-2 items-center text-sm min-h-11"><input id="control-assign-plan" type="checkbox" checked={assignPlan} onChange={event => setAssignPlan(event.target.checked)} />Asignar a un mes del plan</label>
+      <label className="flex gap-2 items-center text-sm min-h-11"><input id="control-assign-plan" type="checkbox" checked={assignPlan}
+        onChange={event => setAssignPlan(event.target.checked)} />Asignar a un mes del plan</label>
       {assignPlan && <PlanMonthField value={plan} onChange={setPlan} reference={monthOf(date) ?? selected} />}
     </>}
     {kind === 'withdrawal' && <div>{label('control-description', 'Descripción')}

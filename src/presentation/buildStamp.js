@@ -10,7 +10,7 @@ export function readableBuild(stamp) {
   const dateTime = `${year}-${month}-${day}T${hour}:${minute}:${second}-05:00`;
   const date = new Date(dateTime);
   if (!Number.isFinite(date.getTime()) || buildStamp(date) !== stamp) return null;
-  return { label: `${day}/${month}/${year} · ${hour}:${minute}`, dateTime };
+  return { label: `${day}/${month}/${year} · ${hour}:${minute}`, short: `${day}/${month}/${year} ${hour}:${minute}`, dateTime };
 }
 
 export function buildStamp(date = new Date()) {

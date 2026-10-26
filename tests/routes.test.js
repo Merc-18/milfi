@@ -28,7 +28,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/gastos', 'Ritmo del mes'],
       // Simulador and Calculadora redirect here (checked in Chromium).
       ['/fiorella/metas', 'Registra el ingreso del mes para estimar tus metas'],
-      ['/control', 'Saldo de ahorro según lo registrado'],
+      ['/control', 'Ahorro disponible'],
       // No Excel upload screen for end users: the history is loaded once, administratively.
       ['/control/preimportacion', 'Página no encontrada'],
       ['/not-a-page', 'Página no encontrada'],
@@ -42,13 +42,15 @@ test('module routes render with real-history notices and no simulated financial 
       // One demo explanation, in the header badge; no repeated notices or suffixes.
       assert.equal((html.match(/data-testid="demo-mode"/g) ?? []).length, 1, path);
       // Build code in the header on every page, labelled with the commit.
-      assert.ok(html.includes('data-testid="build-stamp"') && html.includes('Actualizado:') && html.includes('data-testid="commit-version"'), path);
+      assert.ok(html.includes('data-testid="build-stamp"') && html.includes('Actualizado') && html.includes('data-testid="commit-version"'), path);
       // Control's inner texts are revised in a later phase; only its demo notice goes now.
-      if (path.startsWith('/fiorella')) assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
+      if (path.startsWith('/fiorella')) {
+        assert.doesNotMatch(html, /Demostración de esta sesión|Historial real aún no importado|· sesión|· demo|de demostración/, path);
+      }
       assert.doesNotMatch(html, /Demostración temporal/, path);
     }
-    assert.ok(renderPath('/control').includes('PEN 0.00'));
-    assert.ok(renderPath('/control').includes('Aportes de Milton') && renderPath('/control').includes('Aportes de Fiorella'));
+    assert.ok(renderPath('/control').includes('S/ 0.00'));
+    assert.ok(renderPath('/control').includes('data-contribution-person="milton"') && renderPath('/control').includes('data-contribution-person="fiorella"'));
     assert.doesNotMatch(renderPath('/control'), /solo Fiorella|únicamente Fiorella/);
     assert.ok(renderPath('/control').includes('Registrar movimiento'));
     assert.doesNotMatch(renderPath('/control'), /control-actor|control-source|control-operation/);
@@ -74,7 +76,8 @@ test('module routes render with real-history notices and no simulated financial 
     assert.equal(viewOf(renderPath('/fiorella/gastos')), 'Variables');
     assert.equal(viewOf(renderPath('/fiorella/gastos?tipo=fijos')), 'Fijos');
     assert.equal(viewOf(renderPath('/fiorella/gastos?tipo=otro')), 'Variables');
-    assert.ok(renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="budget-groups"') && !renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="pace-chart"'));
+    assert.ok(renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="budget-groups"')
+      && !renderPath('/fiorella/gastos?tipo=fijos').includes('data-testid="pace-chart"'));
     assert.doesNotMatch(renderPath('/fiorella/gastos'), />Todos</);
     assert.ok(renderPath('/fiorella/gastos').includes('Aún no hay gastos variables en'));
     // Metas: one page with "Nueva meta" and the "¿y si…?"; no scenarios, A/B or fractions.
@@ -95,14 +98,17 @@ test('module routes render with real-history notices and no simulated financial 
 
     // Home: name, one line and one live figure per module, without "·" lists.
     const home = renderPath('/');
-    for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Movimientos pendientes de revisión']) assert.ok(home.includes(text), text);
+    for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Tareas pendientes']) assert.ok(home.includes(text), text);
     assert.doesNotMatch(home.match(/<main.*<\/main>/s)[0], / · /);
 
     // The summary answers "how am I doing" without the old KPI grid or details.
     const summary = renderPath('/fiorella');
-    for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) assert.ok(summary.includes(`data-testid="${id}"`), id);
+    for (const id of ['remaining', 'distribution-chart', 'fixed-stat', 'variable-stat', 'savings-tracking', 'couple-savings-chart']) {
+      assert.ok(summary.includes(`data-testid="${id}"`), id);
+    }
     assert.doesNotMatch(summary, /data-testid="monthly-summary"|data-testid="monthly-evolution"|Sin registrar|<details/);
-    assert.ok(summary.includes('href="/fiorella/gastos?tipo=fijos"') && !summary.includes('Registrar gasto'), 'the summary links to Gastos without registering');
+    assert.ok(summary.includes('href="/fiorella/gastos?tipo=fijos"') && !summary.includes('Registrar gasto'),
+      'the summary links to Gastos without registering');
     assert.ok(!summary.includes('href="/fiorella/presupuestos"'), 'links go straight to the fixed view');
     // One "Registrar gasto", in the Gastos header (both views); no floating button anywhere.
     for (const path of ['/fiorella/gastos', '/fiorella/gastos?tipo=fijos']) {
@@ -119,7 +125,8 @@ test('module routes render with real-history notices and no simulated financial 
     const { default: MonthlyForm } = await server.ssrLoadModule('/src/components/MonthlyForm.jsx');
     const monthlyForm = record => renderToStaticMarkup(createElement(MonthlyForm, { period: { year: 2041, month: 2 }, record }));
     assert.ok(!monthlyForm(null).includes('monthly-fixed') && monthlyForm(null).includes('monthly-income'));
-    assert.ok(monthlyForm({ income: '4000', appliedFixedExpense: '1200' }).includes('Este mes tenía S/ 1,200.00 de GF aplicado; al guardar pasará a S/ 1,500.00.'));
+    assert.ok(monthlyForm({ income: '4000', appliedFixedExpense: '1200' })
+      .includes('Este mes tenía S/ 1,200.00 de GF aplicado; al guardar pasará a S/ 1,500.00.'));
     assert.ok(!monthlyForm({ income: '4000', appliedFixedExpense: '1500' }).includes('Este mes tenía'));
 
     const { default: DistributionDetails } = await server.ssrLoadModule('/src/components/DistributionDetails.jsx');
