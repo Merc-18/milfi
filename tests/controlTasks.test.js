@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assignmentText, commitmentLight, monthlyRows, planSuggestion, planText, reviewTasks, tasksText, usdSavings }
+import { assignmentText, commitmentLight, coupleSavingsLight, monthlyRows, planSuggestion, planText, reviewTasks, tasksText, usdSavings }
   from '../src/presentation/controlLedgerView.js';
 
 // Invented entries (record + ledger status), as inspectLedger returns them.
@@ -56,6 +56,15 @@ test('month by month: no empty future month; a month with movements is always li
   assert.equal(monthlyRows([entry({})], plans).some(row => row.key === '2031-08'), true, 'without a current month nothing is cut');
   const future = monthlyRows([entry({ period: { year: 2031, month: 9 }, effectiveDate: '2031-09-01' })], plans, current);
   assert.deepEqual(future.map(row => row.key), ['2031-09', '2031-07']);
+});
+
+test("Fiorella's couple savings: the current or a future month says when it is deposited; past months keep the semáforo", () => {
+  const now = { year: 2031, month: 10 };
+  assert.deepEqual(coupleSavingsLight(null, '408', now, now), { tone: 'neutral', light: 'gris', word: 'Se deposita en noviembre', upcoming: true });
+  assert.equal(coupleSavingsLight(null, '408', { year: 2031, month: 12 }, now).word, 'Se deposita en enero de 2032');
+  assert.equal(coupleSavingsLight(null, '408', { year: 2031, month: 9 }, now).word, 'Pendiente');
+  assert.equal(coupleSavingsLight('408', '408', now, now).word, 'Completo');
+  assert.equal(coupleSavingsLight(null, null, now, now).word, 'Sin plan');
 });
 
 test('plan text and commitment light always carry words', () => {

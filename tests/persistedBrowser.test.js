@@ -53,8 +53,13 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=couple-savings-chart] svg[role=img]")'));
       assert.equal(await fits(), true);
       await capture('datos-01-panel-fiorella.png');
+      const savingsCard = () => browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent');
+      assert.ok((await savingsCard()).includes('Pendiente'), 'January is past: its plan is pending');
       await mount('fiorella', '/fiorella', '2031-03');
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=remaining]").textContent.includes("Proyectado")'));
+      // Today is March 2031: March's couple savings are deposited in April, not late.
+      assert.ok((await savingsCard()).includes('Se deposita en abril') && !(await savingsCard()).includes('Pendiente'), await savingsCard());
+      assert.equal(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").dataset.light'), 'neutral');
       // The month-by-month table now lives in Historial.
       await mount('fiorella', '/fiorella/historial', '2031-01');
       const evolution = await browser.evaluate('document.querySelector("[data-testid=monthly-evolution]").textContent');

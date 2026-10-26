@@ -155,6 +155,19 @@ export function planLight(covered, plan) {
   return compareAmounts(covered, plan) >= 0 ? { tone: 'ok', light: 'verde', word: 'Completo' } : { tone: 'aviso', light: 'amarillo', word: 'Parcial' };
 }
 
+/**
+ * Fiorella's couple-savings card. A plan is deposited the month after, so the
+ * current or a future month without assigned deposits is not late: it says when
+ * it is deposited (gris). Past months keep the plan semáforo.
+ */
+export function coupleSavingsLight(covered, plan, period, current) {
+  if (plan == null || covered != null || !isValidPeriod(period) || !isValidPeriod(current) || keyOf(period) < keyOf(current)) {
+    return planLight(covered, plan);
+  }
+  const next = nextMonth(period);
+  return { tone: 'neutral', light: 'gris', word: `Se deposita en ${next.year === period.year ? formatMonthName(next) : formatPeriod(next)}`, upcoming: true };
+}
+
 const byCurrency = records => {
   const totals = new Map();
   for (const record of records) totals.set(record.currency, addAmounts(totals.get(record.currency) ?? '0', record.amount));

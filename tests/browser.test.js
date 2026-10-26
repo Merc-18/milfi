@@ -327,7 +327,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         return [card.dataset.light, getComputedStyle(card).color, card.querySelector('[data-testid=' + id + '-state]')?.textContent]; })`);
       assert.deepEqual(lights.map(([light]) => light), ['excedido', 'ok', 'neutral']);
       assert.equal(lights[0][1], 'rgb(255, 255, 255)', 'white text on the red card');
-      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Pendiente']);
+      assert.deepEqual(lights.map(([, , word]) => word), ['Exceso: −S/ 160.00', 'Vas bien', 'Se deposita en mayo']);
       await capture('28-resumen-semaforo-movil.png');
       // Historial: the month-by-month table is always visible at the top with a word next to each light.
       await clickLink('/fiorella/historial', 'Historial');
@@ -415,7 +415,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.ok(preview.includes('Gas') && preview.includes('S/ 80.00') && preview.includes('Copiar 1 presupuesto') && !preview.includes('Celular'), preview);
       await capture('21-copiar-presupuestos-movil.png');
       await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).find(button => button.textContent === "Copiar 1 presupuesto").click()');
-      await browser.waitFor('document.querySelector("dialog[open] [data-testid=copy-result]")?.textContent.includes("Se guardaron 1 de 1")');
+      await browser.waitFor('document.querySelector("dialog[open] [data-testid=copy-result]")?.textContent.includes("Guardados: 1 de 1 presupuesto.")');
       await closeSheet();
       assert.equal(await copyButton(), true);
       assert.ok((await visibleText()).includes('Ya tienes presupuesto en todas las subcategorías del mes anterior.'));
