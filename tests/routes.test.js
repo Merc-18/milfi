@@ -28,7 +28,7 @@ test('module routes render with real-history notices and no simulated financial 
       ['/fiorella/gastos', 'Ritmo del mes'],
       // Simulador and Calculadora redirect here (checked in Chromium).
       ['/fiorella/metas', 'Registra el ingreso del mes para estimar tus metas'],
-      ['/control', 'Saldo de ahorro según lo registrado'],
+      ['/control', 'Ahorro disponible'],
       // No Excel upload screen for end users: the history is loaded once, administratively.
       ['/control/preimportacion', 'Página no encontrada'],
       ['/not-a-page', 'Página no encontrada'],
@@ -48,7 +48,7 @@ test('module routes render with real-history notices and no simulated financial 
       assert.doesNotMatch(html, /Demostración temporal/, path);
     }
     assert.ok(renderPath('/control').includes('S/ 0.00'));
-    assert.ok(renderPath('/control').includes('Aportes de Milton') && renderPath('/control').includes('Aportes de Fiorella'));
+    assert.ok(renderPath('/control').includes('data-contribution-person="milton"') && renderPath('/control').includes('data-contribution-person="fiorella"'));
     assert.doesNotMatch(renderPath('/control'), /solo Fiorella|únicamente Fiorella/);
     assert.ok(renderPath('/control').includes('Registrar movimiento'));
     assert.doesNotMatch(renderPath('/control'), /control-actor|control-source|control-operation/);
@@ -95,7 +95,7 @@ test('module routes render with real-history notices and no simulated financial 
 
     // Home: name, one line and one live figure per module, without "·" lists.
     const home = renderPath('/');
-    for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Movimientos pendientes de revisión']) assert.ok(home.includes(text), text);
+    for (const text of ['Te queda por gastar', 'Falta el ingreso del mes', 'Tareas pendientes']) assert.ok(home.includes(text), text);
     assert.doesNotMatch(home.match(/<main.*<\/main>/s)[0], / · /);
 
     // The summary answers "how am I doing" without the old KPI grid or details.

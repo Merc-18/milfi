@@ -2,6 +2,7 @@ import { contributionParts } from '../domain/controlContributions.js';
 import { addAmounts, compareAmounts, subtractAmounts } from '../domain/amounts.js';
 import { periodKey } from '../domain/fiorellaSession.js';
 import { isValidDate, isValidPeriod } from '../domain/models.js';
+import { formatAmount, formatMonthName, formatPeriod, formatMoney, plural } from './format.js';
 
 // Read-only views of the Control ledger. Only reviewed movements count (manual
 // "reviewed" or imported "imported" with nothing left to review); pending ones
@@ -26,11 +27,22 @@ export function savingsBalance(entries, currency = 'PEN') {
   const deposits = sum(counted.filter(record => isSavingsDeposit(record) && record.currency === currency).map(record => record.amount));
   const withdrawals = sum(counted.filter(record => record.kind === 'withdrawal' && record.currency === currency).map(record => record.amount));
   const usd = counted.filter(record => record.kind === 'withdrawal' && record.currency === 'USD').map(record => record.amount);
-  return { ...signed(deposits, withdrawals), deposits, withdrawals, usdWithdrawn: usd.length ? sum(usd) : null,
-    pending: entries.filter(entry => entry.status === 'pending').length };
+  return { ...signed(deposits, withdrawals), deposits, withdrawals, usdWithdrawn: usd.length ? sum(usd) : null };
+}
+
+/**
+ * Dollars shown next to the PEN savings: with USD savings deposits, their
+ * balance ("Ahorro en dólares"); without them, only what was withdrawn
+ * ("Gastado en dólares"), never a negative balance. null when nothing in USD.
+ */
+export function usdSavings(entries) {
+  const balance = savingsBalance(entries, 'USD');
+  if (compareAmounts(balance.deposits, '0') > 0) return { kind: 'saved', ...balance };
+  return compareAmounts(balance.withdrawals, '0') > 0 ? { kind: 'spent', amount: balance.withdrawals } : null;
 }
 
 const keyOf = period => periodKey(period);
+const planAmount = plan => typeof plan === 'string' ? plan : plan?.amount ?? null;
 const nextMonth = ({ year, month }) => month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
 
 /** Control comparison only: the usual original plan period for a receipt month. */
@@ -68,7 +80,8 @@ export function balanceSeries(entries, selected = null, currency = 'PEN') {
     currency: record.currency, description: record.description });
   const withdrawals = counted.filter(record => record.kind === 'withdrawal');
   return { steps, withdrawals: withdrawals.map(point), usdWithdrawals: currency === 'PEN'
-    ? entries.filter(counts).map(entry => entry.record).filter(record => record.kind === 'withdrawal' && record.currency === 'USD' && movementMonth(record)).map(point) : [] };
+    ? entries.filter(counts).map(entry => entry.record)
+      .filter(record => record.kind === 'withdrawal' && record.currency === 'USD' && movementMonth(record)).map(point) : [] };
 }
 
 /** Gross contributions: withdrawals never erase who deposited money. Each
@@ -86,7 +99,9 @@ export function contributionHistory(entries) {
     const monthKey = keyOf(period);
     const month = group.months.get(monthKey) ?? { key: monthKey, period, amount: '0', regular: '0', extra: '0', unclassified: '0', count: 0 };
     const parts = contributionParts(record);
-    for (const field of ['regular', 'extra', 'unclassified']) { month[field] = addAmounts(month[field], parts[field]); group[field] = addAmounts(group[field], parts[field]); }
+    for (const field of ['regular', 'extra', 'unclassified']) {
+      month[field] = addAmounts(month[field], parts[field]); group[field] = addAmounts(group[field], parts[field]);
+    }
     month.amount = addAmounts(month.amount, record.amount); month.count += 1;
     group.months.set(monthKey, month);
     group.total = addAmounts(group.total, record.amount); group.count += 1;
@@ -150,13 +165,16 @@ const byCurrency = records => {
  * Receipt-month rows, newest first. Movements keep their actual period. Only
  * the comparison uses the original plan for R - 1; coverage queries that exact
  * original period, including explicit assignments received in other months.
+ * A month R is listed when it has counted movements, or when a plan of R - 1
+ * exists and R has already started (`current`), so no empty future month shows.
  * Plan values may carry { amount, projected }; legacy amount strings also work.
  */
-export function monthlyRows(entries, plans = new Map()) {
+export function monthlyRows(entries, plans = new Map(), current = null) {
   const counted = entries.filter(counts).map(entry => entry.record);
   const months = new Map();
   const addMonth = period => { if (isValidPeriod(period)) months.set(keyOf(period), period); };
-  const addPlanReceipt = period => { if (isValidPeriod(period)) addMonth(nextMonth(period)); };
+  const started = period => !isValidPeriod(current) || keyOf(period) <= keyOf(current);
+  const addPlanReceipt = period => { if (isValidPeriod(period) && started(nextMonth(period))) addMonth(nextMonth(period)); };
   for (const key of plans.keys()) addPlanReceipt({ year: Number(key.slice(0, 4)), month: Number(key.slice(5, 7)) });
   for (const record of counted) {
     addMonth(movementMonth(record));
@@ -169,11 +187,27 @@ export function monthlyRows(entries, plans = new Map()) {
     const referencePeriod = previousPlanPeriod(months.get(key));
     const reference = referencePeriod ? plans.get(keyOf(referencePeriod)) : null;
     const covered = referencePeriod ? coveredSavings(entries, referencePeriod) : null;
-    const plan = typeof reference === 'string' ? reference : reference?.amount ?? null;
+    const plan = planAmount(reference);
     return { key, period: months.get(key), referencePeriod, projected: reference?.projected === true,
-      expenses: byCurrency(expenses), savings: byCurrency(savings), plan, covered,
+      expenses: byCurrency(expenses), savings: byCurrency(savings),
+      fiorellaSavings: byCurrency(savings.filter(record => record.contributorId === 'fiorella')),
+      miltonSavings: byCurrency(savings.filter(record => record.contributorId === 'milton')), plan, covered,
       light: planLight(covered, plan), withdrawals: byCurrency(inMonth.filter(record => record.kind === 'withdrawal')) };
   });
+}
+
+/** "S/ 408.00 de S/ 408.00 (plan de septiembre)": assigned of planned, for a receipt-month row. */
+export function planText(row) {
+  const month = `plan de ${formatMonthName(row.referencePeriod)}`;
+  if (row.plan == null) return row.covered == null ? 'Sin plan' : `${formatAmount(row.covered)} asignado (${month})`;
+  return `${formatAmount(row.covered ?? '0')} de ${formatAmount(row.plan)} (${month})${row.projected ? ' · proyectado' : ''}`;
+}
+
+/** Agreed vs. received in the month: Cumplido, Parcial or Sin aportes (always with the word). */
+export function commitmentLight(received, commitment) {
+  if (commitment == null) return null;
+  if (received == null || compareAmounts(received, '0') === 0) return { light: 'gris', word: 'Sin aportes' };
+  return compareAmounts(received, commitment) >= 0 ? { light: 'verde', word: 'Cumplido' } : { light: 'amarillo', word: 'Parcial' };
 }
 
 const DOLLAR = /^\s*\$\s*(\d+(?:\.\d+)?)\s*$/;
@@ -236,8 +270,51 @@ export function reviewReasons(entry, entries = []) {
   return { reasons: [...new Set(reasons)], suggestion };
 }
 
-/** Tasks for a person: pending rows and savings without a plan month. Date warnings stay informational. */
-export function reviewQueue(entries) {
-  return entries.map(entry => ({ entry, ...reviewReasons(entry, entries) }))
-    .filter(item => item.entry.status === 'pending' || (counts(item.entry) && isSavingsDeposit(item.entry.record) && !item.entry.record.planPeriod));
+/**
+ * The usual plan of a savings deposit received in month R: Fiorella's plan of
+ * R − 1, if it exists. exact = same currency (PEN) and exactly the planned amount.
+ */
+export function planSuggestion(record, plans = new Map()) {
+  const period = previousPlanPeriod(movementMonth(record));
+  const amount = period ? planAmount(plans.get(keyOf(period))) : null;
+  if (amount == null) return null;
+  return { period, amount, exact: record.currency === 'PEN' && record.amount != null && compareAmounts(record.amount, amount) === 0 };
+}
+
+/**
+ * The one count of pending work (Inicio, Control's strip and its section):
+ * movements to confirm, plus counted savings deposits without a plan month whose
+ * usual plan (R − 1) exists in Fiorella. Deposits whose R − 1 has no Fiorella
+ * plan (Control starts earlier than Fiorella's history) are listed apart and
+ * are not tasks. Date warnings stay informational.
+ */
+export function reviewTasks(entries, plans = new Map()) {
+  const toConfirm = []; const withoutPlan = []; const noPlan = [];
+  for (const entry of entries) {
+    if (entry.status === 'pending') toConfirm.push({ entry, ...reviewReasons(entry, entries) });
+    else if (counts(entry) && isSavingsDeposit(entry.record) && !entry.record.planPeriod) {
+      const plan = planSuggestion(entry.record, plans);
+      (plan ? withoutPlan : noPlan).push({ entry, ...reviewReasons(entry, entries), plan });
+    }
+  }
+  return { total: toConfirm.length + withoutPlan.length, toConfirm, withoutPlan, noPlan };
+}
+
+/**
+ * "S/ 744.00 recibido en julio de 2031 → plan de junio (previsto S/ 744.00)";
+ * without a Fiorella plan, only what was received and when.
+ */
+export function assignmentText({ entry, plan }) {
+  const { record } = entry;
+  const received = `${formatMoney(record.amount, record.currency)} recibido en ${formatPeriod(movementMonth(record))}`;
+  if (!plan) return received;
+  const sameYear = plan.period.year === movementMonth(record).year;
+  return `${received} → plan de ${sameYear ? formatMonthName(plan.period) : formatPeriod(plan.period)} (previsto ${formatAmount(plan.amount)})`;
+}
+
+/** "Tienes 4 tareas: 1 por confirmar, 3 sin mes del plan"; parts at zero are left out. */
+export function tasksText(tasks) {
+  const parts = [tasks.toConfirm.length && `${tasks.toConfirm.length} por confirmar`,
+    tasks.withoutPlan.length && `${tasks.withoutPlan.length} sin mes del plan`].filter(Boolean);
+  return `Tienes ${plural(tasks.total, 'tarea')}${parts.length ? `: ${parts.join(', ')}` : ''}`;
 }

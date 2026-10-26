@@ -33,3 +33,4 @@ import './controlMonthlyOffset.test.js';
 import './controlCompletion.test.js';
 import './dailyControl.test.js';
 import './moneyText.test.js';
+import './controlTasks.test.js';

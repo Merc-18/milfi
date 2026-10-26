@@ -111,7 +111,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/control', 'Control M&F');
       const control = await browser.evaluate('document.body.textContent');
       assert.doesNotMatch(control, /S\/\s*(?!0\.00(?!\d))\d|4,000\.01|600\.0024/);
-      assert.ok(control.includes('Saldo de ahorro según lo registrado'));
+      assert.ok(control.includes('Ahorro disponible'));
     });
 
     await context.test('the "¿y si…?" explains deficit, zero surplus and the GF cap without a split', async () => {
@@ -138,7 +138,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       // The demo is explained once, by the header badge.
       assert.ok(await browser.evaluate('document.querySelector("[data-testid=demo-mode]")?.textContent === "Modo demo"'));
       await clickLink('/control', 'Control M&F');
-      assert.ok(await browser.evaluate('document.body.textContent.includes("Saldo de ahorro según lo registrado")'));
+      assert.ok(await browser.evaluate('document.body.textContent.includes("Ahorro disponible")'));
       assert.deepEqual(browser.exceptions, []);
     });
 
@@ -362,7 +362,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       await clickLink('/control', 'Control M&F');
       assert.equal(await browser.evaluate('document.querySelector("main").scrollTop'), 0);
       assert.doesNotMatch(await visibleText(), /5432|Ejemplo sintético/);
-      assert.ok((await visibleText()).includes('Saldo de ahorro según lo registrado'));
+      assert.ok((await visibleText()).includes('Ahorro disponible'));
     });
 
     await context.test('reload removes all Fiorella demonstrations and their audit without inventing real history', async () => {
@@ -547,7 +547,10 @@ test('browser regression: redirects, simulation history and financial isolation'
       await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
     };
+    // "Por revisar" unfolds from the task strip.
+    const openTasks = () => browser.evaluate('document.querySelector("[data-testid=control-tasks] button[aria-expanded=false]")?.click()');
     const accept = async () => {
+      await openTasks();
       await browser.evaluate('document.querySelector("[data-review-id] button").click()');
       await browser.waitFor('!!document.getElementById("review-reference")');
       await fill('review-reference', 'Voucher inventado');
@@ -560,13 +563,12 @@ test('browser regression: redirects, simulation history and financial isolation'
       await fill('control-selected-period', '2043-07');
       assert.equal(await count(), 0);
       await enter();
-      assert.ok((await balance()).includes('S/ 0.00') && (await balance()).includes('1 movimiento por revisar'));
+      assert.ok((await balance()).includes('S/ 0.00') && (await testText('control-tasks')).includes('Tienes 1 tarea: 1 por confirmar'));
       await accept();
       assert.ok((await balance()).includes('S/ 100.00'));
       const rows = await browser.evaluate('Array.from(document.querySelectorAll("[data-testid=control-monthly] tbody tr")).map(row => ({ key: row.dataset.month, cells: Array.from(row.cells).map(cell => cell.textContent) }))');
       assert.ok(rows.find(row => row.key === '2043-07').cells[2].includes('100.00'));
-      assert.ok(rows.find(row => row.key === '2043-07').cells[4].includes('100.00'));
-      assert.ok(rows.find(row => row.key === '2043-07').cells[3].includes('Plan: junio de 2043'));
+      assert.ok(rows.find(row => row.key === '2043-07').cells[3].includes('S/ 100.00 asignado (plan de junio)'));
       assert.equal(rows.some(row => row.key === '2043-06'), false, 'the original plan month is not an invented receipt month');
       assert.equal(await browser.evaluate('document.querySelectorAll("[data-testid=balance-chart] svg circle").length'), 0);
       await enter({ amount: '20', kind: 'withdrawal', description: 'Retiro inventado', date: '2043-07-12' });
@@ -609,7 +611,7 @@ test('browser regression: redirects, simulation history and financial isolation'
       assert.equal(await count(), 3);
       await fill('control-distinct', 'Otro depósito inventado con voucher distinto'); await submitForm('Movimiento de Control');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      await browser.evaluate('document.querySelector("[data-review-id] button").click()');
+      await openTasks(); await browser.evaluate('document.querySelector("[data-review-id] button").click()');
       await browser.waitFor('!!document.getElementById("review-rejected")');
       await browser.evaluate('document.getElementById("review-rejected").click()');
       await fill('review-reason', 'Registro inventado descartado'); await submitForm('Revisar movimiento');
@@ -621,7 +623,6 @@ test('browser regression: redirects, simulation history and financial isolation'
     await context.test('Control filters, responsive screens and form; state survives navigation and clears on reload', async () => {
       await clickText('Retiros'); assert.equal(await count(), 2);
       await clickText('Depósitos'); assert.equal(await count(), 2);
-      await clickText('Por revisar'); assert.equal(await count(), 0);
       await clickText('Todos'); assert.equal(await count(), 4);
       for (const width of [320, 360, 390, 768, 1280]) {
         await browser.page('Emulation.setDeviceMetricsOverride', { width, height: width < 768 ? 844 : 1024, deviceScaleFactor: 1, mobile: width < 768 });

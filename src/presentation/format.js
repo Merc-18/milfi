@@ -24,6 +24,12 @@ export function formatPeriod(period) {
   return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(value));
 }
 
+// Month name alone, e.g. "septiembre".
+export function formatMonthName(period) {
+  if (!isValidPeriod(period)) return 'mes pendiente';
+  return new Intl.DateTimeFormat('es-PE', { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, period.month - 1, 1))).toLowerCase();
+}
+
 // Compact month label for charts, e.g. "ene 31".
 export function formatShortPeriod(period) {
   if (!isValidPeriod(period)) return '—';

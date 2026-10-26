@@ -15,7 +15,10 @@ let root = null;
 window.mountMilfi = async ({ fixture, identity, access, path, period }) => {
   root?.unmount();
   const control = createMemoryControlPersistence({ householdId: fixture.householdId, actor: identity, initialRecords: fixture.control.records, initialCommitments: fixture.control.commitments ?? [] });
-  const persistence = { ...control, householdId: fixture.householdId,
+  // window.failControlSaves (ids) makes those writes fail, to test partial failures.
+  const saveControlEntry = async (record, previous) => window.failControlSaves?.includes(record.id)
+    ? { ok: false, errors: ['STALE_REVISION'] } : control.saveControlEntry(record, previous);
+  const persistence = { ...control, saveControlEntry, householdId: fixture.householdId,
     loadFiorella: async () => structuredClone(fixture.fiorella), loadFiorellaHistory: async () => ({ ok: true, events: [] }),
     loadControl: control.loadControl, loadControlHistory: control.loadControlHistory };
   usePeriodStore.getState().selectPeriod(period);

@@ -3,7 +3,7 @@ import test from 'node:test';
 import { buildStamp, readableBuild } from '../src/presentation/buildStamp.js';
 import { contributionParts, prepareContributionCommitment, validContribution } from '../src/domain/controlContributions.js';
 import { inspectLedger, prepareControlEntry, prepareControlEntryReview, prepareControlPlanAssignment } from '../src/domain/controlLedger.js';
-import { contributionHistory, personContributions, savingsBalance, monthlyRows } from '../src/presentation/controlLedgerView.js';
+import { contributionHistory, personContributions, reviewTasks, savingsBalance, monthlyRows } from '../src/presentation/controlLedgerView.js';
 import { currencyOriginWarning } from '../src/presentation/control.js';
 import { createMilfiPersistence } from '../src/application/persistence.js';
 import { createDatabase, seedSynthetic, as } from './helpers/pgHarness.js';
@@ -64,7 +64,7 @@ test('daily contributions: extras in PEN/USD count only after review, expenses a
   const entries = inspectLedger(records);
   assert.equal(savingsBalance(entries).amount, '90'); assert.equal(savingsBalance(entries, 'USD').amount, '20');
   assert.equal(contributionHistory(entries).find(group => group.purpose === 'expenses').total, '50');
-  assert.equal(savingsBalance(entries).pending, 1);
+  assert.equal(reviewTasks(entries).toConfirm.length, 1);
 });
 
 test('daily contributions: historical deposits stay unclassified; changing split invalidates review, changing only plan does not', () => {

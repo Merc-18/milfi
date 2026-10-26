@@ -9,6 +9,7 @@ import { createServer } from 'vite';
 import { chromiumPath, openBrowser } from './helpers/chromium.js';
 import { APPROVED_ACCESS } from '../src/domain/access.js';
 import { persistedFixture } from './helpers/persistedFixture.js';
+import { fixedClockScript } from './helpers/clock.js';
 
 test('saved data: dashboards, filters and goals render without demo labels and respect module access', { timeout: 120000 }, async context => {
   const data = await persistedFixture();
@@ -21,6 +22,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
     browser = await openBrowser(executable, profile);
     await browser.page('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    // Invented data live in 2031: the page's today is 15 March 2031.
+    await browser.page('Page.addScriptToEvaluateOnNewDocument', { source: fixedClockScript('2031-03-15T12:00:00-05:00') });
     await browser.page('Page.navigate', { url: `${origin}/tests/harness/persisted.html` });
     await browser.waitFor('typeof window.mountMilfi === "function"');
     const mount = async (identity, path, period, fixture = data) => {
@@ -143,27 +146,24 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await mount('fiorella', '/control', '2031-01');
       await browser.waitFor('!!document.querySelector("[data-testid=control-balance]")');
       const summary = await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent');
-      assert.ok(summary.includes('S/ 22.50') && summary.includes('por revisar'));
+      assert.ok(summary.includes('S/ 22.50') && summary.includes('Según lo registrado y revisado'));
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-tasks]").textContent')).includes('por confirmar'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=balance-chart]")'));
       const table = await browser.evaluate(`({
         heads: Array.from(document.querySelectorAll('[data-testid=control-monthly] thead th')).map(cell => cell.textContent),
-        noteCount: document.querySelectorAll('#monthly-explanation').length,
-        note: document.getElementById('monthly-explanation').textContent,
-        describedBy: document.querySelector('[data-testid=control-monthly] table').getAttribute('aria-describedby'),
-        projected: document.querySelector('[data-testid=control-monthly] [data-month="2031-04"] td:nth-child(4)').textContent,
-        projectedReceived: document.querySelector('[data-testid=control-monthly] [data-month="2031-04"] td:nth-child(3)').textContent,
+        note: document.querySelector('[data-testid=control-monthly] p').textContent,
+        months: Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).map(row => row.dataset.month),
       })`);
-      assert.deepEqual(table.heads, ['Mes recibido', 'Gastos depositados', 'Ahorro depositado', 'Ahorro previsto', 'Ahorro asignado', 'Estado', 'Retiros']);
-      assert.equal(table.noteCount, 1);
-      assert.ok(table.note.includes('Los ingresos planificados por Fiorella para un mes suelen recibirse al siguiente.'));
-      assert.equal(table.describedBy, 'monthly-explanation');
-      assert.ok(table.projected.includes('Proyectado') && table.projected.includes('Plan: marzo de 2031'));
-      assert.equal(table.projectedReceived, '—');
+      assert.deepEqual(table.heads, ['Mes', 'Gastos (Milton)', 'Ahorro (Fiorella)', 'Plan del mes anterior', 'Estado', 'Retiros']);
+      assert.equal(table.note, 'El ahorro de cada plan se deposita al mes siguiente.');
+      // 2031 is after today's month: plan-only receipt months there are not listed empty.
+      assert.equal(table.months.includes('2031-04'), false, JSON.stringify(table.months));
       assert.ok(await browser.evaluate('!document.getElementById("control-amount")') && !(await text()).includes('preimportación'));
       const cards = () => browser.evaluate('document.querySelectorAll("[data-ledger-id]").length');
       assert.equal(await cards(), 2);
-      await browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Por revisar').click()`);
-      await browser.waitFor('document.querySelectorAll("[data-ledger-id]").length === 1');
+      await browser.evaluate('document.getElementById("movement-history").click()');
+      await browser.waitFor('document.querySelectorAll("[data-ledger-id]").length > 2');
+      await browser.evaluate('document.getElementById("movement-history").click()');
       assert.equal(await fits(), true);
       await capture('datos-02-control.png');
     });
@@ -172,13 +172,15 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await mount('milton', '/control', '2031-01');
       const fill = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById('${id}'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
       const click = async label => browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`);
+      const openTasks = () => browser.evaluate('document.querySelector("[data-testid=control-tasks] button[aria-expanded=false]")?.click()');
       // Synthetic savings row imported as prepared, with no plan month yet.
-      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('Falta el mes del plan') && row.textContent.includes('22.50')).querySelector('button').click()`);
-      await browser.waitFor('!!document.getElementById("review-plan")');
-      await fill('review-plan', '2031-01'); await click('Guardar mes del plan');
+      await openTasks();
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-assign-id]')).find(row => row.textContent.includes('22.50')).querySelector('button').click()`);
+      await browser.waitFor('!!document.getElementById("assign-plan")');
+      await fill('assign-plan', '2031-01'); await click('Confirmar asignación');
       await browser.waitFor('!document.querySelector("dialog[open]")');
       const february = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).find(row => row.dataset.month === '2031-02').textContent`);
-      assert.ok(february.includes('22.50') && february.includes('Parcial') && february.includes('Plan: enero de 2031'), february);
+      assert.ok(february.includes('22.50') && february.includes('Parcial') && february.includes('(plan de enero)'), february);
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-ledger-id] button')).find(button => button.textContent.includes('22.50')).click()`);
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
       await click('Cambiar mes del plan'); await browser.waitFor('!!document.getElementById("review-plan")');
@@ -188,6 +190,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-03"] [data-light]').dataset.light`), 'amarillo');
       assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'gris');
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'));
+      await openTasks();
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-amount")');
       assert.equal(await browser.evaluate('document.getElementById("review-amount").value'), '7.5');
@@ -199,6 +202,7 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('!document.querySelector("dialog[open]")');
       assert.equal(await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).some(row => row.textContent.includes('confirma el importe en US$'))`), false);
       // Another invented withdrawal has no source date: both date and period can be completed.
+      await openTasks();
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('Falta la fecha del retiro')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-date")');
       await fill('review-date', '2031-02-20'); await fill('review-period', '2031-02');

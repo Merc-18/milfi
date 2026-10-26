@@ -4,10 +4,10 @@ import { ChevronRight, Flower2, Users } from 'lucide-react';
 import { useFiorellaPeriod } from '../presentation/fiorellaSession.js';
 import { remainingToSpend } from '../presentation/status.js';
 import { formatAmount, formatPeriod } from '../presentation/format.js';
-import { inspectLedger, summarizeLedger } from '../domain/controlLedger.js';
-import { summarizeControlDemo } from '../domain/controlSession.js';
+import { inspectLedger } from '../domain/controlLedger.js';
+import { reviewTasks } from '../presentation/controlLedgerView.js';
+import { useControlPlans } from '../presentation/controlPlans.js';
 import { useLedgerStore } from '../store/ledgerStore.js';
-import { useControlStore } from '../store/controlStore.js';
 
 const cardClass = 'block p-6 rounded-[24px] shadow-soft border-2';
 const MISSING = { 'missing-income': 'Falta el ingreso del mes', deficit: 'El ingreso no cubre el GF aplicado',
@@ -27,9 +27,10 @@ function ModuleCard({ to, icon, title, description, label, value, className }) {
 export default function Home() {
   const { period, summary } = useFiorellaPeriod();
   const remaining = remainingToSpend(summary);
-  const ledger = useLedgerStore(state => state.persistence ? state.records : null);
-  const demo = useControlStore(state => state.demoMovements);
-  const pending = useMemo(() => ledger ? summarizeLedger(inspectLedger(ledger), period).pending : summarizeControlDemo(demo, period).pending, [ledger, demo, period]);
+  const records = useLedgerStore(state => state.records);
+  const plans = useControlPlans();
+  // The same count as Control's strip and "Por revisar".
+  const tasks = useMemo(() => reviewTasks(inspectLedger(records), plans).total, [records, plans]);
   const fiorellaValue = MISSING[remaining.status] ?? `${remaining.status === 'over' ? '−' : ''}${formatAmount(remaining.amount)}`;
   return (
     <div className="pb-8">
@@ -39,11 +40,13 @@ export default function Home() {
         <img src="/logo.png" alt="Mascota de MilFi" className="w-14 h-14 object-cover rounded-[18px] shadow-soft border-2 border-principal" />
       </header>
       <div className="grid gap-5 md:grid-cols-2">
-        <ModuleCard to="/fiorella" icon={<Flower2 size={28} className="mb-3" aria-hidden="true" />} title="Finanzas de Fiorella" description="Ingreso, gastos y ahorro del mes."
+        <ModuleCard to="/fiorella" icon={<Flower2 size={28} className="mb-3" aria-hidden="true" />} title="Finanzas de Fiorella"
+          description="Ingreso, gastos y ahorro del mes."
           label={remaining.status === 'over' ? 'Te pasaste por' : 'Te queda por gastar'} value={fiorellaValue}
           className="bg-white border-principal/40 hover:border-principal" />
-        <ModuleCard to="/control" icon={<Users size={28} className="mb-3" aria-hidden="true" />} title="Control Finanzas M&F" description="Depósitos y retiros de la pareja."
-          label="Movimientos pendientes de revisión" value={pending}
+        <ModuleCard to="/control" icon={<Users size={28} className="mb-3" aria-hidden="true" />} title="Control Finanzas M&F"
+          description="Depósitos y retiros de la pareja."
+          label="Tareas pendientes" value={tasks}
           className="bg-secundario/30 border-transparent hover:border-secundario" />
       </div>
     </div>
