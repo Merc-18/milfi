@@ -4,15 +4,17 @@ import { balanceSeries, coveredSavings, monthlyRows, planLight, reviewReasons, r
 
 // Invented entries (record + ledger status), as inspectLedger returns them.
 let sequence = 0;
-const entry = (fields, status = 'reviewed', pendingReasons = []) => ({ status, pendingReasons, record: { id: `m${++sequence}`, kind: 'deposit', purpose: 'savings',
-  currency: 'PEN', contributorId: 'fiorella', amount: '100', period: { year: 2030, month: 11 }, effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
+const entry = (fields, status = 'reviewed', pendingReasons = []) => ({ status, pendingReasons, record: { id: `m${++sequence}`,
+  kind: 'deposit', purpose: 'savings', currency: 'PEN', contributorId: 'fiorella', amount: '100', period: { year: 2030, month: 11 },
+  effectiveDate: null, planPeriod: null, description: null, provenance: { type: 'control-manual' }, ...fields } });
 const nov = { year: 2030, month: 11 };
 const dec = { year: 2030, month: 12 };
 const jan = { year: 2031, month: 1 };
 
 test('saldo de ahorro = Σ savings deposits PEN − Σ withdrawals PEN; dollars apart; pending excluded', () => {
   const entries = [entry({ amount: '300' }), entry({ amount: '50.5', status: 'imported' }, 'imported'),
-    entry({ kind: 'withdrawal', amount: '120', effectiveDate: '2030-11-20' }), entry({ kind: 'withdrawal', currency: 'USD', amount: '30', effectiveDate: '2030-11-21' }),
+    entry({ kind: 'withdrawal', amount: '120', effectiveDate: '2030-11-20' }),
+    entry({ kind: 'withdrawal', currency: 'USD', amount: '30', effectiveDate: '2030-11-21' }),
     entry({ amount: '999' }, 'pending', ['UNRESOLVED_MONEY']), entry({ purpose: 'expenses', amount: '400' }), entry({ amount: '1' }, 'rejected')];
   const balance = savingsBalance(entries);
   assert.deepEqual([balance.negative, balance.amount, balance.deposits, balance.withdrawals, balance.usdWithdrawn],
@@ -23,7 +25,8 @@ test('saldo de ahorro = Σ savings deposits PEN − Σ withdrawals PEN; dollars 
 });
 
 test('balance steps: deposits raise, PEN withdrawals lower, USD never moves it, pending excluded, across the year', () => {
-  const entries = [entry({ amount: '200', period: nov }), entry({ kind: 'withdrawal', amount: '50', period: null, effectiveDate: '2030-12-05', description: 'Retiro inventado' }),
+  const entries = [entry({ amount: '200', period: nov }),
+    entry({ kind: 'withdrawal', amount: '50', period: null, effectiveDate: '2030-12-05', description: 'Retiro inventado' }),
     entry({ kind: 'withdrawal', currency: 'USD', amount: '20', period: null, effectiveDate: '2030-12-06' }), entry({ amount: '80', period: jan }),
     entry({ amount: '500', period: dec }, 'pending', ['IMPORT_REVIEW_REQUIRED'])];
   const series = balanceSeries(entries, { year: 2031, month: 2 });
@@ -49,8 +52,10 @@ test('semáforo del plan: completo, parcial, pendiente y sin plan; deposits of s
 });
 
 test('reasons in plain language, with suggestions to confirm and the inverted-date warning', () => {
-  const excel = (fields, original) => entry({ provenance: { type: 'control-excel', sheet: 'Hoja', row: fields.row ?? 1, original }, ...fields }, 'pending', fields.reasons ?? []);
-  const dollar = excel({ kind: 'withdrawal', amount: null, currency: null, period: null, effectiveDate: '2031-02-15', reasons: ['UNRESOLVED_MONEY', 'MISSING_CONFIRMED_PERIOD'] },
+  const excel = (fields, original) => entry({ provenance: { type: 'control-excel', sheet: 'Hoja', row: fields.row ?? 1, original }, ...fields },
+    'pending', fields.reasons ?? []);
+  const dollar = excel({ kind: 'withdrawal', amount: null, currency: null, period: null, effectiveDate: '2031-02-15',
+    reasons: ['UNRESOLVED_MONEY', 'MISSING_CONFIRMED_PERIOD'] },
     { amount: '$7.5', date: '15/02/2031' });
   assert.deepEqual(reviewReasons(dollar), { reasons: ['El monto está en dólares: confirma el importe en US$', 'Falta el mes del retiro'],
     suggestion: { amount: '7.5', currency: 'USD', period: { year: 2031, month: 2 } } });

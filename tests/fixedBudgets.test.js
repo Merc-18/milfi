@@ -29,7 +29,8 @@ test('GF category coverage preserves null, zero, exact decimals and incomplete c
   assert.deepEqual(budgetGroups(equal).at(-1).comparison, { status: 'equal', amount: '0' });
   equal.fixed.find(record => record.categoryId === 'otros-otros').actualAmount = '1.005';
   assert.deepEqual(budgetGroups(equal).at(-1).comparison, { status: 'over', amount: '1.005' });
-  assert.ok(budgetGroups(summarizeFiorella([], { year: 2038, month: 6 }, 'real')).every(group => !group.complete && group.actual === null && group.budget === null));
+  assert.ok(budgetGroups(summarizeFiorella([], { year: 2038, month: 6 }, 'real'))
+    .every(group => !group.complete && group.actual === null && group.budget === null));
 });
 
 test('GF fixed view renders 5 groups and 19 rows with inline editors; open groups need attention; Milton only reads', async () => {

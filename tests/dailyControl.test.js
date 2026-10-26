@@ -23,9 +23,11 @@ function saved(fields = {}, reviewed = true) {
   assert.equal(result.ok, true, JSON.stringify(result.errors));
   const record = { ...result.value, revision: 1 };
   if (!reviewed) return record;
-  const review = prepareControlEntryReview({ id: record.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton', reason: 'Prueba', evidenceReference: 'Inventado' }, [record]);
+  const review = prepareControlEntryReview({ id: record.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton', reason: 'Prueba',
+    evidenceReference: 'Inventado' }, [record]);
   assert.equal(review.ok, true, JSON.stringify(review.errors));
-  return { ...record, manualReviews: [{ ...review.review, id: crypto.randomUUID(), reviewedBy: 'milton', reviewedAt: '2031-10-15T12:00:00.000Z', evidenceReference: 'Inventado' }] };
+  return { ...record, manualReviews: [{ ...review.review, id: crypto.randomUUID(), reviewedBy: 'milton', reviewedAt: '2031-10-15T12:00:00.000Z',
+    evidenceReference: 'Inventado' }] };
 }
 
 test('daily version: readable build is fixed, in Peru, and varies only with compilation metadata', () => {
@@ -102,7 +104,8 @@ test('daily contributions: both people and both currencies are represented, incl
 
 test('daily agreements: confirmation is required, one explicit period only, never inferred from extra deposits', async () => {
   const store = createLedgerStore(); await store.getState().connect(createMemoryControlPersistence(), 'milton');
-  const agreement = { id: crypto.randomUUID(), confirmed: true, contributorId: 'milton', period, purpose: 'expenses', currency: 'PEN', amount: '600', note: '' };
+  const agreement = { id: crypto.randomUUID(), confirmed: true, contributorId: 'milton', period, purpose: 'expenses', currency: 'PEN',
+    amount: '600', note: '' };
   assert.equal(prepareContributionCommitment({ ...agreement, confirmed: false }).ok, false);
   assert.equal((await store.getState().saveCommitment(agreement)).ok, true);
   assert.equal(store.getState().records.length, 0);
@@ -130,16 +133,19 @@ test('daily database: split round-trips through audited provenance; explicit imm
     const prepared = prepareControlEntry(draft({ householdId: u.household, amount: '700', contribution: split('600', '100'), planPeriod: plan }));
     const result = await milton.saveControlEntry(prepared.value, null);
     assert.equal(result.ok, true, JSON.stringify(result.errors));
-    const review = prepareControlEntryReview({ id: result.value.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton', reason: 'Prueba', evidenceReference: 'Inventado' }, [result.value]);
+    const review = prepareControlEntryReview({ id: result.value.id, expectedRevision: 1, decision: 'accepted', reviewedBy: 'milton',
+      reason: 'Prueba', evidenceReference: 'Inventado' }, [result.value]);
     assert.equal((await milton.addControlReview(review.record, result.value, review.review, false)).ok, true);
     const loaded = await persistence('fiorella').loadControl();
     assert.equal(loaded.ok, true);
     assert.deepEqual(loaded.records[0].provenance.contribution, split('600', '100'));
     assert.equal(savingsBalance(inspectLedger(loaded.records)).amount, '700');
     assert.deepEqual([loaded.records[0].period, loaded.records[0].planPeriod, loaded.records[0].effectiveDate], [period, plan, '2031-10-12']);
-    const invalid = { ...prepared.value, id: crypto.randomUUID(), provenance: { ...prepared.value.provenance, operationId: crypto.randomUUID(), contribution: split('600', '101') } };
+    const invalid = { ...prepared.value, id: crypto.randomUUID(),
+      provenance: { ...prepared.value.provenance, operationId: crypto.randomUUID(), contribution: split('600', '101') } };
     assert.equal((await milton.saveControlEntry(invalid, null)).ok, false);
-    const commitment = prepareContributionCommitment({ id: crypto.randomUUID(), confirmed: true, contributorId: 'fiorella', period, purpose: 'savings', currency: 'USD', amount: '100', note: 'Acuerdo inventado' }).value;
+    const commitment = prepareContributionCommitment({ id: crypto.randomUUID(), confirmed: true, contributorId: 'fiorella', period,
+      purpose: 'savings', currency: 'USD', amount: '100', note: 'Acuerdo inventado' }).value;
     for (const who of ['fiorella', 'outsider', 'otherOwner']) assert.equal((await persistence(who).saveContributionCommitment(commitment)).ok, false, who);
     assert.equal((await milton.saveContributionCommitment(commitment)).ok, true);
     assert.equal((await persistence('milton').saveContributionCommitment({ ...commitment, id: crypto.randomUUID(), amount: '200' })).ok, false);

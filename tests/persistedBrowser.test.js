@@ -15,7 +15,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
   const data = await persistedFixture();
   const executable = await chromiumPath();
   const profile = await mkdtemp(join(tmpdir(), 'milfi-persisted-test-'));
-  const server = await createServer({ envDir: new URL('./fixtures/no-env/', import.meta.url).pathname, logLevel: 'error', server: { host: '127.0.0.1', port: 0, hmr: false } });
+  const server = await createServer({ envDir: new URL('./fixtures/no-env/', import.meta.url).pathname, logLevel: 'error',
+    server: { host: '127.0.0.1', port: 0, hmr: false } });
   let browser;
   try {
     await server.listen();
@@ -37,10 +38,12 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       if (!process.env.MILFI_CAPTURE_DIR) return;
       await mkdir(process.env.MILFI_CAPTURE_DIR, { recursive: true });
       await browser.evaluate('document.querySelector("main").scrollTop = 0');
-      const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: 390, height: await browser.evaluate('document.querySelector("main").scrollHeight'), scale: 1 } });
+      const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true,
+        clip: { x: 0, y: 0, width: 390, height: await browser.evaluate('document.querySelector("main").scrollHeight'), scale: 1 } });
       await writeFile(join(process.env.MILFI_CAPTURE_DIR, name), Buffer.from(data, 'base64'));
     };
-    const fits = () => browser.evaluate('(() => { const main = document.querySelector("main"); return document.documentElement.scrollWidth <= innerWidth && main.scrollWidth <= main.clientWidth + 1; })()');
+    const fits = () => browser.evaluate('(() => { const main = document.querySelector("main"); ' +
+      'return document.documentElement.scrollWidth <= innerWidth && main.scrollWidth <= main.clientWidth + 1; })()');
 
     await context.test('Fiorella dashboard: real month, planned vs deposited savings, monthly evolution', async () => {
       await mount('fiorella', '/fiorella', '2031-01');
@@ -48,7 +51,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       const body = await text();
       assert.doesNotMatch(body, /· demo|Demostración de esta sesión|Historial real aún no importado|Datos guardados en MilFi|Modo demo/);
       assert.ok(body.includes('S/ 3,000.00'), 'income of the month');
-      assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent.includes("Sin depósitos asignados")'), 'savings deposited in Control');
+      assert.ok(await browser.evaluate('document.querySelector("[data-testid=savings-tracking]").textContent' +
+        '.includes("Sin depósitos asignados")'), 'savings deposited in Control');
       assert.ok(await browser.evaluate('!!document.querySelector("[aria-label=\'Editar ingreso del mes\']")'));
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=couple-savings-chart] svg[role=img]")'));
       assert.equal(await fits(), true);
@@ -75,18 +79,23 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       for (const index of [0, 1]) {
         await browser.evaluate(`document.querySelectorAll("[data-expense-id] button")[${index}].click()`);
         await browser.waitFor('!!document.querySelector("dialog[open] #gv-notes")');
-        details.push(await browser.evaluate('({ source: document.querySelector("dialog[open] [data-testid=expense-source]").textContent, notes: document.getElementById("gv-notes").value, subcategory: document.getElementById("gv-subcategory").value })'));
+        details.push(await browser.evaluate('({ source: document.querySelector("dialog[open] [data-testid=expense-source]").textContent, ' +
+          'notes: document.getElementById("gv-notes").value, subcategory: document.getElementById("gv-subcategory").value })'));
         await browser.evaluate('document.querySelector("dialog[open] button[aria-label=Cerrar]").click()');
         await browser.waitFor('!document.querySelector("dialog[open]")');
       }
       assert.ok(details.some(item => item.source.includes('Cargado del Excel')), JSON.stringify(details));
       assert.ok(details.some(item => item.notes === 'Nota inventada'), JSON.stringify(details));
-      const chip = name => browser.evaluate(`Array.from(document.querySelectorAll("[aria-label=Categoría] button")).find(button => button.textContent === ${JSON.stringify(name)}).click()`);
+      const chip = name => browser.evaluate(`Array.from(document.querySelectorAll("[aria-label=Categoría] button"))` +
+        `.find(button => button.textContent === ${JSON.stringify(name)}).click()`);
       await chip('Salud');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1');
       await chip('Todas');
-      await browser.evaluate('(() => { const input = document.getElementById("gv-filter-text"); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "antojo"); input.dispatchEvent(new Event("input", { bubbles: true })); })()');
-      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1 && document.querySelector("[data-expense-id]").textContent.includes("Antojo")');
+      await browser.evaluate('(() => { const input = document.getElementById("gv-filter-text"); ' +
+        'Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "antojo"); ' +
+        'input.dispatchEvent(new Event("input", { bubbles: true })); })()');
+      await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 1 ' +
+        '&& document.querySelector("[data-expense-id]").textContent.includes("Antojo")');
       assert.equal(await fits(), true);
     });
 
@@ -102,11 +111,13 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
       const summary = await browser.evaluate('document.querySelector("[data-testid=expense-summary]").textContent');
       assert.ok(summary.includes('S/ 122.30') && summary.includes('Parcial'), summary);
-      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=pace-chart] svg[role=img]") && !document.querySelector("[data-testid=fixed-expenses]")'));
+      assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=pace-chart] svg[role=img]") ' +
+        '&& !document.querySelector("[data-testid=fixed-expenses]")'));
       // Keyboard on the tabs: arrows move between the two views.
       await browser.evaluate('document.getElementById("gastos-tab-variables").focus()');
       await browser.page('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowLeft', code: 'ArrowLeft', windowsVirtualKeyCode: 37 });
-      await browser.waitFor('document.getElementById("gastos-tab-fijos").getAttribute("aria-selected") === "true" && document.activeElement.id === "gastos-tab-fijos"');
+      await browser.waitFor('document.getElementById("gastos-tab-fijos").getAttribute("aria-selected") === "true" ' +
+        '&& document.activeElement.id === "gastos-tab-fijos"');
       const totals = await browser.evaluate('document.querySelector("[data-testid=budget-totals]").textContent');
       assert.ok(totals.includes('S/ 90.00') && totals.includes('18/19 subcategorías con gasto'), totals);
       assert.ok(await browser.evaluate('/sin registrar/i.test(document.querySelector("[data-fixed-id=servicios-luz]").textContent)'));
@@ -122,14 +133,18 @@ test('saved data: dashboards, filters and goals render without demo labels and r
     await context.test('Fiorella history and goals: all months filterable; saved goal keeps its attributes', async () => {
       await mount('fiorella', '/fiorella/historial', '2031-02');
       // Opens on the selected month; every month is one filter away, paged.
-      await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1 && document.querySelector("[data-demo-period]").dataset.demoPeriod === "2031-02"');
-      await browser.evaluate('(() => { const select = document.getElementById("history-month"); select.value = "all"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1 ' +
+        '&& document.querySelector("[data-demo-period]").dataset.demoPeriod === "2031-02"');
+      await browser.evaluate('(() => { const select = document.getElementById("history-month"); select.value = "all"; ' +
+        'select.dispatchEvent(new Event("change", { bubbles: true })); })()');
       await browser.waitFor('document.querySelectorAll("[data-demo-period] article").length === 15 && document.body.textContent.includes("Ver más")');
-      await browser.evaluate('(() => { const select = document.getElementById("history-kind"); select.value = "variable-expense"; select.dispatchEvent(new Event("change", { bubbles: true })); })()');
+      await browser.evaluate('(() => { const select = document.getElementById("history-kind"); select.value = "variable-expense"; ' +
+        'select.dispatchEvent(new Event("change", { bubbles: true })); })()');
       await browser.waitFor('document.querySelectorAll("[data-demo-period]").length === 1');
       // Workbook goals in Metas: one list, read-only, finished ones folded; deadline and notes in the detail.
       const finished = structuredClone(data);
-      finished.fiorella.goals.push({ ...structuredClone(data.fiorella.goals[0]), id: crypto.randomUUID(), title: 'Meta lograda inventada', status: 'achieved' });
+      finished.fiorella.goals.push({ ...structuredClone(data.fiorella.goals[0]), id: crypto.randomUUID(),
+        title: 'Meta lograda inventada', status: 'achieved' });
       await mount('fiorella', '/fiorella/metas', '2031-02', finished);
       await browser.waitFor('!!document.querySelector("[data-testid=goal-list] [data-goal-id]")');
       const goals = await browser.evaluate('document.querySelector("[data-testid=goal-list]").textContent');
@@ -143,7 +158,8 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.ok(detail.includes('Fecha límite: Jun 2031') && detail.includes('Notas de prueba') && detail.includes('Del Excel de Fiorella'), detail);
       // Only the workbook's own deadline is a date; the term is a count of months.
       assert.ok(detail.includes('para lograrla en 3 meses') && detail.includes('Plazo: 3 meses') && !detail.includes('para terminar en'), detail);
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => button.textContent === "Editar")'), false);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button"))' +
+        '.some(button => button.textContent === "Editar")'), false);
       assert.equal(await fits(), true);
     });
 
@@ -175,16 +191,21 @@ test('saved data: dashboards, filters and goals render without demo labels and r
 
     await context.test('imported dollar suggestion needs confirmation, plan assignment preserves imported status and updates the light', async () => {
       await mount('milton', '/control', '2031-01');
-      const fill = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById('${id}'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
-      const click = async label => browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === ${JSON.stringify(label)}).click()`);
+      const fill = async (id, value) => browser.evaluate(`(() => { const el = document.getElementById('${id}'); ` +
+        `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(value)}); ` +
+        `el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+      const click = async label => browser.evaluate(`Array.from(document.querySelectorAll('button'))` +
+        `.find(button => button.textContent === ${JSON.stringify(label)}).click()`);
       const openTasks = () => browser.evaluate('document.querySelector("[data-testid=control-tasks] button[aria-expanded=false]")?.click()');
       // Synthetic savings row imported as prepared, with no plan month yet.
       await openTasks();
-      await browser.evaluate(`Array.from(document.querySelectorAll('[data-assign-id]')).find(row => row.textContent.includes('22.50')).querySelector('button').click()`);
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-assign-id]')).find(row => row.textContent.includes('22.50'))` +
+        `.querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("assign-plan")');
       await fill('assign-plan', '2031-01'); await click('Confirmar asignación');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      const february = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr')).find(row => row.dataset.month === '2031-02').textContent`);
+      const february = await browser.evaluate(`Array.from(document.querySelectorAll('[data-testid=control-monthly] tbody tr'))` +
+        `.find(row => row.dataset.month === '2031-02').textContent`);
       assert.ok(february.includes('22.50') && february.includes('Parcial') && february.includes('(plan de enero)'), february);
       await browser.evaluate(`Array.from(document.querySelectorAll('[data-ledger-id] button')).find(button => button.textContent.includes('22.50')).click()`);
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=movement-detail]")');
@@ -192,23 +213,28 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.equal(await browser.evaluate('document.getElementById("review-plan").value'), '2031-01');
       await fill('review-plan', '2031-02'); await click('Guardar mes del plan');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-03"] [data-light]').dataset.light`), 'amarillo');
+      assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-03"] [data-light]')` +
+        `.dataset.light`), 'amarillo');
       assert.equal(await browser.evaluate(`document.querySelector('[data-testid=control-monthly] [data-month="2031-02"] [data-light]').dataset.light`), 'gris');
       assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'));
       await openTasks();
-      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]'))` +
+        `.find(row => row.textContent.includes('confirma el importe en US$')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-amount")');
       assert.equal(await browser.evaluate('document.getElementById("review-amount").value'), '7.5');
       // The old fixture decided PEN for every value; the owner template tested elsewhere leaves this blank.
       await fill('review-reference', 'Extracto inventado');
-      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'), 'opening the suggestion cannot change totals');
+      assert.ok((await browser.evaluate('document.querySelector("[data-testid=control-balance]").textContent')).includes('S/ 22.50'),
+        'opening the suggestion cannot change totals');
       await browser.evaluate('document.getElementById("review-rejected").click()');
       await fill('review-reason', 'No corresponde: prueba inventada'); await click('Rechazar');
       await browser.waitFor('!document.querySelector("dialog[open]")');
-      assert.equal(await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).some(row => row.textContent.includes('confirma el importe en US$'))`), false);
+      assert.equal(await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]'))` +
+        `.some(row => row.textContent.includes('confirma el importe en US$'))`), false);
       // Another invented withdrawal has no source date: both date and period can be completed.
       await openTasks();
-      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]')).find(row => row.textContent.includes('Falta la fecha del retiro')).querySelector('button').click()`);
+      await browser.evaluate(`Array.from(document.querySelectorAll('[data-review-id]'))` +
+        `.find(row => row.textContent.includes('Falta la fecha del retiro')).querySelector('button').click()`);
       await browser.waitFor('!!document.getElementById("review-date")');
       await fill('review-date', '2031-02-20'); await fill('review-period', '2031-02');
       await fill('review-reference', 'Voucher inventado con fecha'); await click('Aceptar');
@@ -223,17 +249,21 @@ test('saved data: dashboards, filters and goals render without demo labels and r
       assert.ok(await browser.evaluate('!document.getElementById("monthly-income") && !document.querySelector("[aria-label=\'Editar ingreso del mes\']")'));
       await mount('milton', '/fiorella/gastos', '2031-02');
       await browser.waitFor('document.querySelectorAll("[data-expense-id]").length === 2');
-      assert.ok(await browser.evaluate('!document.querySelector("[data-expense-id] button") && !document.getElementById("gv-date") && document.body.textContent.includes("Solo consulta")'));
-      assert.ok(await browser.evaluate('!Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Registrar gasto") && !document.querySelector(\'a[href="/fiorella/gastos?nuevo"]\')'));
+      assert.ok(await browser.evaluate('!document.querySelector("[data-expense-id] button") && !document.getElementById("gv-date") ' +
+        '&& document.body.textContent.includes("Solo consulta")'));
+      assert.ok(await browser.evaluate('!Array.from(document.querySelectorAll("button")).some(button => button.textContent === "Registrar gasto") ' +
+        '&& !document.querySelector(\'a[href="/fiorella/gastos?nuevo"]\')'));
       await mount('milton', '/fiorella/gastos?tipo=fijos', '2031-02');
       await browser.waitFor('!!document.querySelector("[data-testid=fixed-expenses]")');
       assert.ok(await browser.evaluate('!document.querySelector("[data-budget-id] button") && !document.body.textContent.includes("Copiar presupuestos")'));
       await mount('milton', '/fiorella/metas', '2031-02');
       await browser.waitFor('!!document.querySelector("[data-goal-id]")');
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button")).some(button => ["Nueva meta", "Editar", "Eliminar"].includes(button.textContent))'), false);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("button"))' +
+        '.some(button => ["Nueva meta", "Editar", "Eliminar"].includes(button.textContent))'), false);
       await browser.evaluate('document.querySelector("[data-goal-id] button").click()');
       await browser.waitFor('!!document.querySelector("dialog[open] [data-testid=goal-detail]")');
-      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button")).some(button => ["Editar", "Eliminar"].includes(button.textContent))'), false);
+      assert.equal(await browser.evaluate('Array.from(document.querySelectorAll("dialog[open] button"))' +
+        '.some(button => ["Editar", "Eliminar"].includes(button.textContent))'), false);
       await mount('milton', '/control', '2031-01');
       await browser.evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Registrar movimiento').click()`);
       await browser.waitFor('!!document.getElementById("control-amount")');
