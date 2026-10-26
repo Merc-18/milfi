@@ -27,7 +27,8 @@ function Table({ rows, selected, toAssign, onAssign }) {
         <td className="p-1.5 tabular-nums">{money(row.expenses)}</td>
         <td className="p-1.5 tabular-nums"><Savings row={row} /></td>
         <td className="p-1.5 tabular-nums">{planText(row)}</td>
-        <td className="p-1.5"><LightWord {...row.light} /><AssignButton items={toAssign.get(row.key)} onAssign={onAssign} /></td>
+        <td className="p-1.5"><div className="flex flex-col items-start"><LightWord {...row.light} />
+          <AssignButton items={toAssign.get(row.key)} onAssign={onAssign} /></div></td>
         <td className="p-1.5 tabular-nums">{money(row.withdrawals)}</td>
       </tr>)}</tbody>
     </table>

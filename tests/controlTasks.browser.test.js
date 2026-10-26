@@ -68,7 +68,12 @@ test('Control tasks: one count everywhere, plan assignment (single and batch), U
     const capture = async name => {
       if (!process.env.MILFI_CAPTURE_DIR) return;
       await mkdir(process.env.MILFI_CAPTURE_DIR, { recursive: true });
-      const { data } = await browser.page('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+      // The whole page in one viewport, so the fixed bottom bar stays at the bottom.
+      const width = await browser.evaluate('innerWidth');
+      const height = await browser.evaluate('document.documentElement.scrollHeight');
+      await browser.page('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
+      const { data } = await browser.page('Page.captureScreenshot', { format: 'png' });
+      await size(width);
       await writeFile(join(process.env.MILFI_CAPTURE_DIR, name), Buffer.from(data, 'base64'));
     };
 

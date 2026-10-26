@@ -60,7 +60,9 @@ function Batch({ items, onDone }) {
     <ul className="space-y-2">{pending.map(item => <li key={item.entry.record.id}>
       <label className="flex items-start gap-3 min-h-11 text-sm tabular-nums">
         <input type="checkbox" className="mt-1 shrink-0" data-assign-check={item.entry.record.id}
-          checked={checked.has(item.entry.record.id)} onChange={() => toggle(item.entry.record.id)} />{assignmentText(item)}</label>
+          checked={checked.has(item.entry.record.id)} onChange={() => toggle(item.entry.record.id)} />
+        <span>{assignmentText(item)}{item.entry.record.description
+          && <span className="block text-xs text-texto-light">{item.entry.record.description}</span>}</span></label>
     </li>)}</ul>
     <button type="button" className={buttonClass} disabled={!checked.size || saving} onClick={confirm}>
       Confirmar {plural(checked.size, 'asignación', 'asignaciones')}</button>
