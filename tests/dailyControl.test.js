@@ -31,7 +31,7 @@ function saved(fields = {}, reviewed = true) {
 test('daily version: readable build is fixed, in Peru, and varies only with compilation metadata', () => {
   const stamp = buildStamp(new Date('2026-10-23T19:41:03Z'));
   assert.equal(stamp, '23102026144103');
-  assert.deepEqual(readableBuild(stamp), { label: '23/10/2026 · 14:41', dateTime: '2026-10-23T14:41:03-05:00' });
+  assert.deepEqual(readableBuild(stamp), { label: '23/10/2026 · 14:41', short: '23/10/2026 14:41', dateTime: '2026-10-23T14:41:03-05:00' });
   assert.equal(readableBuild(stamp).label, readableBuild(stamp).label);
   assert.notDeepEqual(readableBuild(stamp), readableBuild(buildStamp(new Date('2026-10-24T03:00:00Z'))));
   assert.equal(readableBuild('31022026144103'), null);

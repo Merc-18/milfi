@@ -24,9 +24,11 @@ export default function Layout() {
           <div className="flex min-w-0 flex-col">
             <NavLink to="/" className="flex items-center gap-2 font-bold text-lg min-h-11">
               <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl object-cover" />MilFi</NavLink>
-            <span className="text-[10px] leading-tight tabular-nums text-texto" data-testid="build-stamp" title={versionLabel} aria-label={versionLabel}>
-              <time className="block" dateTime={BUILD_DETAILS?.dateTime}>Actualizado: {BUILD_DETAILS?.label ?? 'sin fecha disponible'}</time>
-              <span className="block" data-testid="commit-version">Versión {APP_VERSION}</span>
+            {/* One small line, e.g. "Actualizado 26/10/2026 09:37 · 4884fa2"; the full label is in title/aria-label. */}
+            <span className="whitespace-nowrap text-[10px] leading-tight tabular-nums text-texto" data-testid="build-stamp"
+              title={versionLabel} aria-label={versionLabel}>
+              Actualizado <time dateTime={BUILD_DETAILS?.dateTime}>{BUILD_DETAILS?.short ?? 'sin fecha'}</time>
+              {' · '}<span data-testid="commit-version">{APP_VERSION}</span>
             </span>
           </div>
           <nav aria-label="Módulos de MilFi" className="hidden md:flex items-center gap-1">

@@ -174,18 +174,25 @@ test('daily PWA: two real compilations replace cached version and retain fixed P
     await new Promise(resolveServer => server.listen(0, '127.0.0.1', resolveServer));
     browser = await openBrowser(await chromiumPath(), join(folder, 'profile'));
     await browser.page('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/` });
-    await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === 'Versión ${builds[0].version}'`);
+    await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === '${builds[0].version}'`);
     await browser.waitFor('!!navigator.serviceWorker.controller');
     const first = await browser.evaluate('({ label: document.querySelector("[data-testid=build-stamp]").textContent, time: document.querySelector("[data-testid=build-stamp] time").dateTime })');
-    assert.match(first.label, /Actualizado: \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2}/);
+    assert.match(first.label, /^Actualizado \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} · \S+$/);
+    // One line that fits the 320 px header, with the full label for assistive technology.
+    await browser.page('Emulation.setDeviceMetricsOverride', { width: 320, height: 700, deviceScaleFactor: 1, mobile: true });
+    const stamp = await browser.evaluate(`(() => { const el = document.querySelector('[data-testid=build-stamp]'); const bar = document.querySelector('header > div');
+      return { lines: Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)), label: el.getAttribute('aria-label'),
+        title: el.title, fits: bar.scrollWidth <= bar.clientWidth && document.documentElement.scrollWidth <= innerWidth }; })()`);
+    assert.deepEqual([stamp.lines, stamp.fits, stamp.title === stamp.label], [1, true, true], JSON.stringify(stamp));
+    assert.match(stamp.label, /^Versión \S+, compilado \d{2}\/\d{2}\/\d{4} · \d{2}:\d{2} \(Perú\)$/);
     const builtAt = new Date(first.time).getTime();
     assert.ok(builtAt >= builds[0].started - 1000 && builtAt <= builds[0].finished, first.time);
-    await browser.page('Page.reload'); await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === 'Versión ${builds[0].version}'`);
+    await browser.page('Page.reload'); await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === '${builds[0].version}'`);
     assert.equal(await browser.evaluate('document.querySelector("[data-testid=build-stamp] time").dateTime'), first.time);
     active = builds[1].dir;
     await browser.evaluate('(async () => { const registration = await navigator.serviceWorker.getRegistration(); await registration.update(); return true; })()');
-    await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === 'Versión ${builds[1].version}'`);
-    await browser.page('Page.reload'); await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === 'Versión ${builds[1].version}'`);
+    await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === '${builds[1].version}'`);
+    await browser.page('Page.reload'); await browser.waitFor(`document.querySelector('[data-testid=commit-version]')?.textContent === '${builds[1].version}'`);
     assert.equal(await browser.evaluate(`document.querySelector('[data-testid=build-stamp]').textContent.includes('${builds[0].version}')`), false);
     assert.deepEqual(browser.exceptions, []);
   } finally {

@@ -699,7 +699,7 @@ test('browser regression: redirects, simulation history and financial isolation'
         const badge = document.querySelector('[data-testid=demo-mode]').getBoundingClientRect(); const bar = document.querySelector('header > div');
         return { stamp: document.querySelector('[data-testid=build-stamp]').textContent, overlap: stamp.right > badge.left && stamp.bottom > badge.top,
           fits: bar.scrollWidth <= bar.clientWidth && document.documentElement.scrollWidth <= document.documentElement.clientWidth, width: stamp.width }; })()`);
-      assert.ok(/Actualizado:/.test(header.stamp) && /Versión/.test(header.stamp) && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
+      assert.ok(/^Actualizado (sin fecha|\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}) · \S+$/.test(header.stamp) && !header.overlap && header.fits && header.width > 0, JSON.stringify(header));
       await capture('26-cabecera-320.png');
       assert.equal(await browser.evaluate('document.querySelectorAll("#login-email, #login-password").length'), 0);
       assert.ok(await browser.evaluate('!!document.querySelector("[data-testid=demo-mode]")'));
