@@ -52,7 +52,8 @@ export default function CumulativeLine({ series, label }) {
           : `Gasto acumulado por día; el ritmo ideal reparte ${formatAmount(allocation)} en ${days} días`}</caption>
         <thead><tr><th scope="col">Día</th><th scope="col">Acumulado</th></tr></thead>
         <tbody>{reached.map(point => <tr key={point.day}><th scope="row">{point.day}</th><td>{formatAmount(point.actual)}</td></tr>)}
-          {later.map(point => <tr key={point.day}><th scope="row">{point.day}, con fecha posterior a hoy</th><td>{formatAmount(point.actual)}</td></tr>)}</tbody>
+          {later.map(point => <tr key={point.day}><th scope="row">{point.day}, con fecha posterior a hoy</th>
+            <td>{formatAmount(point.actual)}</td></tr>)}</tbody>
       </table>
     </div>
   </figure>;

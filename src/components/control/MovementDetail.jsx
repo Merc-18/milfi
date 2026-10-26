@@ -20,10 +20,13 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
   const rows = [
     ['Tipo', kindName(record.kind)], ['Destino', purposeName(record.purpose)],
     ...(record.kind === 'deposit' ? [['Aportante', personName(record.contributorId)]] : []),
-    ['Monto', controlMoney(record.amount, record.currency)], [record.kind === 'deposit' ? 'Fecha de recepción' : 'Fecha del retiro', record.effectiveDate ?? 'Sin fecha'],
+    ['Monto', controlMoney(record.amount, record.currency)],
+    [record.kind === 'deposit' ? 'Fecha de recepción' : 'Fecha del retiro', record.effectiveDate ?? 'Sin fecha'],
     ['Mes recibido', record.period ? formatPeriod(record.period) : 'Sin mes'],
     ...(savings ? [['Mes del plan asignado', record.planPeriod ? formatPeriod(record.planPeriod) : 'Sin asignación confirmada']] : []),
-    ...(record.kind === 'deposit' ? [['Tipo de aporte', contributionLabel(record)], ...(parts.kind !== 'unclassified' && parts.kind !== 'invalid' ? [['Parte habitual', controlMoney(parts.regular, record.currency)], ['Parte extraordinaria', controlMoney(parts.extra, record.currency)]] : [])] : []),
+    ...(record.kind === 'deposit' ? [['Tipo de aporte', contributionLabel(record)]] : []),
+    ...(record.kind === 'deposit' && parts.kind !== 'unclassified' && parts.kind !== 'invalid'
+      ? [['Parte habitual', controlMoney(parts.regular, record.currency)], ['Parte extraordinaria', controlMoney(parts.extra, record.currency)]] : []),
     ['Estado', statusName(entry.status)],
     ['Registrado por', excel ? 'Cargado del Excel' : personName(record.actorId)],
     ['Procedencia', excel ? `Excel: ${record.provenance.sheet}!${record.provenance.operation?.amountRef ?? ''}`
@@ -31,7 +34,8 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
     ...(record.description ? [['Descripción', record.description]] : []),
   ];
   return <div className="space-y-4" data-testid="movement-detail">
-    {reviewReasons(entry, entries).reasons.filter(reason => reason.includes('invertidos')).map(reason => <p key={reason} role="note" className="text-sm">{reason}. Confirma la fecha en el documento original.</p>)}
+    {reviewReasons(entry, entries).reasons.filter(reason => reason.includes('invertidos')).map(reason => <p key={reason} role="note" className="text-sm">
+      {reason}. Confirma la fecha en el documento original.</p>)}
     {currencyOriginWarning(record) && <p role="note" className="text-sm">{currencyOriginWarning(record)}</p>}
     <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
       {rows.map(([label, value]) => <div key={label} className="contents"><dt className="text-texto-light">{label}</dt>
@@ -40,7 +44,8 @@ export default function MovementDetail({ entry, events, userId, manage, entries,
     {excel && record.provenance.original?.amount != null && <p className="text-xs">Valor original en el Excel: «{record.provenance.original.amount}»</p>}
     {manage && <div className="flex flex-wrap gap-2">
       {!excel && <button type="button" className={quietClass} onClick={onEdit}>Editar</button>}
-      {(entry.status === 'pending' || (savings && entry.status !== 'rejected')) && <button type="button" className={buttonClass} onClick={onReview}>{entry.status !== 'pending' && record.planPeriod ? 'Cambiar mes del plan' : 'Resolver'}</button>}
+      {(entry.status === 'pending' || (savings && entry.status !== 'rejected')) && <button type="button" className={buttonClass} onClick={onReview}>
+        {entry.status !== 'pending' && record.planPeriod ? 'Cambiar mes del plan' : 'Resolver'}</button>}
     </div>}
     <section className="space-y-1 text-sm" aria-label="Revisiones">
       <h3 className="font-bold">Revisiones</h3>

@@ -7,7 +7,8 @@ export const purposeName = purpose => ({ expenses: 'Gastos', savings: 'Ahorro' }
 // Review states as palette tones; the label always states the state in words.
 export const statusTone = status => ({ pending: 'aviso', invalid: 'aviso', rejected: 'excedido' }[status] ?? 'neutral');
 export const kindName = kind => kind === 'deposit' ? 'Depósito' : 'Retiro';
-export const statusName = status => ({ reviewed: 'Revisado', imported: 'Cargado del Excel', pending: 'Por revisar', rejected: 'Rechazado', invalid: 'Inválido' }[status]
+export const statusName = status => ({ reviewed: 'Revisado', imported: 'Cargado del Excel', pending: 'Por revisar', rejected: 'Rechazado',
+  invalid: 'Inválido' }[status]
   ?? 'Por revisar');
 
 // Currency is always explicit. Preserve every decimal digit, without Number/rounding.
